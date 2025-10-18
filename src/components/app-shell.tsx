@@ -58,8 +58,8 @@ export default function AppShell({ children, session }: AppShellProps) {
           {/* Page content */}
           <main className="flex-1 overflow-y-auto bg-gray-50/50" role="main">
             <div className="h-full">
-              <div className="h-full bg-white lg:ml-59 xl:ml-55">
-                <div className="px-4 sm:px-6 lg:pl-0 lg:pr-8 xl:pl-0 xl:pr-8 py-8">
+              <div className="h-full bg-white lg:ml-12 xl:ml-8">
+                <div className="px-4 sm:px-6 lg:pl-14 lg:pr-8 xl:pl-16 xl:pr-8 py-8">
                   {children}
                 </div>
               </div>

@@ -17,6 +17,13 @@ export const navigationItems: NavigationItem[] = [
     description: 'Trial management'
   },
   {
+    name: 'Mitra',
+    href: '/app/mitra',
+    icon: 'users',
+    roles: ['ADMIN', 'OWNER', 'STAFF'],
+    description: 'Partner management'
+  },
+  {
     name: 'Customers',
     href: '/app/customers',
     icon: 'users',
