@@ -31,6 +31,7 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
   const [trial, setTrial] = useState<TrialData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [converting, setConverting] = useState(false);
 
   useEffect(() => {
     const fetchTrial = async () => {
@@ -40,10 +41,15 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
         const response = await fetch(`/api/trials/${trialId}`);
         
         if (response.ok) {
-          const data = await response.json();
-          setTrial(data);
+          const result = await response.json();
+          if (result.success && result.data) {
+            setTrial(result.data);
+          } else {
+            setError('Failed to load trial details');
+          }
         } else {
-          setError('Failed to load trial details');
+          const errorData = await response.json().catch(() => ({}));
+          setError(errorData.message || 'Failed to load trial details');
         }
       } catch (err) {
         setError('Failed to load trial details');
@@ -54,6 +60,39 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
 
     fetchTrial();
   }, [trialId]);
+
+  const handleConvertTrial = async () => {
+    if (!trial || converting) return;
+
+    if (!confirm(`Are you sure you want to convert trial "${trial.customerName}" to a customer?`)) {
+      return;
+    }
+
+    try {
+      setConverting(true);
+      const response = await fetch(`/api/trials/${trialId}/convert`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          alert('Trial successfully converted to customer!');
+          onClose(); // Close the modal after conversion
+        } else {
+          alert(result.message || 'Failed to convert trial');
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        alert(errorData.message || 'Failed to convert trial');
+      }
+    } catch (err) {
+      console.error('Error converting trial:', err);
+      alert('Failed to convert trial');
+    } finally {
+      setConverting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -151,6 +190,12 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
                     <div className="mt-1 text-sm text-gray-900">{trial.postalCode}</div>
                   </div>
                 </div>
+                {trial.village && (
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-gray-700">Village</label>
+                    <div className="mt-1 text-sm text-gray-900">{trial.village}</div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -167,10 +212,14 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
                       {assignment.status}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Trial Date</label>
-                      <div className="mt-1 text-sm text-gray-900">{assignment.trialDate}</div>
+                      <label className="block text-sm font-medium text-gray-700">Trial Start</label>
+                      <div className="mt-1 text-sm text-gray-900">{assignment.trialStart}</div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Trial End</label>
+                      <div className="mt-1 text-sm text-gray-900">{assignment.trialEnd || 'Ongoing'}</div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Assigned Cleaner</label>
@@ -182,6 +231,16 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
                       </div>
                     </div>
                   </div>
+                  {assignment.ltv !== undefined && (
+                    <div className="mt-3">
+                      <label className="block text-sm font-medium text-gray-700">LTV (Months)</label>
+                      <div className="mt-1">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                          {assignment.ltv} months
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   {assignment.reasonForNotConverting && (
                     <div className="mt-3">
                       <label className="block text-sm font-medium text-gray-700">Reason for Not Converting</label>
@@ -244,7 +303,14 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+        <div className="px-6 py-4 border-t border-gray-200 flex justify-between">
+          <button 
+            onClick={handleConvertTrial}
+            disabled={converting}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {converting ? 'Converting...' : 'Convert to Customer'}
+          </button>
           <button onClick={onClose} className="btn-primary">
             Close
           </button>

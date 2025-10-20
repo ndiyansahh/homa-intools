@@ -1,155 +1,274 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { customerDB, regionDB } from '@/lib/schema';
+import { sql, and, or, eq } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { TrialDetail, TrialData } from '@/types/trial';
 import { logAuditEvent } from '@/lib/logger';
 
-// Import trial data from main route - in production this would be from database
-// For now, we'll duplicate the structure but in real app this would be shared
-let trialsData: TrialData[] = [
-  {
-    id: '1',
-    customerName: 'Handi Sulyansah',
-    acquisition: 'HOMA',
-    address: '1 Park Residences',
-    district: 'Jl Greenlake',
-    city: 'Tangerang',
-    postalCode: '15148',
-    residentialType: 'House',
-    assignments: [
-      {
-        id: '1a',
-        trialDate: '25/11/2022',
-        assignedCleaner: 'Syeila',
-        status: 'Not Converted',
-        reasonForNotConverting: 'Schedule conflict'
-      },
-      {
-        id: '1b',
-        trialDate: '25/11/2023',
-        assignedCleaner: 'Imam',
-        status: 'Converted'
-      }
-    ],
-    notes: 'Customer from HOMA acquisition, initially had scheduling issues but converted on second trial',
-    createdAt: '2022-11-20T10:00:00Z',
-    updatedAt: '2023-11-25T14:30:00Z',
-    isDeleted: false,
-  },
-  {
-    id: '2',
-    customerName: 'Sarah Williams',
-    acquisition: 'Altrix',
-    address: 'Apartment 15B Green Tower',
-    district: 'Jl Sudirman',
-    city: 'Jakarta',
-    postalCode: '12190',
-    residentialType: 'Apartment',
-    assignments: [
-      {
-        id: '2a',
-        trialDate: '15/12/2025',
-        assignedCleaner: 'Handi',
-        status: 'Stalling/Postpone',
-        reasonForNotConverting: 'Needs more time to decide'
-      }
-    ],
-    notes: 'Altrix lead, currently postponing decision',
-    createdAt: '2025-10-10T10:00:00Z',
-    updatedAt: '2025-10-10T10:00:00Z',
-    isDeleted: false,
-  },
-  {
-    id: '3',
-    customerName: 'Michael Chen',
-    acquisition: 'HOMA',
-    address: 'Office Suite 501, Plaza Indonesia',
-    district: 'Jl Thamrin',
-    city: 'Jakarta',
-    postalCode: '10350',
-    residentialType: 'Office Space',
-    assignments: [
-      {
-        id: '3a',
-        trialDate: '20/12/2025',
-        assignedCleaner: 'Syeila',
-        status: 'Converted'
-      }
-    ],
-    notes: 'Office space cleaning, converted immediately after trial',
-    createdAt: '2025-10-11T14:30:00Z',
-    updatedAt: '2025-10-11T14:30:00Z',
-    isDeleted: false,
-  },
-];
+interface RouteParams {
+  params: { id: string };
+}
+
+// Helper function to calculate LTV in months using the formula: DATEDIF(start, end || today, "m")
+function calculateLTV(trialStart: string, trialEnd?: string): number {
+  try {
+    // Parse dd/mm/yyyy format
+    const [startDay, startMonth, startYear] = trialStart.split('/').map(Number);
+    const startDate = new Date(startYear, startMonth - 1, startDay);
+    
+    let endDate: Date;
+    if (trialEnd) {
+      const [endDay, endMonth, endYear] = trialEnd.split('/').map(Number);
+      endDate = new Date(endYear, endMonth - 1, endDay + 1); // Add 1 day as per formula
+    } else {
+      endDate = new Date(); // Today's date
+    }
+    
+    // Calculate difference in months
+    const yearDiff = endDate.getFullYear() - startDate.getFullYear();
+    const monthDiff = endDate.getMonth() - startDate.getMonth();
+    const dayDiff = endDate.getDate() - startDate.getDate();
+    
+    let totalMonths = yearDiff * 12 + monthDiff;
+    
+    // If end day is before start day, subtract a month
+    if (dayDiff < 0) {
+      totalMonths -= 1;
+    }
+    
+    return Math.max(0, totalMonths);
+  } catch (error) {
+    console.error('Error calculating LTV:', error);
+    return 0;
+  }
+}
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+  { params }: RouteParams
+): Promise<NextResponse> {
   try {
     const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session && process.env.NODE_ENV !== 'development') {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
     // Check RBAC - ADMIN/OWNER/STAFF can view
-    if (!['ADMIN', 'OWNER', 'STAFF'].includes(session.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (session && !['ADMIN', 'OWNER', 'STAFF'].includes(session.role)) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden' },
+        { status: 403 }
+      );
     }
 
-    const trial = trialsData.find(t => t.id === params.id);
-
-    if (!trial || trial.isDeleted) {
-      return NextResponse.json({ error: 'Trial not found' }, { status: 404 });
+    const trialId = params.id;
+    if (!trialId) {
+      return NextResponse.json(
+        { success: false, message: 'Trial ID is required' },
+        { status: 400 }
+      );
     }
 
-    // Return the full trial data (TrialDetail is now same as TrialData)
-    return NextResponse.json(trial);
+    try {
+      // Get trial customer from customerDB where status = 'Trial'
+      const trialResult = await db
+        .select()
+        .from(customerDB)
+        .where(
+          and(
+            eq(customerDB.id, trialId),
+            eq(customerDB.subscriptionStatus, 'Trial'),
+            or(eq(customerDB.isDeleted, false), sql`${customerDB.isDeleted} IS NULL`)
+          )
+        )
+        .limit(1);
+
+      if (trialResult.length === 0) {
+        return NextResponse.json(
+          { success: false, message: 'Trial customer not found' },
+          { status: 404 }
+        );
+      }
+
+      const customer = trialResult[0];
+
+      // Extract trial assignment details from customer notes
+      const cleanerMatch = customer.customerNotes?.match(/Assigned cleaner:\s*([^-\n]+)/i);
+      const assignedCleaner = cleanerMatch ? cleanerMatch[1].trim() : '';
+
+      // Determine acquisition from customer notes
+      const acquisition: 'HOMA' | 'Altrix' = 
+        customer.customerNotes?.toLowerCase().includes('altrix') ? 'Altrix' : 'HOMA';
+
+      // Determine residential type from subscription package or address
+      let residentialType: 'House' | 'Office Space' | 'Apartment' = 'House';
+      if (customer.subscriptionPackage?.toLowerCase().includes('office')) {
+        residentialType = 'Office Space';
+      } else if (customer.address?.toLowerCase().includes('apartment')) {
+        residentialType = 'Apartment';
+      }
+
+      // Format trial start date from subscription start
+      let trialStartFormatted = '';
+      if (customer.subscriptionStart) {
+        const date = new Date(customer.subscriptionStart);
+        trialStartFormatted = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+      }
+
+      // Format trial end date from subscription end (if exists)
+      let trialEndFormatted: string | undefined;
+      if (customer.subscriptionEnd) {
+        const date = new Date(customer.subscriptionEnd);
+        trialEndFormatted = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+      }
+
+      // Calculate LTV using the specified formula
+      const ltv = trialStartFormatted ? calculateLTV(trialStartFormatted, trialEndFormatted) : 0;
+
+      // Create assignment with new structure (trialStart/trialEnd instead of trialDate)
+      const assignments = [];
+      if (assignedCleaner && trialStartFormatted) {
+        assignments.push({
+          id: `${customer.id}_assignment`,
+          trialStart: trialStartFormatted,
+          trialEnd: trialEndFormatted,
+          assignedCleaner,
+          status: 'Not Converted' as const, // Default status for trials
+          reasonForNotConverting: undefined,
+          ltv,
+        });
+      }
+
+      // Use customer data
+      const trialData: TrialData = {
+        id: customer.id,
+        customerName: customer.customerName,
+        acquisition,
+        address: customer.address,
+        district: customer.district || '',
+        city: customer.city,
+        village: customer.village,
+        postalCode: customer.postalCode || '',
+        residentialType,
+        assignments,
+        notes: customer.customerNotes || '',
+        createdAt: customer.createdAt?.toISOString() || new Date().toISOString(),
+        updatedAt: customer.updatedAt?.toISOString() || new Date().toISOString(),
+        isDeleted: customer.isDeleted || false,
+      };
+
+      return NextResponse.json({
+        success: true,
+        data: trialData,
+      });
+
+    } catch (dbError) {
+      console.error('Database error during trial detail fetch:', dbError);
+      
+      // Return a friendly error message
+      return NextResponse.json(
+        { success: false, message: 'Trial customer not found or database unavailable' },
+        { status: 404 }
+      );
+    }
+
   } catch (error) {
     console.error('Get trial detail error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: 'Failed to fetch trial details' },
+      { status: 500 }
+    );
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+  { params }: RouteParams
+): Promise<NextResponse> {
   try {
     const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session && process.env.NODE_ENV !== 'development') {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    // Check RBAC - ADMIN/OWNER/STAFF can delete
-    if (!['ADMIN', 'OWNER', 'STAFF'].includes(session.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // Check RBAC - only ADMIN can delete
+    if (session && session.role !== 'ADMIN') {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden - Only administrators can delete trials' },
+        { status: 403 }
+      );
     }
 
-    const trialIndex = trialsData.findIndex(t => t.id === params.id);
-    
-    if (trialIndex === -1 || trialsData[trialIndex].isDeleted) {
-      return NextResponse.json({ error: 'Trial not found' }, { status: 404 });
+    const trialId = params.id;
+    if (!trialId) {
+      return NextResponse.json(
+        { success: false, message: 'Trial ID is required' },
+        { status: 400 }
+      );
     }
 
-    // Soft delete
-    trialsData[trialIndex].isDeleted = true;
-    trialsData[trialIndex].updatedAt = new Date().toISOString();
+    try {
+      // Check if trial customer exists
+      const existingCustomer = await db
+        .select()
+        .from(customerDB)
+        .where(
+          and(
+            eq(customerDB.id, trialId),
+            eq(customerDB.subscriptionStatus, 'Trial')
+          )
+        )
+        .limit(1);
 
-    // Log audit event
-    logAuditEvent({
-      action: 'trial_deleted',
-      userId: session.userId,
-      email: session.email,
-      details: {
-        trialId: trialsData[trialIndex].id,
-        customerName: trialsData[trialIndex].customerName,
-      },
-    });
+      if (existingCustomer.length === 0) {
+        return NextResponse.json(
+          { success: false, message: 'Trial customer not found' },
+          { status: 404 }
+        );
+      }
 
-    return new NextResponse(null, { status: 204 });
+      // Soft delete trial customer
+      await db
+        .update(customerDB)
+        .set({
+          isDeleted: true,
+          updatedAt: new Date(),
+        })
+        .where(eq(customerDB.id, trialId));
+
+      // Log audit event
+      if (session) {
+        await logAuditEvent(session.userId, 'TRIAL_CUSTOMER_SOFT_DELETED', {
+          customerId: trialId,
+          customerName: existingCustomer[0].customerName,
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Trial customer soft deleted successfully',
+      });
+
+    } catch (dbError) {
+      console.error('Database error during trial deletion:', dbError);
+      return NextResponse.json(
+        { success: false, message: 'Failed to delete trial - database error' },
+        { status: 500 }
+      );
+    }
+
   } catch (error) {
     console.error('Delete trial error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: 'Failed to delete trial' },
+      { status: 500 }
+    );
   }
 }

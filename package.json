@@ -10,6 +10,7 @@
     "type-check": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:init": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
     "db:studio": "drizzle-kit studio"
   },
@@ -25,6 +26,7 @@
     "@types/react-dom": "^19.2.1",
     "autoprefixer": "^10.4.21",
     "bcryptjs": "^3.0.2",
+    "dotenv": "^17.2.3",
     "drizzle-orm": "^0.35.3",
     "eslint": "^9.37.0",
     "eslint-config-next": "^15.5.4",

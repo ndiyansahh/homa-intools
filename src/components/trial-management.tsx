@@ -29,16 +29,16 @@ const residentialColors = {
 };
 
 // Helper functions untuk konversi format tanggal
-const convertToDateInputFormat = (mmddyyyy: string): string => {
-  if (!mmddyyyy || mmddyyyy.length !== 10) return '';
-  const [month, day, year] = mmddyyyy.split('/');
+const convertToDateInputFormat = (ddmmyyyy: string): string => {
+  if (!ddmmyyyy || ddmmyyyy.length !== 10) return '';
+  const [day, month, year] = ddmmyyyy.split('/');
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 };
 
 const convertFromDateInputFormat = (yyyymmdd: string): string => {
   if (!yyyymmdd) return '';
   const [year, month, day] = yyyymmdd.split('-');
-  return `${month}/${day}/${year}`;
+  return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
 };
 
 export default function TrialManagement({ session }: TrialManagementProps) {
@@ -55,10 +55,12 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     address: '',
     district: '',
     city: '',
+    village: '',
     postalCode: '',
     residentialType: 'House',
     assignments: [{
-      trialDate: '',
+      trialStart: '',
+      trialEnd: '',
       assignedCleaner: '',
       status: 'Not Converted',
     }],
@@ -83,8 +85,8 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     totalPages: 0,
   });
 
-  // Available cleaners list (from PRD sample data)
-  const availableCleaners = ['Handi', 'Syeila', 'Imam'];
+  // Available cleaners list (matching customer API)
+  const availableCleaners = ['Ardi', 'Inem', 'Siti', 'Budi', 'Ani', 'Dewi', 'Rina', 'Tono', 'Wati', 'Didi', 'Maya', 'Joko'];
 
   const fetchTrials = async () => {
     try {
@@ -101,13 +103,26 @@ export default function TrialManagement({ session }: TrialManagementProps) {
 
       const response = await fetch(`/api/trials?${params}`);
       if (response.ok) {
-        const data: TrialsResponse = await response.json();
-        setTrials(data.items);
-        setPagination({
-          page: data.page,
-          total: data.total,
-          totalPages: data.totalPages,
-        });
+        const result = await response.json();
+        
+        // Handle new API response format
+        if (result.success && result.data) {
+          setTrials(result.data);
+          setPagination({
+            page: result.page || result.pagination?.page || 1,
+            total: result.total || result.pagination?.total || 0,
+            totalPages: result.totalPages || result.pagination?.totalPages || 0,
+          });
+        } else {
+          // Fallback for old format
+          const data: TrialsResponse = result;
+          setTrials(data.items);
+          setPagination({
+            page: data.page,
+            total: data.total,
+            totalPages: data.totalPages,
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching trials:', error);
@@ -129,7 +144,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
       
       // Filter out empty assignments
       const validAssignments = formData.assignments.filter(assignment => 
-        assignment.trialDate.trim() && assignment.assignedCleaner.trim()
+        assignment.trialStart.trim() && assignment.assignedCleaner.trim()
       );
 
       if (validAssignments.length === 0) {
@@ -147,27 +162,34 @@ export default function TrialManagement({ session }: TrialManagementProps) {
       });
 
       if (response.ok) {
-        // Reset form
-        setFormData({
-          customerName: '',
-          acquisition: 'HOMA',
-          address: '',
-          district: '',
-          city: '',
-          postalCode: '',
-          residentialType: 'House',
-          assignments: [{
-            trialDate: '',
-            assignedCleaner: '',
-            status: 'Not Converted',
-          }],
-          notes: '',
-        });
-        setShowForm(false);
-        fetchTrials();
+        const result = await response.json();
+        if (result.success) {
+          // Reset form
+          setFormData({
+            customerName: '',
+            acquisition: 'HOMA',
+            address: '',
+            district: '',
+            city: '',
+            village: '',
+            postalCode: '',
+            residentialType: 'House',
+            assignments: [{
+              trialStart: '',
+              trialEnd: '',
+              assignedCleaner: '',
+              status: 'Not Converted',
+            }],
+            notes: '',
+          });
+          setShowForm(false);
+          fetchTrials();
+        } else {
+          alert(result.message || 'Failed to create trial');
+        }
       } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to create trial');
+        const errorResult = await response.json().catch(() => ({}));
+        alert(errorResult.message || errorResult.error || 'Failed to create trial');
       }
     } catch (error) {
       console.error('Error creating trial:', error);
@@ -197,7 +219,8 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     setFormData(prev => ({
       ...prev,
       assignments: [...prev.assignments, {
-        trialDate: '',
+        trialStart: '',
+        trialEnd: '',
         assignedCleaner: '',
         status: 'Not Converted',
       }]
@@ -294,6 +317,19 @@ export default function TrialManagement({ session }: TrialManagementProps) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Village
+                </label>
+                <input
+                  type="text"
+                  value={formData.village || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, village: e.target.value }))}
+                  className="input-field"
+                  placeholder="Kelurahan/Desa"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Postal Code *
                 </label>
                 <input
@@ -383,16 +419,27 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                         </button>
                       )}
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Trial Date *
+                          Trial Start *
                         </label>
                         <input
                           type="date"
                           required
-                          value={assignment.trialDate ? convertToDateInputFormat(assignment.trialDate) : ''}
-                          onChange={(e) => updateAssignment(index, 'trialDate', convertFromDateInputFormat(e.target.value))}
+                          value={assignment.trialStart ? convertToDateInputFormat(assignment.trialStart) : ''}
+                          onChange={(e) => updateAssignment(index, 'trialStart', convertFromDateInputFormat(e.target.value))}
+                          className="input-field"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Trial End
+                        </label>
+                        <input
+                          type="date"
+                          value={assignment.trialEnd ? convertToDateInputFormat(assignment.trialEnd) : ''}
+                          onChange={(e) => updateAssignment(index, 'trialEnd', convertFromDateInputFormat(e.target.value))}
                           className="input-field"
                         />
                       </div>
@@ -648,9 +695,15 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                         ) : (
                           <span className="text-sm text-gray-500">-</span>
                         )}
-                        {trial.nextTrialDate && (
+                        {trial.nextTrialStartDate && (
                           <div className="text-xs text-gray-500 mt-1">
-                            Next: {trial.nextTrialDate}
+                            Start: {trial.nextTrialStartDate}
+                            {trial.nextTrialEndDate && ` - End: ${trial.nextTrialEndDate}`}
+                          </div>
+                        )}
+                        {trial.ltv !== undefined && (
+                          <div className="text-xs text-blue-600 mt-1">
+                            LTV: {trial.ltv} months
                           </div>
                         )}
                       </td>

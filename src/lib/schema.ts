@@ -10,24 +10,24 @@ import {
   serial,
   index,
   primaryKey,
+  date,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // Region Table - Master Data
 export const regionDB = pgTable('region_db', {
   id: uuid('id').defaultRandom().primaryKey(),
-  regionName: varchar('region_name', { length: 100 }).notNull(),
+  regionName: varchar('region_name', { length: 255 }).notNull(),
   province: varchar('province', { length: 100 }).notNull(),
   city: varchar('city', { length: 100 }).notNull(),
-  district: varchar('district', { length: 100 }),
-  postalCode: varchar('postal_code', { length: 10 }),
+  district: varchar('district', { length: 100 }).notNull(),
+  village: varchar('village', { length: 100 }),
+  postalCode: varchar('postal_code', { length: 10 }).notNull(),
   isActive: boolean('is_active').default(true),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-}, (table) => ({
-  regionNameIdx: index('region_name_idx').on(table.regionName),
-  cityIdx: index('city_idx').on(table.city),
-}));
+  isDeleted: boolean('is_deleted').default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
 
 // Subscription Package Table - Master Data
 export const subscriptionPackageDB = pgTable('subscription_package_db', {
@@ -42,63 +42,72 @@ export const subscriptionPackageDB = pgTable('subscription_package_db', {
   description: text('description'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-}, (table) => ({
-  packageTypeIdx: index('package_type_idx').on(table.packageType),
-}));
+});
 
-// Customer Table
+// Customer Table - matching exact database structure
 export const customerDB = pgTable('customer_db', {
   id: uuid('id').defaultRandom().primaryKey(),
-  no: serial('no'),
-  customerName: varchar('customer_name', { length: 100 }).notNull(),
-  acquisition: varchar('acquisition', { length: 20 }).notNull(), // HOMA, Altrix
-  contact: varchar('contact', { length: 20 }),
+  customerName: varchar('customer_name', { length: 255 }).notNull(),
+  contact: varchar('contact', { length: 20 }).notNull(),
   address: text('address').notNull(),
-  village: varchar('village', { length: 100 }),
+  city: varchar('city', { length: 100 }).notNull(),
   district: varchar('district', { length: 100 }),
-  city: varchar('city', { length: 100 }),
+  village: varchar('village', { length: 100 }),
   postalCode: varchar('postal_code', { length: 10 }),
-  residentialType: varchar('residential_type', { length: 50 }), // House, Office Space, Apartment
-  
-  // Subscription info
   subscriptionPackageId: uuid('subscription_package_id').references(() => subscriptionPackageDB.id),
-  qtyPackage: integer('qty_package').default(1),
-  ltv: decimal('ltv', { precision: 12, scale: 2 }),
-  firstDateSubscription: timestamp('first_date_subscription'),
-  
-  // Status and assignment
-  status: varchar('status', { length: 20 }).default('Active'), // Active, Churn, Inactive, Pending
-  cleaner1Id: uuid('cleaner1_id').references(() => mitraDB.id),
-  cleaner2Id: uuid('cleaner2_id').references(() => mitraDB.id),
-  
-  // Churn info
-  churnTag: varchar('churn_tag', { length: 20 }).default('N/A'), // Internal, External, N/A
-  churnReason: text('churn_reason'),
-  
-  // Metadata
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  subscriptionPackage: varchar('subscription_package', { length: 255 }),
+  subscriptionStart: date('subscription_start'),
+  subscriptionEnd: date('subscription_end'),
+  subscriptionStatus: varchar('subscription_status', { length: 20 }).default('Active'),
+  monthlyFee: decimal('monthly_fee', { precision: 10, scale: 2 }).default('0'),
+  totalPaid: decimal('total_paid', { precision: 10, scale: 2 }).default('0'),
+  outstandingBalance: decimal('outstanding_balance', { precision: 10, scale: 2 }).default('0'),
+  customerNotes: text('customer_notes'),
+  isActive: boolean('is_active').default(true),
   isDeleted: boolean('is_deleted').default(false),
-}, (table) => ({
-  customerNameIdx: index('customer_name_idx').on(table.customerName),
-  acquisitionIdx: index('acquisition_idx').on(table.acquisition),
-  statusIdx: index('status_idx').on(table.status),
-  cityIdx: index('customer_city_idx').on(table.city),
-}));
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
 
-// Mitra (Cleaner/Partner) Table
+// Mitra (Cleaner/Partner) Table - Extended for full management
 export const mitraDB = pgTable('mitra_db', {
   id: uuid('id').defaultRandom().primaryKey(),
   no: serial('no'),
-  mitraName: varchar('mitra_name', { length: 100 }).notNull(),
-  contact: varchar('contact', { length: 20 }),
-  address: text('address'),
-  city: varchar('city', { length: 100 }),
-  mitraType: varchar('mitra_type', { length: 20 }).notNull(), // Cleaner, Supervisor, etc
-  status: varchar('status', { length: 20 }).default('Active'), // Active, Inactive, Suspended
-  joinDate: timestamp('join_date').defaultNow(),
   
-  // Rate and payment info
+  // Basic info
+  mitraName: varchar('mitra_name', { length: 100 }).notNull(),
+  mitraCode: varchar('mitra_code', { length: 50 }).unique(), // MITRA-YYYYMM-000001
+  nik: varchar('nik', { length: 16 }).unique(),
+  gender: varchar('gender', { length: 10 }), // Pria, Wanita
+  bornDate: varchar('born_date', { length: 10 }), // dd/MM/yyyy
+  
+  // Contact info
+  address: text('address'),
+  phone: varchar('phone', { length: 20 }),
+  
+  // Bank info
+  bankAccount: varchar('bank_account', { length: 50 }),
+  bankAccountNumber: varchar('bank_account_number', { length: 50 }),
+  bankHoldersName: varchar('bank_holders_name', { length: 100 }),
+  
+  // Assignment info
+  cityAssignment: varchar('city_assignment', { length: 100 }),
+  locationAssignment: varchar('location_assignment', { length: 100 }),
+  
+  // Partnership details
+  partnershipTypes: varchar('partnership_types', { length: 20 }), // Fulltime, Partime
+  status: varchar('status', { length: 20 }).default('ACTIVE'), // ACTIVE, EXIT, ACTIVE-FLAG, BANNED
+  tenure: varchar('tenure', { length: 2 }), // 3, 6, 12 (months)
+  bonus: varchar('bonus', { length: 20 }).default('Not Eligible'), // Eligible, Not Eligible
+  
+  // Dates
+  joinDate: varchar('join_date', { length: 10 }), // dd/MM/yyyy
+  exitDate: varchar('exit_date', { length: 10 }), // dd/MM/yyyy, optional
+  
+  // Legacy fields for backward compatibility
+  city: varchar('city', { length: 100 }),
+  mitraType: varchar('mitra_type', { length: 20 }).default('Cleaner'), // Cleaner, Supervisor, etc
+  contact: varchar('contact', { length: 20 }),
   baseRate: decimal('base_rate', { precision: 10, scale: 2 }),
   commissionRate: decimal('commission_rate', { precision: 5, scale: 2 }),
   
@@ -106,11 +115,7 @@ export const mitraDB = pgTable('mitra_db', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
   isDeleted: boolean('is_deleted').default(false),
-}, (table) => ({
-  mitraNameIdx: index('mitra_name_idx').on(table.mitraName),
-  mitraTypeIdx: index('mitra_type_idx').on(table.mitraType),
-  statusIdx: index('mitra_status_idx').on(table.status),
-}));
+});
 
 // Invoice Table
 export const invoiceDB = pgTable('invoice_db', {
@@ -136,12 +141,7 @@ export const invoiceDB = pgTable('invoice_db', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
   isDeleted: boolean('is_deleted').default(false),
-}, (table) => ({
-  invoiceNumberIdx: index('invoice_number_idx').on(table.invoiceNumber),
-  customerIdIdx: index('invoice_customer_idx').on(table.customerId),
-  statusIdx: index('invoice_status_idx').on(table.status),
-  invoiceDateIdx: index('invoice_date_idx').on(table.invoiceDate),
-}));
+});
 
 // Attendance Schedule Table
 export const attendanceScheduleDB = pgTable('attendance_schedule_db', {
@@ -162,12 +162,7 @@ export const attendanceScheduleDB = pgTable('attendance_schedule_db', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
   isDeleted: boolean('is_deleted').default(false),
-}, (table) => ({
-  customerIdIdx: index('schedule_customer_idx').on(table.customerId),
-  mitraIdIdx: index('schedule_mitra_idx').on(table.mitraId),
-  scheduledDateIdx: index('scheduled_date_idx').on(table.scheduledDate),
-  statusIdx: index('schedule_status_idx').on(table.status),
-}));
+});
 
 // Attendance Record Table
 export const attendanceRecordDB = pgTable('attendance_record_db', {
@@ -205,13 +200,7 @@ export const attendanceRecordDB = pgTable('attendance_record_db', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
   isDeleted: boolean('is_deleted').default(false),
-}, (table) => ({
-  clientNameIdx: index('record_client_name_idx').on(table.clientName),
-  customerIdIdx: index('record_customer_idx').on(table.customerId),
-  mitraIdIdx: index('record_mitra_idx').on(table.mitraId),
-  startDateIdx: index('record_start_date_idx').on(table.startDate),
-  statusIdx: index('record_status_idx').on(table.status),
-}));
+});
 
 // Mitra Payout Table
 export const mitraPayoutDB = pgTable('mitra_payout_db', {
@@ -244,39 +233,17 @@ export const mitraPayoutDB = pgTable('mitra_payout_db', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
   isDeleted: boolean('is_deleted').default(false),
-}, (table) => ({
-  mitraIdIdx: index('payout_mitra_idx').on(table.mitraId),
-  periodIdx: index('payout_period_idx').on(table.periodStart, table.periodEnd),
-  statusIdx: index('payout_status_idx').on(table.status),
-}));
+});
 
-// Relations
+// Simple Relations without problematic references
 export const customerRelations = relations(customerDB, ({ one, many }) => ({
   subscriptionPackage: one(subscriptionPackageDB, {
     fields: [customerDB.subscriptionPackageId],
     references: [subscriptionPackageDB.id],
   }),
-  cleaner1: one(mitraDB, {
-    fields: [customerDB.cleaner1Id],
-    references: [mitraDB.id],
-    relationName: 'cleaner1',
-  }),
-  cleaner2: one(mitraDB, {
-    fields: [customerDB.cleaner2Id],
-    references: [mitraDB.id],
-    relationName: 'cleaner2',
-  }),
   invoices: many(invoiceDB),
   attendanceSchedules: many(attendanceScheduleDB),
   attendanceRecords: many(attendanceRecordDB),
-}));
-
-export const mitraRelations = relations(mitraDB, ({ many }) => ({
-  customersAsCleaner1: many(customerDB, { relationName: 'cleaner1' }),
-  customersAsCleaner2: many(customerDB, { relationName: 'cleaner2' }),
-  attendanceSchedules: many(attendanceScheduleDB),
-  attendanceRecords: many(attendanceRecordDB),
-  payouts: many(mitraPayoutDB),
 }));
 
 export const subscriptionPackageRelations = relations(subscriptionPackageDB, ({ many }) => ({
@@ -288,6 +255,12 @@ export const invoiceRelations = relations(invoiceDB, ({ one }) => ({
     fields: [invoiceDB.customerId],
     references: [customerDB.id],
   }),
+}));
+
+export const mitraRelations = relations(mitraDB, ({ many }) => ({
+  attendanceSchedules: many(attendanceScheduleDB),
+  attendanceRecords: many(attendanceRecordDB),
+  payouts: many(mitraPayoutDB),
 }));
 
 export const attendanceScheduleRelations = relations(attendanceScheduleDB, ({ one, many }) => ({
@@ -324,6 +297,52 @@ export const mitraPayoutRelations = relations(mitraPayoutDB, ({ one }) => ({
   }),
 }));
 
+// Trial Table - for managing trial customers
+export const trialDB = pgTable('trial_db', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  customerName: varchar('customer_name', { length: 255 }).notNull(),
+  acquisition: varchar('acquisition', { length: 20 }).notNull(), // HOMA, Altrix
+  address: text('address').notNull(),
+  district: varchar('district', { length: 100 }).notNull(),
+  city: varchar('city', { length: 100 }).notNull(),
+  postalCode: varchar('postal_code', { length: 10 }).notNull(),
+  residentialType: varchar('residential_type', { length: 50 }).notNull(), // House, Office Space, Apartment
+  notes: text('notes'),
+  
+  // Metadata
+  isDeleted: boolean('is_deleted').default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+// Trial Assignment Table - for tracking multiple trial attempts per customer
+export const trialAssignmentDB = pgTable('trial_assignment_db', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  trialId: uuid('trial_id').references(() => trialDB.id).notNull(),
+  
+  // Trial details
+  trialDate: date('trial_date').notNull(),
+  assignedCleaner: varchar('assigned_cleaner', { length: 100 }).notNull(),
+  status: varchar('status', { length: 30 }).default('Not Converted'), // Converted, Not Converted, Stalling/Postpone, Cancelled
+  reasonForNotConverting: text('reason_for_not_converting'),
+  
+  // Metadata
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+// Trial Relations
+export const trialRelations = relations(trialDB, ({ many }) => ({
+  assignments: many(trialAssignmentDB),
+}));
+
+export const trialAssignmentRelations = relations(trialAssignmentDB, ({ one }) => ({
+  trial: one(trialDB, {
+    fields: [trialAssignmentDB.trialId],
+    references: [trialDB.id],
+  }),
+}));
+
 // Export types for TypeScript
 export type Region = typeof regionDB.$inferSelect;
 export type NewRegion = typeof regionDB.$inferInsert;
@@ -348,3 +367,9 @@ export type NewAttendanceRecord = typeof attendanceRecordDB.$inferInsert;
 
 export type MitraPayout = typeof mitraPayoutDB.$inferSelect;
 export type NewMitraPayout = typeof mitraPayoutDB.$inferInsert;
+
+export type Trial = typeof trialDB.$inferSelect;
+export type NewTrial = typeof trialDB.$inferInsert;
+
+export type TrialAssignment = typeof trialAssignmentDB.$inferSelect;
+export type NewTrialAssignment = typeof trialAssignmentDB.$inferInsert;

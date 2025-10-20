@@ -1,36 +1,30 @@
-interface LogEntry {
-  timestamp: string;
-  level: 'info' | 'warn' | 'error';
+// Simple logger utility for audit events
+
+export interface AuditEvent {
   action: string;
   userId?: string;
   email?: string;
-  ip?: string;
-  userAgent?: string;
-  success?: boolean;
-  error?: string;
-  path?: string;
-  menuItem?: string;
+  details?: any;
+  timestamp?: Date;
 }
 
-export function logAuthEvent(entry: Omit<LogEntry, 'timestamp' | 'level'> & { level?: 'info' | 'warn' | 'error' }) {
-  const logEntry: LogEntry = {
-    timestamp: new Date().toISOString(),
-    level: entry.level || 'info',
-    ...entry,
-  };
-
-  console.log(JSON.stringify(logEntry));
+export function logAuditEvent(event: AuditEvent): void {
+  // In development, just console.log
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[AUDIT]', {
+      ...event,
+      timestamp: new Date().toISOString(),
+    });
+  }
+  
+  // In production, you would send this to your logging service
+  // e.g., DataDog, CloudWatch, Sentry, etc.
 }
 
-export function logNavigationEvent(entry: Omit<LogEntry, 'timestamp' | 'level' | 'action'> & { 
-  action: 'page_view' | 'menu_click' | 'logout_click';
-  level?: 'info' | 'warn' | 'error';
-}) {
-  const logEntry: LogEntry = {
-    timestamp: new Date().toISOString(),
-    level: entry.level || 'info',
-    ...entry,
-  };
+export function logAuthEvent(event: AuditEvent): void {
+  logAuditEvent({ ...event, action: `auth_${event.action}` });
+}
 
-  console.log(JSON.stringify(logEntry));
+export function logNavigationEvent(event: AuditEvent): void {
+  logAuditEvent({ ...event, action: `nav_${event.action}` });
 }

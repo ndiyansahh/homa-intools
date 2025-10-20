@@ -48,7 +48,7 @@ export default function Sidebar({ navigationItems, session, isOpen, onClose }: S
       
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-72 lg:w-60 xl:w-56 bg-white backdrop-blur-xl border-r-0 lg:border-r lg:border-gray-200/20 shadow-xl transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 lg:block
+        fixed inset-y-0 left-0 z-50 w-72 lg:w-64 bg-white backdrop-blur-xl border-r border-gray-200/20 shadow-xl transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         {/* Header */}

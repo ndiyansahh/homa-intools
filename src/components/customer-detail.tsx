@@ -65,13 +65,18 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       const response = await fetch(`/api/customers/${customerId}`);
       
       if (response.ok) {
-        const data = await response.json();
-        setCustomer(data);
-        setNewDate(data.firstDateSubscription);
-        setCleaner1(data.cleaner1);
-        setCleaner2(data.cleaner2);
+        const result = await response.json();
+        if (result.success && result.data) {
+          setCustomer(result.data);
+          setNewDate(result.data.firstDateSubscription || '');
+          setCleaner1(result.data.cleaner1 || '');
+          setCleaner2(result.data.cleaner2 || '');
+        } else {
+          setError('Failed to load customer details');
+        }
       } else {
-        setError('Failed to load customer details');
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData.message || 'Failed to load customer details');
       }
     } catch (err) {
       setError('Failed to load customer details');

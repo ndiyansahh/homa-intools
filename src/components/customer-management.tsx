@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { SessionData } from '@/types/auth';
-import { CustomerListItem, CustomersResponse, CustomerFilters, AcquisitionType, ResidentialType, SubscriptionPackage, ChurnTag } from '@/types/customer';
+import { CustomerListItem, CustomersResponse, CustomerFilters } from '@/types/customer';
 import { Icons } from './icons';
+import CustomerForm from './customer-form';
 
 interface CustomerManagementProps {
   session: SessionData;
@@ -12,35 +13,23 @@ interface CustomerManagementProps {
 
 const statusColors: { [key: string]: string } = {
   'Active': 'bg-green-100 text-green-800',
-  'Churn': 'bg-red-100 text-red-800',
-  'Inactive': 'bg-gray-100 text-gray-800',
-  'Pending': 'bg-yellow-100 text-yellow-800',
-};
-
-const churnTagColors = {
-  'Internal': 'bg-red-100 text-red-800',
-  'External': 'bg-orange-100 text-orange-800',
-  'N/A': 'bg-gray-100 text-gray-800',
-};
-
-const acquisitionColors = {
-  'HOMA': 'bg-blue-100 text-blue-800',
-  'Altrix': 'bg-purple-100 text-purple-800',
+  'Inactive': 'bg-red-100 text-red-800',
+  'Suspended': 'bg-yellow-100 text-yellow-800',
+  'Trial': 'bg-blue-100 text-blue-800',
+  'Expired': 'bg-gray-100 text-gray-800',
 };
 
 export default function CustomerManagement({ session }: CustomerManagementProps) {
   const router = useRouter();
   const [customers, setCustomers] = useState<CustomerListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
 
   // Filter state
   const [filters, setFilters] = useState<CustomerFilters>({
     q: '',
-    acquisition: undefined,
     status: '',
-    churnTag: undefined,
     city: '',
-    residentialType: undefined,
     subscriptionPackage: undefined,
     page: 1,
     limit: 10,
@@ -57,11 +46,8 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
       setLoading(true);
       const params = new URLSearchParams();
       if (filters.q) params.append('q', filters.q);
-      if (filters.acquisition) params.append('acquisition', filters.acquisition);
       if (filters.status) params.append('status', filters.status);
-      if (filters.churnTag) params.append('churnTag', filters.churnTag);
       if (filters.city) params.append('city', filters.city);
-      if (filters.residentialType) params.append('residentialType', filters.residentialType);
       if (filters.subscriptionPackage) params.append('subscriptionPackage', filters.subscriptionPackage);
       params.append('page', filters.page?.toString() || '1');
       params.append('limit', filters.limit?.toString() || '10');
@@ -91,20 +77,42 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
     router.push(`/app/customers/${customerId}`);
   };
 
-  // Shortened package names for display
-  const getShortPackageName = (packageName: SubscriptionPackage): string => {
-    if (packageName.includes('Regular Cleaning')) return 'Regular (2x/week)';
-    if (packageName.includes('Frequent Cleaning')) return 'Frequent (3x/week)';
-    if (packageName.includes('Special Partnership')) return 'Special (1x/week)';
-    if (packageName.includes('Basic Cleaning')) return 'Basic (1x/week)';
-    return packageName;
+
+  const handleFormSuccess = () => {
+    fetchCustomers(); // Refresh customer list
   };
 
   return (
-    <div className="space-y-6">
-      {/* Filters */}
-      <div className="card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    <>
+      {showForm && (
+        <CustomerForm
+          session={session}
+          onClose={() => setShowForm(false)}
+          onSuccess={handleFormSuccess}
+        />
+      )}
+      
+      <div className="space-y-6">
+        {/* Add Customer Button */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Customer Database</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Manage customer subscriptions and track customer lifecycle
+            </p>
+          </div>
+          <button
+            onClick={() => setShowForm(true)}
+            className="btn-primary"
+          >
+            <Icons.plus className="w-4 h-4 mr-2" />
+            Add New Customer
+          </button>
+        </div>
+
+        {/* Filters */}
+        <div className="card p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <input
               type="text"
@@ -116,34 +124,16 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
           </div>
           <div>
             <select
-              value={filters.acquisition || ''}
-              onChange={(e) => setFilters(prev => ({ ...prev, acquisition: e.target.value as AcquisitionType || undefined, page: 1 }))}
-              className="input-field"
-            >
-              <option value="">All Acquisition</option>
-              <option value="HOMA">HOMA</option>
-              <option value="Altrix">Altrix</option>
-            </select>
-          </div>
-          <div>
-            <input
-              type="text"
-              placeholder="Filter by status..."
               value={filters.status}
               onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value, page: 1 }))}
               className="input-field"
-            />
-          </div>
-          <div>
-            <select
-              value={filters.churnTag || ''}
-              onChange={(e) => setFilters(prev => ({ ...prev, churnTag: e.target.value as ChurnTag || undefined, page: 1 }))}
-              className="input-field"
             >
-              <option value="">All Churn Tags</option>
-              <option value="Internal">Internal</option>
-              <option value="External">External</option>
-              <option value="N/A">N/A</option>
+              <option value="">All Status</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+              <option value="Suspended">Suspended</option>
+              <option value="Trial">Trial</option>
+              <option value="Expired">Expired</option>
             </select>
           </div>
           <div>
@@ -156,16 +146,13 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
             />
           </div>
           <div>
-            <select
-              value={filters.residentialType || ''}
-              onChange={(e) => setFilters(prev => ({ ...prev, residentialType: e.target.value as ResidentialType || undefined, page: 1 }))}
+            <input
+              type="text"
+              placeholder="Filter by package..."
+              value={filters.subscriptionPackage || ''}
+              onChange={(e) => setFilters(prev => ({ ...prev, subscriptionPackage: e.target.value || undefined, page: 1 }))}
               className="input-field"
-            >
-              <option value="">All Types</option>
-              <option value="House">House</option>
-              <option value="Office Space">Office Space</option>
-              <option value="Apartment">Apartment</option>
-            </select>
+            />
           </div>
         </div>
       </div>
@@ -180,7 +167,7 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
             </span>
           </div>
           <p className="mt-1 text-sm text-gray-600">
-            Showing 5 key fields: CustomerName, QtyPackage, SubscriptionPackage, Status, ChurnTag
+            Customer overview with subscription details and location
           </p>
         </div>
 
@@ -194,7 +181,7 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
             <Icons.users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Customers Found</h3>
             <p className="text-gray-600">
-              {filters.q || filters.acquisition || filters.status || filters.churnTag || filters.city || filters.residentialType
+              {filters.q || filters.status || filters.city || filters.subscriptionPackage
                 ? 'Try adjusting your filters to see more results.'
                 : 'Start by importing customers from trial conversions or add new customers.'}
             </p>
@@ -209,7 +196,7 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
                       Customer Name
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Qty Package
+                      City
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Subscription Package
@@ -218,7 +205,7 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Churn Tag
+                      Monthly Fee
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
@@ -239,23 +226,23 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {customer.qtyPackage}
+                          {customer.city}
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900 max-w-xs truncate" title={customer.subscriptionPackage}>
-                          {getShortPackageName(customer.subscriptionPackage)}
+                          {customer.subscriptionPackage ? customer.subscriptionPackage.substring(0, 30) + '...' : 'No package'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColors[customer.status] || 'bg-gray-100 text-gray-800'}`}>
-                          {customer.status}
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColors[customer.subscriptionStatus] || 'bg-gray-100 text-gray-800'}`}>
+                          {customer.subscriptionStatus}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${churnTagColors[customer.churnTag]}`}>
-                          {customer.churnTag}
-                        </span>
+                        <div className="text-sm text-gray-900">
+                          Rp {customer.monthlyFee?.toLocaleString('id-ID') || 0}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
@@ -304,47 +291,48 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
         )}
       </div>
 
-      {/* Subscription List Sub-menu */}
+      {/* Subscription Summary */}
       <div className="card">
         <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Subscription List</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Subscription Summary</h3>
           <p className="mt-1 text-sm text-gray-600">
-            Quick overview of subscription packages and customer distribution
+            Overview of customer distribution by status
           </p>
         </div>
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-blue-50 rounded-lg p-4">
-              <div className="text-sm font-medium text-blue-600">Regular Cleaning</div>
-              <div className="text-2xl font-bold text-blue-900">
-                {customers.filter(c => c.subscriptionPackage.includes('Regular Cleaning')).length}
-              </div>
-              <div className="text-xs text-blue-600">2 visits per week</div>
-            </div>
             <div className="bg-green-50 rounded-lg p-4">
-              <div className="text-sm font-medium text-green-600">Frequent Cleaning</div>
+              <div className="text-sm font-medium text-green-600">Active</div>
               <div className="text-2xl font-bold text-green-900">
-                {customers.filter(c => c.subscriptionPackage.includes('Frequent Cleaning')).length}
+                {customers.filter(c => c.subscriptionStatus === 'Active').length}
               </div>
-              <div className="text-xs text-green-600">3 visits per week</div>
+              <div className="text-xs text-green-600">Active subscriptions</div>
             </div>
-            <div className="bg-purple-50 rounded-lg p-4">
-              <div className="text-sm font-medium text-purple-600">Special Partnership</div>
-              <div className="text-2xl font-bold text-purple-900">
-                {customers.filter(c => c.subscriptionPackage.includes('Special Partnership')).length}
+            <div className="bg-red-50 rounded-lg p-4">
+              <div className="text-sm font-medium text-red-600">Inactive</div>
+              <div className="text-2xl font-bold text-red-900">
+                {customers.filter(c => c.subscriptionStatus === 'Inactive').length}
               </div>
-              <div className="text-xs text-purple-600">1 visit per week</div>
+              <div className="text-xs text-red-600">Inactive customers</div>
             </div>
-            <div className="bg-orange-50 rounded-lg p-4">
-              <div className="text-sm font-medium text-orange-600">Basic Cleaning</div>
-              <div className="text-2xl font-bold text-orange-900">
-                {customers.filter(c => c.subscriptionPackage.includes('Basic Cleaning')).length}
+            <div className="bg-yellow-50 rounded-lg p-4">
+              <div className="text-sm font-medium text-yellow-600">Suspended</div>
+              <div className="text-2xl font-bold text-yellow-900">
+                {customers.filter(c => c.subscriptionStatus === 'Suspended').length}
               </div>
-              <div className="text-xs text-orange-600">1 visit per week</div>
+              <div className="text-xs text-yellow-600">Suspended accounts</div>
+            </div>
+            <div className="bg-blue-50 rounded-lg p-4">
+              <div className="text-sm font-medium text-blue-600">Trial</div>
+              <div className="text-2xl font-bold text-blue-900">
+                {customers.filter(c => c.subscriptionStatus === 'Trial').length}
+              </div>
+              <div className="text-xs text-blue-600">Trial subscriptions</div>
             </div>
           </div>
         </div>
       </div>
     </div>
+    </>
   );
 }

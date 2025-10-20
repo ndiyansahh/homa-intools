@@ -61,27 +61,44 @@ export interface UpdateCustomerRequest extends Partial<CreateCustomerRequest> {
 export interface CustomerListItem {
   id: string;
   customerName: string;
-  qtyPackage: number;
-  subscriptionPackage: SubscriptionPackage;
-  status: string;
-  churnTag: ChurnTag;
+  subscriptionPackage: string;
+  subscriptionStatus: string;
+  monthlyFee: number;
+  city: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CustomersResponse {
-  items: CustomerListItem[];
+  success: boolean;
+  data: CustomerListItem[];
+  items: CustomerListItem[]; // Alias for compatibility
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  // Flat structure for backward compatibility
   page: number;
   total: number;
   totalPages: number;
+  message?: string;
+}
+
+export interface CustomerApiError {
+  success: false;
+  message: string;
+  error?: string;
 }
 
 export interface CustomerFilters {
   q?: string;
-  acquisition?: AcquisitionType;
   status?: string;
-  churnTag?: ChurnTag;
   city?: string;
-  residentialType?: ResidentialType;
-  subscriptionPackage?: SubscriptionPackage;
+  subscriptionPackage?: string;
   page?: number;
   limit?: number;
 }

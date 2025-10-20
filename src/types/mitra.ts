@@ -66,6 +66,7 @@ export interface MitraListItem {
   status: MitraStatus;
   partnershipTypes: MitraPartnershipType;
   cityAssignment: string;
+  locationAssignment: string;
 }
 
 export interface MitraResponse {

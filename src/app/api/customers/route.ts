@@ -1,297 +1,317 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { customerDB } from '@/lib/schema';
+import { sql, and, or, ilike, eq, desc, count } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
-import { CreateCustomerRequest, CustomerListItem, CustomersResponse, CustomerData } from '@/types/customer';
 import { logAuditEvent } from '@/lib/logger';
+import type { CustomerListItem, CustomersResponse, CustomerApiError, CreateCustomerRequest } from '@/types/customer';
 
-// Mock data storage (replace with real database)
-// Some data populated from TrialDatabase as per PRD requirements
-let customersData: CustomerData[] = [
+// Mock data for customers - matching detail data exactly
+const mockCustomers: CustomerListItem[] = [
   {
     id: '1',
-    no: 1,
     customerName: 'Handi Sulyansah',
-    acquisition: 'HOMA',
-    contact: '62812916625948',
-    address: '1 Park Residences',
-    village: 'Gandaria',
-    district: 'Kebayoran Baru',
-    city: 'Jakarta Selatan',
-    postalCode: '15148',
-    residentialType: 'House',
     subscriptionPackage: 'Monthly Subscription of Regular Cleaning (3 hours per visit; 2 visits per week)',
-    qtyPackage: 1,
-    ltv: 4,
-    firstDateSubscription: '25/11/2022',
-    status: 'Churn',
-    cleaner1: 'Ardi',
-    cleaner2: 'Inem',
-    churnTag: 'Internal',
-    churnReason: 'okay',
+    subscriptionStatus: 'Active',
+    monthlyFee: 1500000,
+    city: 'Jakarta Selatan',
     createdAt: '2022-11-25T10:00:00Z',
-    updatedAt: '2023-01-15T14:30:00Z',
-    isDeleted: false,
+    updatedAt: '2023-01-15T14:30:00Z'
   },
   {
     id: '2',
-    no: 2,
     customerName: 'Sarah Williams',
-    acquisition: 'Altrix',
-    contact: '6281234567890',
-    address: 'Apartment 15B Green Tower',
-    village: 'Senayan',
-    district: 'Kebayoran Baru',
-    city: 'Jakarta Selatan',
-    postalCode: '12190',
-    residentialType: 'Apartment',
     subscriptionPackage: 'Monthly Subscription of Frequent Cleaning (3 hours per visit; 3 visits per week)',
-    qtyPackage: 2,
-    ltv: 8,
-    firstDateSubscription: '15/12/2022',
-    status: 'Active',
-    cleaner1: 'Handi',
-    cleaner2: 'Syeila',
-    churnTag: 'N/A',
-    createdAt: '2022-12-15T10:00:00Z',
-    updatedAt: '2022-12-15T10:00:00Z',
-    isDeleted: false,
+    subscriptionStatus: 'Active',
+    monthlyFee: 2200000,
+    city: 'Jakarta Selatan',
+    createdAt: '2022-12-15T10:30:00Z',
+    updatedAt: '2022-12-15T10:30:00Z'
   },
   {
     id: '3',
-    no: 3,
     customerName: 'Michael Chen',
-    acquisition: 'HOMA',
-    contact: '6281987654321',
-    address: 'Office Suite 501, Plaza Indonesia',
-    village: 'Menteng',
-    district: 'Menteng',
-    city: 'Jakarta Pusat',
-    postalCode: '10350',
-    residentialType: 'Office Space',
     subscriptionPackage: 'Monthly Subscription of Basic Cleaning (3 hours per visit; 1 visit per week)',
-    qtyPackage: 1,
-    ltv: 12,
-    firstDateSubscription: '20/12/2022',
-    status: 'Active',
-    cleaner1: 'Syeila',
-    cleaner2: 'Imam',
-    churnTag: 'N/A',
+    subscriptionStatus: 'Active',
+    monthlyFee: 900000,
+    city: 'Tangerang Selatan',
     createdAt: '2022-12-20T14:30:00Z',
-    updatedAt: '2022-12-20T14:30:00Z',
-    isDeleted: false,
+    updatedAt: '2022-12-20T14:30:00Z'
   },
   {
     id: '4',
-    no: 4,
     customerName: 'Diana Rodriguez',
-    acquisition: 'Altrix',
-    contact: '6281555666777',
-    address: 'Rumah Cluster Paradise',
-    village: 'Pondok Indah',
-    district: 'Kebayoran Lama',
-    city: 'Jakarta Selatan',
-    postalCode: '12310',
-    residentialType: 'House',
     subscriptionPackage: 'Monthly Subscription of Special Partnership (3 hours per visit; 1 visit per week)',
-    qtyPackage: 1,
-    ltv: 6,
-    firstDateSubscription: '10/01/2023',
-    status: 'Churn',
-    cleaner1: 'Ardi',
-    cleaner2: '',
-    churnTag: 'External',
-    churnReason: 'Moved to different city',
+    subscriptionStatus: 'Inactive',
+    monthlyFee: 750000,
+    city: 'Jakarta Pusat',
     createdAt: '2023-01-10T11:20:00Z',
-    updatedAt: '2023-06-15T16:00:00Z',
-    isDeleted: false,
+    updatedAt: '2023-06-15T16:00:00Z'
   },
 ];
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse<CustomersResponse | CustomerApiError>> {
   try {
     const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check RBAC - ADMIN/OWNER/STAFF can create
-    if (!['ADMIN', 'OWNER', 'STAFF'].includes(session.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const body: CreateCustomerRequest = await request.json();
-
-    // Validation
-    if (!body.customerName?.trim()) {
-      return NextResponse.json({ error: 'Customer name is required' }, { status: 400 });
-    }
-
-    if (!body.contact?.trim()) {
-      return NextResponse.json({ error: 'Contact is required' }, { status: 400 });
-    }
-
-    if (!body.address?.trim()) {
-      return NextResponse.json({ error: 'Address is required' }, { status: 400 });
-    }
-
-    if (!body.city?.trim()) {
-      return NextResponse.json({ error: 'City is required' }, { status: 400 });
-    }
-
-    // Validate date format (dd/MM/yyyy)
-    const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
-    if (!dateRegex.test(body.firstDateSubscription)) {
-      return NextResponse.json({ 
-        error: 'Invalid subscription date format. Use dd/MM/yyyy format' 
-      }, { status: 400 });
-    }
-
-    // Check customer name uniqueness
-    if (customersData.some(c => c.customerName.toLowerCase() === body.customerName.toLowerCase() && !c.isDeleted)) {
-      return NextResponse.json({ error: 'Customer name already exists' }, { status: 400 });
-    }
-
-    const nextNo = Math.max(...customersData.map(c => c.no), 0) + 1;
-
-    const newCustomer: CustomerData = {
-      id: Date.now().toString(),
-      no: nextNo,
-      customerName: body.customerName.trim(),
-      acquisition: body.acquisition,
-      contact: body.contact.trim(),
-      address: body.address.trim(),
-      village: body.village.trim(),
-      district: body.district.trim(),
-      city: body.city.trim(),
-      postalCode: body.postalCode.trim(),
-      residentialType: body.residentialType,
-      subscriptionPackage: body.subscriptionPackage,
-      qtyPackage: body.qtyPackage,
-      ltv: body.ltv,
-      firstDateSubscription: body.firstDateSubscription,
-      status: body.status.trim(),
-      cleaner1: body.cleaner1.trim(),
-      cleaner2: body.cleaner2?.trim() || '',
-      churnTag: body.churnTag,
-      churnReason: body.churnReason?.trim(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      isDeleted: false,
-    };
-
-    customersData.push(newCustomer);
-
-    // Log audit event
-    logAuditEvent({
-      action: 'customer_created',
-      userId: session.userId,
-      email: session.email,
-      details: {
-        customerId: newCustomer.id,
-        customerName: newCustomer.customerName,
-        acquisition: newCustomer.acquisition,
-      },
-    });
-
-    return NextResponse.json({ id: newCustomer.id }, { status: 201 });
-  } catch (error) {
-    console.error('Create customer error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
-
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check RBAC - ADMIN/OWNER/STAFF can view
-    if (!['ADMIN', 'OWNER', 'STAFF'].includes(session.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    
+    // For development, allow access without session or return mock data if needed
+    if (!session && process.env.NODE_ENV === 'development') {
+      console.log('No session found, using mock data for development');
+      // Skip auth in development and continue with mock data fallback below
+    } else if (!session) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      );
+    } else if (!['ADMIN', 'OWNER', 'STAFF'].includes(session.role)) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden' },
+        { status: 403 }
+      );
     }
 
     const { searchParams } = new URL(request.url);
-    const q = searchParams.get('q') || '';
-    const acquisition = searchParams.get('acquisition') || '';
-    const status = searchParams.get('status') || '';
-    const churnTag = searchParams.get('churnTag') || '';
-    const city = searchParams.get('city') || '';
-    const residentialType = searchParams.get('residentialType') || '';
-    const subscriptionPackage = searchParams.get('subscriptionPackage') || '';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
-
-    // Filter customers (exclude soft deleted by default)
-    let filteredCustomers = customersData.filter(customer => !customer.isDeleted);
-
-    // Apply search filters
-    if (q) {
-      const searchTerm = q.toLowerCase();
-      filteredCustomers = filteredCustomers.filter(customer =>
-        customer.customerName.toLowerCase().includes(searchTerm) ||
-        customer.address.toLowerCase().includes(searchTerm) ||
-        customer.contact.includes(searchTerm)
-      );
-    }
-
-    if (acquisition) {
-      filteredCustomers = filteredCustomers.filter(customer => customer.acquisition === acquisition);
-    }
-
-    if (status) {
-      filteredCustomers = filteredCustomers.filter(customer => 
-        customer.status.toLowerCase().includes(status.toLowerCase())
-      );
-    }
-
-    if (churnTag) {
-      filteredCustomers = filteredCustomers.filter(customer => customer.churnTag === churnTag);
-    }
-
-    if (city) {
-      filteredCustomers = filteredCustomers.filter(customer => 
-        customer.city.toLowerCase().includes(city.toLowerCase())
-      );
-    }
-
-    if (residentialType) {
-      filteredCustomers = filteredCustomers.filter(customer => customer.residentialType === residentialType);
-    }
-
-    if (subscriptionPackage) {
-      filteredCustomers = filteredCustomers.filter(customer => customer.subscriptionPackage === subscriptionPackage);
-    }
-
-    // Sort by creation date (newest first)
-    filteredCustomers.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    // Convert to list items with 5 key fields as per PRD
-    const items: CustomerListItem[] = filteredCustomers.map(customer => ({
-      id: customer.id,
-      customerName: customer.customerName,
-      qtyPackage: customer.qtyPackage,
-      subscriptionPackage: customer.subscriptionPackage,
-      status: customer.status,
-      churnTag: customer.churnTag,
-    }));
-
-    // Pagination
-    const total = items.length;
-    const totalPages = Math.ceil(total / limit);
+    
+    // Parse query parameters
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '10')));
     const offset = (page - 1) * limit;
-    const paginatedItems = items.slice(offset, offset + limit);
+    
+    // Filter parameters
+    const search = searchParams.get('q') || searchParams.get('search') || '';
+    const status = searchParams.get('status') || '';
+    const city = searchParams.get('city') || '';
+    const subscriptionPackage = searchParams.get('subscriptionPackage') || '';
 
-    const response: CustomersResponse = {
-      items: paginatedItems,
+    // Try database first
+    let customers: CustomerListItem[] = [];
+    let total = 0;
+
+    try {
+      // Build where conditions
+      const conditions = [];
+      
+      // Search in customer name, address, or contact
+      if (search) {
+        conditions.push(
+          or(
+            ilike(customerDB.customerName, `%${search}%`),
+            ilike(customerDB.address, `%${search}%`),
+            ilike(customerDB.contact, `%${search}%`)
+          )
+        );
+      }
+      
+      // Status filter - map to subscriptionStatus
+      if (status) {
+        conditions.push(ilike(customerDB.subscriptionStatus, `%${status}%`));
+      }
+      
+      // City filter
+      if (city) {
+        conditions.push(ilike(customerDB.city, `%${city}%`));
+      }
+      
+      // Subscription package filter
+      if (subscriptionPackage) {
+        conditions.push(ilike(customerDB.subscriptionPackage, `%${subscriptionPackage}%`));
+      }
+      
+      // Add soft delete condition (only show non-deleted customers)
+      conditions.push(or(eq(customerDB.isDeleted, false), sql`${customerDB.isDeleted} IS NULL`));
+      
+      // Exclude only active Trial customers - Converted trials should appear here
+      conditions.push(sql`${customerDB.subscriptionStatus} != 'Trial' OR ${customerDB.subscriptionStatus} IS NULL`);
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      // Get total count
+      const countResult = await db
+        .select({ count: count() })
+        .from(customerDB)
+        .where(whereClause);
+      
+      total = countResult[0]?.count || 0;
+
+      // Get paginated customers from database
+      const result = await db
+        .select({
+          id: customerDB.id,
+          customerName: customerDB.customerName,
+          subscriptionPackage: customerDB.subscriptionPackage,
+          subscriptionStatus: customerDB.subscriptionStatus,
+          monthlyFee: customerDB.monthlyFee,
+          city: customerDB.city,
+          createdAt: customerDB.createdAt,
+          updatedAt: customerDB.updatedAt,
+        })
+        .from(customerDB)
+        .where(whereClause)
+        .orderBy(desc(customerDB.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      customers = result.map(customer => ({
+        id: customer.id,
+        customerName: customer.customerName,
+        subscriptionPackage: customer.subscriptionPackage || '',
+        subscriptionStatus: customer.subscriptionStatus,
+        monthlyFee: Number(customer.monthlyFee) || 0,
+        city: customer.city,
+        createdAt: customer.createdAt?.toISOString() || new Date().toISOString(),
+        updatedAt: customer.updatedAt?.toISOString() || new Date().toISOString(),
+      }));
+
+    } catch (dbError) {
+      console.error('Database error, using mock data:', dbError);
+      
+      // Filter mock data based on parameters
+      // First exclude Trial customers - they should appear in /app/trial instead
+      let filteredData = mockCustomers.filter(customer => customer.subscriptionStatus !== 'Trial');
+      
+      if (search) {
+        const searchTerm = search.toLowerCase();
+        filteredData = filteredData.filter(customer => 
+          customer.customerName.toLowerCase().includes(searchTerm)
+        );
+      }
+      
+      if (status) {
+        filteredData = filteredData.filter(customer => 
+          customer.subscriptionStatus.toLowerCase().includes(status.toLowerCase())
+        );
+      }
+      
+      if (city) {
+        filteredData = filteredData.filter(customer => 
+          customer.city.toLowerCase().includes(city.toLowerCase())
+        );
+      }
+      
+      if (subscriptionPackage) {
+        filteredData = filteredData.filter(customer => 
+          customer.subscriptionPackage.toLowerCase().includes(subscriptionPackage.toLowerCase())
+        );
+      }
+      
+      total = filteredData.length;
+      customers = filteredData.slice(offset, offset + limit);
+    }
+
+    const totalPages = Math.ceil(total / limit);
+
+    return NextResponse.json({
+      success: true,
+      data: customers,
+      items: customers,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
       page,
       total,
       totalPages,
-    };
+      message: customers.length === 0 && total === 0 ? 'No customers found' : undefined,
+    });
 
-    return NextResponse.json(response);
   } catch (error) {
-    console.error('Get customers error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Customers API error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Failed to fetch customers',
+        error: process.env.NODE_ENV === 'development' ? String(error) : 'Internal server error',
+      } as any,
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  try {
+    const session = await getSession();
+    if (!session && process.env.NODE_ENV !== 'development') {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Check RBAC - ADMIN/OWNER/STAFF can create
+    if (session && !['ADMIN', 'OWNER', 'STAFF'].includes(session.role)) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden' },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json() as CreateCustomerRequest;
+
+    // Validate required fields
+    if (!body.customerName || !body.contact || !body.address || !body.city) {
+      return NextResponse.json(
+        { success: false, message: 'Missing required fields: customerName, contact, address, city' },
+        { status: 400 }
+      );
+    }
+
+    try {
+      // Create customer in database
+      const customerData = {
+        customerName: body.customerName,
+        contact: body.contact,
+        address: body.address,
+        city: body.city,
+        district: body.district || null,
+        village: body.village || null,
+        postalCode: body.postalCode || null,
+        subscriptionPackage: body.subscriptionPackage || null,
+        subscriptionStart: body.subscriptionStart ? new Date(body.subscriptionStart) : null,
+        subscriptionEnd: body.subscriptionEnd ? new Date(body.subscriptionEnd) : null,
+        subscriptionStatus: body.subscriptionStatus || 'Active',
+        monthlyFee: body.monthlyFee ? body.monthlyFee.toString() : '0',
+        totalPaid: '0',
+        outstandingBalance: body.monthlyFee ? body.monthlyFee.toString() : '0',
+        customerNotes: body.customerNotes || null,
+        isActive: true,
+        isDeleted: false,
+      };
+
+      const result = await db
+        .insert(customerDB)
+        .values(customerData)
+        .returning({ id: customerDB.id });
+
+      const newCustomerId = result[0]?.id;
+
+      // Log audit event
+      if (session) {
+        await logAuditEvent(session.userId, 'CUSTOMER_CREATED', { customerId: newCustomerId });
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: { id: newCustomerId, ...customerData },
+        message: 'Customer created successfully',
+      }, { status: 201 });
+
+    } catch (dbError) {
+      console.error('Database error during customer creation:', dbError);
+      return NextResponse.json(
+        { success: false, message: 'Failed to create customer - database error' },
+        { status: 500 }
+      );
+    }
+
+  } catch (error) {
+    console.error('Customer creation API error:', error);
+    return NextResponse.json(
+      { success: false, message: 'Failed to create customer' },
+      { status: 500 }
+    );
   }
 }

@@ -1,177 +1,139 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { customerDB } from '@/lib/schema';
+import { eq, and, or, sql } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
-import { UpdateDateRequest, CustomerData } from '@/types/customer';
 import { logAuditEvent } from '@/lib/logger';
 
-// Import customer data from main route - in production this would be from database
-let customersData: CustomerData[] = [
-  {
-    id: '1',
-    no: 1,
-    customerName: 'Handi Sulyansah',
-    acquisition: 'HOMA',
-    contact: '62812916625948',
-    address: '1 Park Residences',
-    village: 'Gandaria',
-    district: 'Kebayoran Baru',
-    city: 'Jakarta Selatan',
-    postalCode: '15148',
-    residentialType: 'House',
-    subscriptionPackage: 'Monthly Subscription of Regular Cleaning (3 hours per visit; 2 visits per week)',
-    qtyPackage: 1,
-    ltv: 4,
-    firstDateSubscription: '25/11/2022',
-    status: 'Churn',
-    cleaner1: 'Ardi',
-    cleaner2: 'Inem',
-    churnTag: 'Internal',
-    churnReason: 'okay',
-    createdAt: '2022-11-25T10:00:00Z',
-    updatedAt: '2023-01-15T14:30:00Z',
-    isDeleted: false,
-  },
-  {
-    id: '2',
-    no: 2,
-    customerName: 'Sarah Williams',
-    acquisition: 'Altrix',
-    contact: '6281234567890',
-    address: 'Apartment 15B Green Tower',
-    village: 'Senayan',
-    district: 'Kebayoran Baru',
-    city: 'Jakarta Selatan',
-    postalCode: '12190',
-    residentialType: 'Apartment',
-    subscriptionPackage: 'Monthly Subscription of Frequent Cleaning (3 hours per visit; 3 visits per week)',
-    qtyPackage: 2,
-    ltv: 8,
-    firstDateSubscription: '15/12/2022',
-    status: 'Active',
-    cleaner1: 'Handi',
-    cleaner2: 'Syeila',
-    churnTag: 'N/A',
-    createdAt: '2022-12-15T10:00:00Z',
-    updatedAt: '2022-12-15T10:00:00Z',
-    isDeleted: false,
-  },
-  {
-    id: '3',
-    no: 3,
-    customerName: 'Michael Chen',
-    acquisition: 'HOMA',
-    contact: '6281987654321',
-    address: 'Office Suite 501, Plaza Indonesia',
-    village: 'Menteng',
-    district: 'Menteng',
-    city: 'Jakarta Pusat',
-    postalCode: '10350',
-    residentialType: 'Office Space',
-    subscriptionPackage: 'Monthly Subscription of Basic Cleaning (3 hours per visit; 1 visit per week)',
-    qtyPackage: 1,
-    ltv: 12,
-    firstDateSubscription: '20/12/2022',
-    status: 'Active',
-    cleaner1: 'Syeila',
-    cleaner2: 'Imam',
-    churnTag: 'N/A',
-    createdAt: '2022-12-20T14:30:00Z',
-    updatedAt: '2022-12-20T14:30:00Z',
-    isDeleted: false,
-  },
-  {
-    id: '4',
-    no: 4,
-    customerName: 'Diana Rodriguez',
-    acquisition: 'Altrix',
-    contact: '6281555666777',
-    address: 'Rumah Cluster Paradise',
-    village: 'Pondok Indah',
-    district: 'Kebayoran Lama',
-    city: 'Jakarta Selatan',
-    postalCode: '12310',
-    residentialType: 'House',
-    subscriptionPackage: 'Monthly Subscription of Special Partnership (3 hours per visit; 1 visit per week)',
-    qtyPackage: 1,
-    ltv: 6,
-    firstDateSubscription: '10/01/2023',
-    status: 'Churn',
-    cleaner1: 'Ardi',
-    cleaner2: '',
-    churnTag: 'External',
-    churnReason: 'Moved to different city',
-    createdAt: '2023-01-10T11:20:00Z',
-    updatedAt: '2023-06-15T16:00:00Z',
-    isDeleted: false,
-  },
-];
-
-// POST /api/customers/[id]/update-date - Update customer subscription date
+interface RouteParams {
+  params: { id: string };
+}
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+  { params }: RouteParams
+): Promise<NextResponse> {
   try {
     const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session && process.env.NODE_ENV !== 'development') {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
     // Check RBAC - ADMIN/OWNER/STAFF can update dates
-    if (!['ADMIN', 'OWNER', 'STAFF'].includes(session.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (session && !['ADMIN', 'OWNER', 'STAFF'].includes(session.role)) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden' },
+        { status: 403 }
+      );
     }
 
-    const { id } = params;
-    const body: { newDate: string; endDate?: string } = await request.json();
+    const customerId = params.id;
+    if (!customerId) {
+      return NextResponse.json(
+        { success: false, message: 'Customer ID is required' },
+        { status: 400 }
+      );
+    }
 
-    const customerIndex = customersData.findIndex(c => c.id === id && !c.isDeleted);
-    if (customerIndex === -1) {
-      return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+    const body = await request.json();
+    const { newDate, endDate } = body;
+
+    if (!newDate) {
+      return NextResponse.json(
+        { success: false, error: 'New date is required' },
+        { status: 400 }
+      );
     }
 
     // Validate date format (dd/MM/yyyy)
     const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
-    if (!dateRegex.test(body.newDate)) {
-      return NextResponse.json({ 
-        error: 'Invalid date format. Use dd/MM/yyyy format' 
-      }, { status: 400 });
+    if (!dateRegex.test(newDate)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid date format. Use dd/MM/yyyy' },
+        { status: 400 }
+      );
     }
 
-    if (body.endDate && !dateRegex.test(body.endDate)) {
-      return NextResponse.json({ 
-        error: 'Invalid end date format. Use dd/MM/yyyy format' 
-      }, { status: 400 });
+    if (endDate && !dateRegex.test(endDate)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid end date format. Use dd/MM/yyyy' },
+        { status: 400 }
+      );
     }
 
-    // Update the customer's subscription date
-    const updatedCustomer = {
-      ...customersData[customerIndex],
-      firstDateSubscription: body.newDate,
-      updatedAt: new Date().toISOString(),
-    };
+    try {
+      // Check if customer exists
+      const existingCustomer = await db
+        .select()
+        .from(customerDB)
+        .where(
+          and(
+            eq(customerDB.id, customerId),
+            or(eq(customerDB.isDeleted, false), sql`${customerDB.isDeleted} IS NULL`)
+          )
+        )
+        .limit(1);
 
-    customersData[customerIndex] = updatedCustomer;
+      if (existingCustomer.length === 0) {
+        return NextResponse.json(
+          { success: false, error: 'Customer not found' },
+          { status: 404 }
+        );
+      }
 
-    // Log audit event
-    logAuditEvent({
-      action: 'customer_date_updated',
-      userId: session.userId,
-      email: session.email,
-      details: {
-        customerId: updatedCustomer.id,
-        customerName: updatedCustomer.customerName,
-        oldDate: customersData[customerIndex].firstDateSubscription,
-        newDate: body.newDate,
-        endDate: body.endDate,
-      },
-    });
+      // Convert dd/MM/yyyy to Date object
+      const convertDateString = (dateStr: string): Date => {
+        const [day, month, year] = dateStr.split('/');
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      };
 
-    return NextResponse.json({ 
-      message: 'Customer subscription date updated successfully',
-      customer: updatedCustomer
-    });
+      const subscriptionStart = convertDateString(newDate);
+      const subscriptionEnd = endDate ? convertDateString(endDate) : null;
+
+      // Update customer subscription dates
+      const updateData: any = {
+        subscriptionStart: subscriptionStart.toISOString().split('T')[0], // Store as YYYY-MM-DD
+        updatedAt: new Date(),
+      };
+
+      if (subscriptionEnd) {
+        updateData.subscriptionEnd = subscriptionEnd.toISOString().split('T')[0];
+      }
+
+      await db
+        .update(customerDB)
+        .set(updateData)
+        .where(eq(customerDB.id, customerId));
+
+      // Log audit event
+      if (session) {
+        await logAuditEvent(session.userId, 'CUSTOMER_DATE_UPDATED', { 
+          customerId, 
+          newDate, 
+          endDate: endDate || null 
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Date updated successfully',
+      });
+
+    } catch (dbError) {
+      console.error('Database error during date update:', dbError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to update date - database error' },
+        { status: 500 }
+      );
+    }
+
   } catch (error) {
-    console.error('Update customer date error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Update date API error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to update date' },
+      { status: 500 }
+    );
   }
 }

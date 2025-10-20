@@ -4,10 +4,12 @@ export type ResidentialType = 'House' | 'Office Space' | 'Apartment';
 
 export interface TrialAssignment {
   id: string;
-  trialDate: string; // dd/mm/yyyy format
+  trialStart: string; // dd/mm/yyyy format
+  trialEnd?: string; // dd/mm/yyyy format - optional for ongoing trials
   assignedCleaner: string;
   status: TrialStatus;
   reasonForNotConverting?: string;
+  ltv?: number; // Calculated LTV in months
 }
 
 export interface TrialData {
@@ -17,6 +19,7 @@ export interface TrialData {
   address: string;
   district: string;
   city: string;
+  village?: string;
   postalCode: string;
   residentialType: ResidentialType;
   assignments: TrialAssignment[]; // Multiple trial assignments
@@ -32,10 +35,12 @@ export interface CreateTrialRequest {
   address: string;
   district: string;
   city: string;
+  village?: string;
   postalCode: string;
   residentialType: ResidentialType;
   assignments: {
-    trialDate: string;
+    trialStart: string; // dd/mm/yyyy format
+    trialEnd?: string; // dd/mm/yyyy format - optional for ongoing trials
     assignedCleaner: string;
     status?: TrialStatus;
     reasonForNotConverting?: string;
@@ -49,10 +54,13 @@ export interface TrialListItem {
   acquisition: AcquisitionType;
   district: string;
   city: string;
+  village?: string;
   residentialType: ResidentialType;
-  nextTrialDate?: string;
+  nextTrialStartDate?: string;
+  nextTrialEndDate?: string;
   assignedCleaners: string[];
   overallStatus?: TrialStatus; // Overall status based on latest assignment
+  ltv?: number; // Calculated LTV in months
   createdAt: string;
   isDeleted?: boolean;
 }

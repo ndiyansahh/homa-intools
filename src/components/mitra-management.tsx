@@ -109,29 +109,41 @@ export default function MitraManagement({ session }: MitraManagementProps) {
       });
 
       if (response.ok) {
-        // Reset form
-        setFormData({
-          name: '',
-          nik: '',
-          gender: 'Pria',
-          bornDate: '',
-          address: '',
-          phone: '',
-          bankAccount: '',
-          bankAccountNumber: '',
-          bankHoldersName: '',
-          cityAssignment: '',
-          locationAssignment: '',
-          partnershipTypes: 'Fulltime',
-          status: 'ACTIVE',
-          tenure: '3',
-          bonus: 'Not Eligible',
-        });
-        setShowForm(false);
-        fetchMitras();
+        const result = await response.json();
+        
+        // Handle both new format {success, data, message} and legacy format {id, mitraCode}
+        if (result.success || result.id) {
+          // Reset form
+          setFormData({
+            name: '',
+            nik: '',
+            gender: 'Pria',
+            bornDate: '',
+            address: '',
+            phone: '',
+            bankAccount: '',
+            bankAccountNumber: '',
+            bankHoldersName: '',
+            cityAssignment: '',
+            locationAssignment: '',
+            partnershipTypes: 'Fulltime',
+            status: 'ACTIVE',
+            tenure: '3',
+            bonus: 'Not Eligible',
+          });
+          setShowForm(false);
+          fetchMitras();
+          
+          // Show success message if available
+          if (result.message) {
+            console.log(result.message);
+          }
+        } else {
+          alert(result.message || result.error || 'Failed to create mitra');
+        }
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to create mitra');
+        alert(error.message || error.error || 'Failed to create mitra');
       }
     } catch (error) {
       console.error('Error creating mitra:', error);

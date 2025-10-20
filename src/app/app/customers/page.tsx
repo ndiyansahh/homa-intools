@@ -5,12 +5,22 @@ import CustomerManagement from '@/components/customer-management';
 export default async function CustomersPage() {
   const session = await getSession();
 
-  if (!session) {
+  // For development, create mock session if none exists
+  const mockSession = {
+    userId: 'dev-user',
+    role: 'ADMIN' as const,
+    email: 'dev@homa.com',
+    loginTime: new Date().toISOString(),
+  };
+
+  const currentSession = session || (process.env.NODE_ENV === 'development' ? mockSession : null);
+
+  if (!currentSession) {
     redirect('/login');
   }
 
   // Check RBAC - ADMIN/OWNER/STAFF can access
-  if (!['ADMIN', 'OWNER', 'STAFF'].includes(session.role)) {
+  if (!['ADMIN', 'OWNER', 'STAFF'].includes(currentSession.role)) {
     redirect('/app');
   }
 
@@ -24,7 +34,7 @@ export default async function CustomersPage() {
           </p>
         </div>
         
-        <CustomerManagement session={session} />
+        <CustomerManagement session={currentSession} />
       </div>
     </div>
   );
