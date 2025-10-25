@@ -38,7 +38,6 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
   const [trial, setTrial] = useState<TrialData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [converting, setConverting] = useState(false);
   
   // Edit mode states
   const [isEditMode, setIsEditMode] = useState(false);
@@ -51,7 +50,8 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
     startDate: '',
     endDate: '',
     assignedMitraId: '',
-    status: 'Not Converted' as TrialStatus
+    status: 'Not Converted' as TrialStatus,
+    notes: ''
   });
 
   // Fetch mitras for the dropdown
@@ -100,7 +100,8 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
               startDate: firstAssignment?.trialStart ? convertToDateInputFormat(firstAssignment.trialStart) : '',
               endDate: firstAssignment?.trialEnd ? convertToDateInputFormat(firstAssignment.trialEnd) : '',
               assignedMitraId: trialData.assignedMitraId || '',
-              status: firstAssignment?.status || 'Not Converted'
+              status: firstAssignment?.status || 'Not Converted',
+              notes: trialData.notes || ''
             });
           } else {
             setError('Failed to load trial details');
@@ -134,56 +135,40 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
     return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
   };
 
-  const handleUpdateTrial = async () => {
+  const handleConvertToCustomer = async () => {
     if (!trial || updating) return;
 
-    try {
-      setUpdating(true);
-      const updatePayload = {
-        id: trialId,
-        start_date: editData.startDate,
-        end_date: editData.endDate,
-        assigned_mitra: editData.assignedMitraId,
-        subscription_status: editData.status
-      };
-
-      const response = await fetch('/api/trial', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatePayload),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          alert('Trial updated successfully!');
-          setIsEditMode(false);
-          // Refresh trial data
-          window.location.reload(); // Simple refresh for now
-        } else {
-          alert(result.message || 'Failed to update trial');
-        }
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        alert(errorData.message || 'Failed to update trial');
-      }
-    } catch (err) {
-      console.error('Error updating trial:', err);
-      alert('Failed to update trial');
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const handleConvertTrial = async () => {
-    if (!trial || converting) return;
-
-    if (!confirm(`Are you sure you want to convert trial "${trial.customerName}" to a customer?`)) {
+    if (!confirm(`Are you sure you want to convert trial "${trial.customerName}" to a customer? This will update the trial information and convert it to an active customer.`)) {
       return;
     }
 
     try {
-      setConverting(true);
+      setUpdating(true);
+      
+      // First update the trial data if in edit mode
+      if (isEditMode) {
+        const updatePayload = {
+          id: trialId,
+          start_date: editData.startDate,
+          end_date: editData.endDate,
+          assigned_mitra: editData.assignedMitraId,
+          subscription_status: 'Converted', // Set as converted since we're converting
+          notes: editData.notes
+        };
+
+        const updateResponse = await fetch('/api/trial', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatePayload),
+        });
+
+        if (!updateResponse.ok) {
+          const errorData = await updateResponse.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Failed to update trial data');
+        }
+      }
+
+      // Then convert to customer
       const response = await fetch(`/api/trials/${trialId}/convert`, {
         method: 'POST',
       });
@@ -202,11 +187,12 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
       }
     } catch (err) {
       console.error('Error converting trial:', err);
-      alert('Failed to convert trial');
+      alert(`Failed to convert trial: ${err.message}`);
     } finally {
-      setConverting(false);
+      setUpdating(false);
     }
   };
+
 
   const toggleEditMode = () => {
     if (isEditMode) {
@@ -218,7 +204,8 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
           startDate: firstAssignment?.trialStart ? convertToDateInputFormat(firstAssignment.trialStart) : '',
           endDate: firstAssignment?.trialEnd ? convertToDateInputFormat(firstAssignment.trialEnd) : '',
           assignedMitraId: trial.assignedMitraId || '',
-          status: firstAssignment?.status || 'Not Converted'
+          status: firstAssignment?.status || 'Not Converted',
+          notes: trial.notes || ''
         });
       }
     }
@@ -452,25 +439,32 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
                   </div>
                 </div>
                 
-                {/* Update Button */}
-                <div className="flex justify-end">
-                  <button
-                    onClick={handleUpdateTrial}
-                    disabled={updating}
-                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {updating ? (
-                      <>
-                        <Icons.spinner className="w-4 h-4 mr-2 inline animate-spin" />
-                        Updating...
-                      </>
-                    ) : (
-                      <>
-                        <Icons.check className="w-4 h-4 mr-2 inline" />
-                        Update Trial
-                      </>
-                    )}
-                  </button>
+                {/* Notes Field */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Notes
+                  </label>
+                  <textarea
+                    value={editData.notes}
+                    onChange={(e) => setEditData({ ...editData, notes: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={4}
+                    placeholder="Add notes about this trial..."
+                  />
+                </div>
+                
+                {/* Info Text */}
+                <div className="bg-blue-100 border border-blue-200 rounded-md p-3">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <Icons.users className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-blue-800">
+                        When you convert to customer, all the updated information above will be saved and the trial will become an active customer.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -578,11 +572,21 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-200 flex justify-between">
           <button 
-            onClick={handleConvertTrial}
-            disabled={converting}
+            onClick={handleConvertToCustomer}
+            disabled={updating}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {converting ? 'Converting...' : 'Convert to Customer'}
+            {updating ? (
+              <>
+                <Icons.spinner className="w-4 h-4 mr-2 inline animate-spin" />
+                Converting...
+              </>
+            ) : (
+              <>
+                <Icons.check className="w-4 h-4 mr-2 inline" />
+                Convert to Customer
+              </>
+            )}
           </button>
           <button onClick={onClose} className="btn-primary">
             Close

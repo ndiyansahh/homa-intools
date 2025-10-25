@@ -350,6 +350,7 @@ interface UpdateTrialRequest {
   end_date?: string; // YYYY-MM-DD format  
   assigned_mitra?: string; // UUID of mitra
   subscription_status?: 'Trial' | 'Trial Scheduled' | 'Active' | 'Inactive' | 'Suspended' | 'Expired' | 'Cancelled';
+  notes?: string; // Customer notes
 }
 
 export async function PUT(request: NextRequest): Promise<NextResponse> {
@@ -469,6 +470,10 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
         
         if (body.subscription_status) {
           updateData.subscriptionStatus = body.subscription_status;
+        }
+        
+        if (body.notes !== undefined) {
+          updateData.customerNotes = body.notes;
         }
 
         // 4. Update customer if there are changes
