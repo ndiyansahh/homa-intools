@@ -26,6 +26,9 @@ export interface TrialData {
   assignedMitraId?: string | null; // Cleaner ID for editing
   assignments: TrialAssignment[]; // Multiple trial assignments
   notes: string;
+  subscriptionPackage?: string; // Selected subscription package
+  totalSessions?: number; // Total sessions based on mitra availability
+  chosenDays?: string[]; // Selected days for service
   createdAt: string;
   updatedAt: string;
   isDeleted?: boolean;

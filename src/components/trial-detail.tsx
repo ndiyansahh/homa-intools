@@ -44,6 +44,8 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
   const [updating, setUpdating] = useState(false);
   const [mitras, setMitras] = useState<Mitra[]>([]);
   const [loadingMitras, setLoadingMitras] = useState(false);
+  const [subscriptionPackages, setSubscriptionPackages] = useState<any[]>([]);
+  const [loadingPackages, setLoadingPackages] = useState(false);
   
   // Edit form data
   const [editData, setEditData] = useState({
@@ -51,7 +53,10 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
     endDate: '',
     assignedMitraId: '',
     status: 'Not Converted' as TrialStatus,
-    notes: ''
+    notes: '',
+    subscriptionPackage: '',
+    totalSessions: 0,
+    chosenDays: [] as string[]
   });
 
   // Fetch mitras for the dropdown
@@ -73,6 +78,28 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
       setMitras([]);
     } finally {
       setLoadingMitras(false);
+    }
+  };
+
+  // Fetch subscription packages
+  const fetchSubscriptionPackages = async () => {
+    try {
+      setLoadingPackages(true);
+      const response = await fetch('/api/subscription-packages');
+      
+      if (response.ok) {
+        const data = await response.json();
+        const packagesArray = Array.isArray(data) ? data : (data.success ? data.data : []);
+        setSubscriptionPackages(packagesArray);
+      } else {
+        console.error('Failed to fetch subscription packages:', response.status, response.statusText);
+        setSubscriptionPackages([]);
+      }
+    } catch (error) {
+      console.error('Error fetching subscription packages:', error);
+      setSubscriptionPackages([]);
+    } finally {
+      setLoadingPackages(false);
     }
   };
 
@@ -101,7 +128,10 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
               endDate: firstAssignment?.trialEnd ? convertToDateInputFormat(firstAssignment.trialEnd) : '',
               assignedMitraId: trialData.assignedMitraId || '',
               status: firstAssignment?.status || 'Not Converted',
-              notes: trialData.notes || ''
+              notes: trialData.notes || '',
+              subscriptionPackage: trialData.subscriptionPackage || '',
+              totalSessions: trialData.totalSessions || 0,
+              chosenDays: trialData.chosenDays || []
             });
           } else {
             setError('Failed to load trial details');
@@ -119,6 +149,7 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
 
     fetchTrial();
     fetchMitras(); // Load mitras when component mounts
+    fetchSubscriptionPackages(); // Load subscription packages
   }, [trialId]);
 
   // Helper function to convert dd/mm/yyyy to yyyy-mm-dd format for HTML date input
@@ -153,7 +184,10 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
           end_date: editData.endDate,
           assigned_mitra: editData.assignedMitraId,
           subscription_status: 'Converted', // Set as converted since we're converting
-          notes: editData.notes
+          notes: editData.notes,
+          subscription_package: editData.subscriptionPackage,
+          total_sessions: editData.totalSessions,
+          chosen_days: editData.chosenDays
         };
 
         const updateResponse = await fetch('/api/trial', {
@@ -205,7 +239,10 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
           endDate: firstAssignment?.trialEnd ? convertToDateInputFormat(firstAssignment.trialEnd) : '',
           assignedMitraId: trial.assignedMitraId || '',
           status: firstAssignment?.status || 'Not Converted',
-          notes: trial.notes || ''
+          notes: trial.notes || '',
+          subscriptionPackage: trial.subscriptionPackage || '',
+          totalSessions: trial.totalSessions || 0,
+          chosenDays: trial.chosenDays || []
         });
       }
     }
@@ -436,6 +473,76 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
                       <option value="Stalling/Postpone">Stalling/Postpone</option>
                       <option value="Cancelled">Cancelled</option>
                     </select>
+                  </div>
+                </div>
+                
+                {/* Subscription Package and Sessions */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Subscription Package */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Subscription Package
+                    </label>
+                    <select
+                      value={editData.subscriptionPackage}
+                      onChange={(e) => setEditData({ ...editData, subscriptionPackage: e.target.value })}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={loadingPackages}
+                    >
+                      <option value="">Select Package</option>
+                      {subscriptionPackages.map((pkg) => (
+                        <option key={pkg.id} value={pkg.name}>
+                          {pkg.name} - {pkg.price}
+                        </option>
+                      ))}
+                    </select>
+                    {loadingPackages && (
+                      <div className="text-xs text-blue-600 mt-1">Loading packages...</div>
+                    )}
+                  </div>
+                  
+                  {/* Total Sessions */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Total Sessions (based on mitra availability)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editData.totalSessions}
+                      onChange={(e) => setEditData({ ...editData, totalSessions: parseInt(e.target.value) || 0 })}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g. 8"
+                    />
+                  </div>
+                </div>
+                
+                {/* Chosen Days */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Chosen Days (Select available days)
+                  </label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                      <label key={day} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          checked={editData.chosenDays.includes(day)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEditData({ ...editData, chosenDays: [...editData.chosenDays, day] });
+                            } else {
+                              setEditData({ ...editData, chosenDays: editData.chosenDays.filter(d => d !== day) });
+                            }
+                          }}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">{day}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Selected: {editData.chosenDays.length > 0 ? editData.chosenDays.join(', ') : 'None'}
                   </div>
                 </div>
                 

@@ -67,6 +67,8 @@ export const customerDB = pgTable('customer_db', {
   totalPaid: decimal('total_paid', { precision: 10, scale: 2 }).default('0'),
   outstandingBalance: decimal('outstanding_balance', { precision: 10, scale: 2 }).default('0'),
   customerNotes: text('customer_notes'),
+  totalSessions: integer('total_sessions').default(0),
+  chosenDays: text('chosen_days'), // JSON string of selected days
   isActive: boolean('is_active').default(true),
   isDeleted: boolean('is_deleted').default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),

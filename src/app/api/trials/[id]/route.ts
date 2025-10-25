@@ -90,6 +90,8 @@ export async function GET(
           subscriptionStatus: customerDB.subscriptionStatus,
           customerNotes: customerDB.customerNotes,
           assignedMitraId: customerDB.assignedMitraId,
+          totalSessions: customerDB.totalSessions,
+          chosenDays: customerDB.chosenDays,
           isActive: customerDB.isActive,
           isDeleted: customerDB.isDeleted,
           createdAt: customerDB.createdAt,
@@ -167,6 +169,15 @@ export async function GET(
         });
       }
 
+      // Parse chosen days from JSON string
+      let chosenDays: string[] = [];
+      try {
+        chosenDays = customer.chosenDays ? JSON.parse(customer.chosenDays) : [];
+      } catch (e) {
+        console.warn('Failed to parse chosenDays JSON:', customer.chosenDays);
+        chosenDays = [];
+      }
+
       // Use customer data
       const trialData: TrialData = {
         id: customer.id,
@@ -182,6 +193,9 @@ export async function GET(
         assignedMitraId: customer.assignedMitraId || null, // Include mitra ID for editing
         assignments,
         notes: customer.customerNotes || '',
+        subscriptionPackage: customer.subscriptionPackage || '',
+        totalSessions: customer.totalSessions || 0,
+        chosenDays: chosenDays,
         createdAt: customer.createdAt?.toISOString() || new Date().toISOString(),
         updatedAt: customer.updatedAt?.toISOString() || new Date().toISOString(),
         isDeleted: customer.isDeleted || false,

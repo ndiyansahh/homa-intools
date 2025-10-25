@@ -351,6 +351,9 @@ interface UpdateTrialRequest {
   assigned_mitra?: string; // UUID of mitra
   subscription_status?: 'Trial' | 'Trial Scheduled' | 'Active' | 'Inactive' | 'Suspended' | 'Expired' | 'Cancelled';
   notes?: string; // Customer notes
+  subscription_package?: string; // Subscription package name
+  total_sessions?: number; // Total sessions
+  chosen_days?: string[]; // Array of chosen days
 }
 
 export async function PUT(request: NextRequest): Promise<NextResponse> {
@@ -474,6 +477,18 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
         
         if (body.notes !== undefined) {
           updateData.customerNotes = body.notes;
+        }
+        
+        if (body.subscription_package) {
+          updateData.subscriptionPackage = body.subscription_package;
+        }
+        
+        if (body.total_sessions !== undefined) {
+          updateData.totalSessions = body.total_sessions;
+        }
+        
+        if (body.chosen_days !== undefined) {
+          updateData.chosenDays = JSON.stringify(body.chosen_days); // Store as JSON string
         }
 
         // 4. Update customer if there are changes
