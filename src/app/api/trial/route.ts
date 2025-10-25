@@ -483,13 +483,14 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
           updateData.subscriptionPackage = body.subscription_package;
         }
         
-        if (body.total_sessions !== undefined) {
-          updateData.totalSessions = body.total_sessions;
-        }
+        // Comment out until DB migration
+        // if (body.total_sessions !== undefined) {
+        //   updateData.totalSessions = body.total_sessions;
+        // }
         
-        if (body.chosen_days !== undefined) {
-          updateData.chosenDays = JSON.stringify(body.chosen_days); // Store as JSON string
-        }
+        // if (body.chosen_days !== undefined) {
+        //   updateData.chosenDays = JSON.stringify(body.chosen_days); // Store as JSON string
+        // }
 
         // 4. Update customer if there are changes
         if (Object.keys(updateData).length > 0) {

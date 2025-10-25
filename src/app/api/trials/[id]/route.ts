@@ -90,8 +90,8 @@ export async function GET(
           subscriptionStatus: customerDB.subscriptionStatus,
           customerNotes: customerDB.customerNotes,
           assignedMitraId: customerDB.assignedMitraId,
-          totalSessions: customerDB.totalSessions,
-          chosenDays: customerDB.chosenDays,
+          // totalSessions: customerDB.totalSessions, // Comment out until DB migration
+          // chosenDays: customerDB.chosenDays, // Comment out until DB migration
           isActive: customerDB.isActive,
           isDeleted: customerDB.isDeleted,
           createdAt: customerDB.createdAt,
@@ -169,12 +169,13 @@ export async function GET(
         });
       }
 
-      // Parse chosen days from JSON string
+      // Parse chosen days from JSON string (fallback to empty array if field doesn't exist)
       let chosenDays: string[] = [];
       try {
-        chosenDays = customer.chosenDays ? JSON.parse(customer.chosenDays) : [];
+        // chosenDays = customer.chosenDays ? JSON.parse(customer.chosenDays) : []; // Comment out until DB migration
+        chosenDays = []; // Default empty for now
       } catch (e) {
-        console.warn('Failed to parse chosenDays JSON:', customer.chosenDays);
+        console.warn('Failed to parse chosenDays JSON:', e);
         chosenDays = [];
       }
 
@@ -194,7 +195,7 @@ export async function GET(
         assignments,
         notes: customer.customerNotes || '',
         subscriptionPackage: customer.subscriptionPackage || '',
-        totalSessions: customer.totalSessions || 0,
+        totalSessions: 0, // customer.totalSessions || 0, // Default to 0 until DB migration
         chosenDays: chosenDays,
         createdAt: customer.createdAt?.toISOString() || new Date().toISOString(),
         updatedAt: customer.updatedAt?.toISOString() || new Date().toISOString(),
