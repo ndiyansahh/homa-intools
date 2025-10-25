@@ -1,13 +1,8 @@
 export interface SubscriptionPackage {
   id: string;
-  packageName: string;
-  packageType: string;
-  visitsPerWeek: number;
-  pricePerVisit: string;
-  totalPrice: string;
-  duration: number;
-  description: string;
-  isActive: boolean;
+  subscriptionPackage: string;  // Full package name with details
+  pricePerQty: string;          // Price in formatted string "Rp1,125,000"
+  priceNumeric: number;         // Price in numeric format for calculations
   createdAt: Date;
   updatedAt: Date;
 }

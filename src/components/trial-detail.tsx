@@ -491,8 +491,8 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
                     >
                       <option value="">Select Package</option>
                       {subscriptionPackages.map((pkg) => (
-                        <option key={pkg.id} value={pkg.name}>
-                          {pkg.name} - {pkg.price}
+                        <option key={pkg.id} value={pkg.subscriptionPackage}>
+                          {pkg.subscriptionPackage} - {pkg.pricePerQty}
                         </option>
                       ))}
                     </select>

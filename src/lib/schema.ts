@@ -32,14 +32,9 @@ export const regionDB = pgTable('region_db', {
 // Subscription Package Table - Master Data
 export const subscriptionPackageDB = pgTable('subscription_package_db', {
   id: uuid('id').defaultRandom().primaryKey(),
-  packageName: varchar('package_name', { length: 100 }).notNull(),
-  packageType: varchar('package_type', { length: 50 }).notNull(), // Regular, Frequent, Special, Basic
-  visitsPerWeek: integer('visits_per_week').notNull(),
-  pricePerVisit: decimal('price_per_visit', { precision: 10, scale: 2 }),
-  totalPrice: decimal('total_price', { precision: 10, scale: 2 }),
-  duration: integer('duration').default(30), // days
-  isActive: boolean('is_active').default(true),
-  description: text('description'),
+  subscriptionPackage: varchar('subscription_package', { length: 255 }).notNull(), // Full package name with details
+  pricePerQty: varchar('price_per_qty', { length: 50 }).notNull(), // Price in string format like "Rp1,125,000"
+  priceNumeric: decimal('price_numeric', { precision: 10, scale: 2 }).notNull(), // Price in numeric format for calculations
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
