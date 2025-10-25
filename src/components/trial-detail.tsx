@@ -92,14 +92,16 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
             const trialData = result.data;
             const firstAssignment = trialData.assignments?.[0];
             
-            if (firstAssignment) {
-              setEditData({
-                startDate: firstAssignment.trialStart ? convertToDateInputFormat(firstAssignment.trialStart) : '',
-                endDate: firstAssignment.trialEnd ? convertToDateInputFormat(firstAssignment.trialEnd) : '',
-                assignedMitraId: trialData.assignedMitraId || '',
-                status: firstAssignment.status || 'Not Converted'
-              });
-            }
+            console.log('Trial data for edit form:', trialData);
+            console.log('First assignment:', firstAssignment);
+            
+            // Populate edit data with existing trial information
+            setEditData({
+              startDate: firstAssignment?.trialStart ? convertToDateInputFormat(firstAssignment.trialStart) : '',
+              endDate: firstAssignment?.trialEnd ? convertToDateInputFormat(firstAssignment.trialEnd) : '',
+              assignedMitraId: trialData.assignedMitraId || '',
+              status: firstAssignment?.status || 'Not Converted'
+            });
           } else {
             setError('Failed to load trial details');
           }
@@ -210,12 +212,13 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
     if (isEditMode) {
       // Exiting edit mode - reset form data to original trial data
       const firstAssignment = trial?.assignments?.[0];
-      if (firstAssignment && trial) {
+      if (trial) {
+        console.log('Resetting edit form data, trial.assignedMitraId:', trial.assignedMitraId);
         setEditData({
-          startDate: firstAssignment.trialStart ? convertToDateInputFormat(firstAssignment.trialStart) : '',
-          endDate: firstAssignment.trialEnd ? convertToDateInputFormat(firstAssignment.trialEnd) : '',
+          startDate: firstAssignment?.trialStart ? convertToDateInputFormat(firstAssignment.trialStart) : '',
+          endDate: firstAssignment?.trialEnd ? convertToDateInputFormat(firstAssignment.trialEnd) : '',
           assignedMitraId: trial.assignedMitraId || '',
-          status: firstAssignment.status || 'Not Converted'
+          status: firstAssignment?.status || 'Not Converted'
         });
       }
     }

@@ -22,7 +22,8 @@ export interface TrialData {
   village?: string;
   postalCode: string;
   residentialType: ResidentialType;
-  assignedCleaner?: string | null; // Cleaner extracted from customerNotes
+  assignedCleaner?: string | null; // Cleaner name
+  assignedMitraId?: string | null; // Cleaner ID for editing
   assignments: TrialAssignment[]; // Multiple trial assignments
   notes: string;
   createdAt: string;

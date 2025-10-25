@@ -179,6 +179,7 @@ export async function GET(
         postalCode: customer.postalCode || '',
         residentialType,
         assignedCleaner: assignedCleaner || null,
+        assignedMitraId: customer.assignedMitraId || null, // Include mitra ID for editing
         assignments,
         notes: customer.customerNotes || '',
         createdAt: customer.createdAt?.toISOString() || new Date().toISOString(),
