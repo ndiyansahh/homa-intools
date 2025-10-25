@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { customerDB, regionDB } from '@/lib/schema';
+import { customerDB, regionDB, mitraDB } from '@/lib/schema';
 import { sql, and, or, eq } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { TrialDetail, TrialData } from '@/types/trial';
@@ -74,14 +74,39 @@ export async function GET(
     }
 
     try {
-      // Get trial customer from customerDB where status = 'Trial'
+      // Get trial customer from customerDB with JOIN to mitraDB for cleaner information
       const trialResult = await db
-        .select()
+        .select({
+          id: customerDB.id,
+          customerName: customerDB.customerName,
+          address: customerDB.address,
+          city: customerDB.city,
+          district: customerDB.district,
+          village: customerDB.village,
+          postalCode: customerDB.postalCode,
+          subscriptionPackage: customerDB.subscriptionPackage,
+          subscriptionStart: customerDB.subscriptionStart,
+          subscriptionEnd: customerDB.subscriptionEnd,
+          subscriptionStatus: customerDB.subscriptionStatus,
+          customerNotes: customerDB.customerNotes,
+          assignedMitraId: customerDB.assignedMitraId,
+          isActive: customerDB.isActive,
+          isDeleted: customerDB.isDeleted,
+          createdAt: customerDB.createdAt,
+          updatedAt: customerDB.updatedAt,
+          // JOIN mitraDB for cleaner names
+          assignedMitraName: mitraDB.mitraName,
+          assignedMitraStatus: mitraDB.status,
+        })
         .from(customerDB)
+        .leftJoin(mitraDB, eq(customerDB.assignedMitraId, mitraDB.id))
         .where(
           and(
             eq(customerDB.id, trialId),
-            eq(customerDB.subscriptionStatus, 'Trial'),
+            or(
+              eq(customerDB.subscriptionStatus, 'Trial'),
+              eq(customerDB.subscriptionStatus, 'Trial Scheduled')
+            ),
             or(eq(customerDB.isDeleted, false), sql`${customerDB.isDeleted} IS NULL`)
           )
         )
@@ -96,11 +121,10 @@ export async function GET(
 
       const customer = trialResult[0];
 
-      // Extract trial assignment details from customer notes
-      const cleanerMatch = customer.customerNotes?.match(/Assigned cleaner:\s*([^-\n]+)/i);
-      const assignedCleaner = cleanerMatch ? cleanerMatch[1].trim() : '';
+      // Use assigned mitra from database JOIN instead of parsing customerNotes
+      const assignedCleaner = customer.assignedMitraName || null;
 
-      // Determine acquisition from customer notes
+      // Determine acquisition from customer notes or subscription
       const acquisition: 'HOMA' | 'Altrix' = 
         customer.customerNotes?.toLowerCase().includes('altrix') ? 'Altrix' : 'HOMA';
 
@@ -154,6 +178,7 @@ export async function GET(
         village: customer.village,
         postalCode: customer.postalCode || '',
         residentialType,
+        assignedCleaner: assignedCleaner || null,
         assignments,
         notes: customer.customerNotes || '',
         createdAt: customer.createdAt?.toISOString() || new Date().toISOString(),

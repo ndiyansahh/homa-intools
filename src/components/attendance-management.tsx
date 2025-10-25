@@ -189,11 +189,11 @@ export default function AttendanceManagement({ session }: AttendanceManagementPr
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {attendanceRecords.map((record) => (
+                  {attendanceRecords.map((record, index) => (
                     <tr key={record.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {record.no}
+                          {index + 1}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

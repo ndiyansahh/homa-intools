@@ -166,6 +166,26 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
                     </span>
                   </div>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Assigned Cleaner</label>
+                  <div className="mt-1 text-sm text-gray-900">
+                    {trial.assignedCleaner ? (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                        </svg>
+                        {trial.assignedCleaner}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        No cleaner assigned
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 

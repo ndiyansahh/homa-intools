@@ -22,6 +22,7 @@ export interface TrialData {
   village?: string;
   postalCode: string;
   residentialType: ResidentialType;
+  assignedCleaner?: string | null; // Cleaner extracted from customerNotes
   assignments: TrialAssignment[]; // Multiple trial assignments
   notes: string;
   createdAt: string;
@@ -59,6 +60,7 @@ export interface TrialListItem {
   nextTrialStartDate?: string;
   nextTrialEndDate?: string;
   assignedCleaners: string[];
+  assignedMitraId?: string; // Mitra ID for editing
   overallStatus?: TrialStatus; // Overall status based on latest assignment
   ltv?: number; // Calculated LTV in months
   createdAt: string;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { customerDB, regionDB } from '@/lib/schema';
+import { customerDB, regionDB, mitraDB } from '@/lib/schema';
 import { sql, and, or, ilike, eq, desc, count } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { CreateTrialRequest, TrialListItem, TrialsResponse, TrialData } from '@/types/trial';
@@ -152,15 +152,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         district: body.district.trim(),
         city: body.city.trim(),
         postalCode: body.postalCode.trim(),
-        village: '', // Optional field
-        residentialType: body.residentialType, // Store the residential type from request
+        village: body.village || '', // Optional field
+        // residentialType: body.residentialType, // TODO: Enable after database migration
         subscriptionPackage: trialPackage,
         subscriptionStart: trialStartDate.toISOString().split('T')[0], // Store as YYYY-MM-DD
         subscriptionEnd: trialEndDate ? trialEndDate.toISOString().split('T')[0] : null,
         subscriptionStatus: 'Trial',
         monthlyFee: '0', // Free trial
-        customerNotes: `${body.notes || ''} - ${body.acquisition} acquisition - Assigned cleaner: ${firstAssignment.assignedCleaner}`,
-        village: body.village || '',
+        customerNotes: `${body.notes || ''} - ${body.acquisition} acquisition - Residential: ${body.residentialType} - Assigned cleaner: ${firstAssignment.assignedCleaner}`,
         isDeleted: false,
       };
 
@@ -195,10 +194,32 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         message: 'Trial customer created successfully',
       }, { status: 201 });
 
-    } catch (dbError) {
+    } catch (dbError: any) {
       console.error('Database error during trial creation:', dbError);
+      console.error('Error details:', {
+        code: dbError.code,
+        message: dbError.message,
+        detail: dbError.detail,
+        hint: dbError.hint,
+        position: dbError.position,
+        table: dbError.table,
+        column: dbError.column,
+        constraint: dbError.constraint,
+        severity: dbError.severity,
+        stack: dbError.stack
+      });
+      
       return NextResponse.json(
-        { success: false, message: 'Failed to create trial - database error' },
+        { 
+          success: false, 
+          message: 'Failed to create trial - database error',
+          error: process.env.NODE_ENV === 'development' ? dbError.message : undefined,
+          details: process.env.NODE_ENV === 'development' ? {
+            code: dbError.code,
+            detail: dbError.detail,
+            hint: dbError.hint
+          } : undefined
+        },
         { status: 500 }
       );
     }
@@ -245,11 +266,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     let total = 0;
 
     try {
-      // Build where conditions for trial customers from customerDB
+      // Build where conditions for trial customers from customerDB  
       const conditions = [];
 
-      // Only show customers with Trial status
-      conditions.push(eq(customerDB.subscriptionStatus, 'Trial'));
+      // Only show customers with Trial Scheduled status (fallback to Trial for existing data)
+      conditions.push(
+        or(
+          eq(customerDB.subscriptionStatus, 'Trial Scheduled'),
+          eq(customerDB.subscriptionStatus, 'Trial')
+        )
+      );
 
       // Search in customer name, address, or district
       if (q) {
@@ -272,32 +298,53 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-      // Get trial customers (simplified select to avoid null issues)
-      const trialCustomers = await db
-        .select()
+      // Get total count first
+      const countResult = await db
+        .select({ count: count() })
         .from(customerDB)
+        .where(whereClause);
+      
+      total = countResult[0]?.count || 0;
+
+      // Get trial customers with LEFT JOIN to mitraDB for cleaner information
+      const trialCustomers = await db
+        .select({
+          id: customerDB.id,
+          customerName: customerDB.customerName,
+          city: customerDB.city,
+          district: customerDB.district,
+          village: customerDB.village,
+          postalCode: customerDB.postalCode,
+          subscriptionStatus: customerDB.subscriptionStatus,
+          customerNotes: customerDB.customerNotes,
+          assignedMitraId: customerDB.assignedMitraId,
+          createdAt: customerDB.createdAt,
+          isDeleted: customerDB.isDeleted,
+          // JOIN mitraDB for cleaner names
+          assignedMitraName: mitraDB.mitraName,
+          assignedMitraStatus: mitraDB.status,
+        })
+        .from(customerDB)
+        .leftJoin(mitraDB, eq(customerDB.assignedMitraId, mitraDB.id))
         .where(whereClause)
         .orderBy(desc(customerDB.createdAt))
         .limit(limit)
         .offset(offset);
 
-      total = trialCustomers.length; // Approximate total from current page
-
+      console.log('Drizzle query successful, found', trialCustomers.length, 'results');
+      
       // Convert customer data to trial list format
       trials = trialCustomers.map((customer) => {
         // Determine acquisition from customer notes
         const acquisition: 'HOMA' | 'Altrix' = 
           customer.customerNotes?.toLowerCase().includes('altrix') ? 'Altrix' : 'HOMA';
         
-        // Use residential type from database, fallback to inference if not set
-        let residentialType: 'House' | 'Office Space' | 'Apartment' = customer.residentialType as any || 'House';
-        if (!customer.residentialType) {
-          // Fallback inference for older records
-          if (customer.subscriptionPackage?.toLowerCase().includes('office')) {
-            residentialType = 'Office Space';
-          } else if (customer.address?.toLowerCase().includes('apartment')) {
-            residentialType = 'Apartment';
-          }
+        // Infer residential type from subscription package or address (database column not yet migrated)
+        let residentialType: 'House' | 'Office Space' | 'Apartment' = 'House';
+        if (customer.subscriptionPackage?.toLowerCase().includes('office')) {
+          residentialType = 'Office Space';
+        } else if (customer.address?.toLowerCase().includes('apartment')) {
+          residentialType = 'Apartment';
         }
 
         // Format trial start date from subscription start
@@ -323,9 +370,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           ltv = 0;
         }
 
-        // Extract assigned cleaner from notes
-        const cleanerMatch = customer.customerNotes?.match(/Assigned cleaner:\s*([^-\n]+)/i);
-        const assignedCleaner = cleanerMatch ? cleanerMatch[1].trim() : '';
+        // Use assigned mitra from database JOIN instead of parsing customerNotes
+        const assignedCleaners: string[] = [];
+        if (customer.assignedMitraName && customer.assignedMitraStatus === 'Active') {
+          assignedCleaners.push(customer.assignedMitraName);
+        }
 
         return {
           id: customer.id,
@@ -333,11 +382,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           acquisition,
           district: customer.district || '',
           city: customer.city,
-          village: customer.village,
+          village: customer.village || undefined,
           residentialType,
           nextTrialStartDate,
           nextTrialEndDate,
-          assignedCleaners: assignedCleaner ? [assignedCleaner] : [],
+          assignedCleaners,
+          assignedMitraId: customer.assignedMitraId, // Include mitra ID for editing
           overallStatus: 'Not Converted' as const, // Default trial status
           ltv,
           createdAt: customer.createdAt?.toISOString() || new Date().toISOString(),
@@ -347,6 +397,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     } catch (dbError) {
       console.error('Database error during trials fetch:', dbError);
+      console.error('Database error details:', {
+        message: dbError?.message,
+        code: dbError?.code,
+        table: dbError?.table,
+        column: dbError?.column,
+        stack: dbError?.stack
+      });
       
       // Return empty results with friendly message
       return NextResponse.json({

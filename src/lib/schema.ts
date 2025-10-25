@@ -54,11 +54,15 @@ export const customerDB = pgTable('customer_db', {
   district: varchar('district', { length: 100 }),
   village: varchar('village', { length: 100 }),
   postalCode: varchar('postal_code', { length: 10 }),
+  // residentialType: varchar('residential_type', { length: 50 }).default('House'), // TODO: Enable after database migration
+  // Cleaner assignment fields
+  assignedMitraId: uuid('assigned_mitra_id').references(() => mitraDB.id),
+  backupMitraId: uuid('backup_mitra_id').references(() => mitraDB.id),
   subscriptionPackageId: uuid('subscription_package_id').references(() => subscriptionPackageDB.id),
   subscriptionPackage: varchar('subscription_package', { length: 255 }),
   subscriptionStart: date('subscription_start'),
   subscriptionEnd: date('subscription_end'),
-  subscriptionStatus: varchar('subscription_status', { length: 20 }).default('Active'),
+  subscriptionStatus: varchar('subscription_status', { length: 30 }).default('Active'),
   monthlyFee: decimal('monthly_fee', { precision: 10, scale: 2 }).default('0'),
   totalPaid: decimal('total_paid', { precision: 10, scale: 2 }).default('0'),
   outstandingBalance: decimal('outstanding_balance', { precision: 10, scale: 2 }).default('0'),
@@ -69,52 +73,39 @@ export const customerDB = pgTable('customer_db', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
-// Mitra (Cleaner/Partner) Table - Extended for full management
+// Mitra (Cleaner/Partner) Table - Matching actual database structure
 export const mitraDB = pgTable('mitra_db', {
   id: uuid('id').defaultRandom().primaryKey(),
-  no: serial('no'),
+  mitraName: varchar('mitra_name', { length: 255 }).notNull(),
+  contact: varchar('contact', { length: 20 }).notNull(),
+  address: text('address').notNull(),
+  city: varchar('city', { length: 100 }).notNull(),
+  district: varchar('district', { length: 100 }),
+  village: varchar('village', { length: 100 }),
+  postalCode: varchar('postal_code', { length: 10 }),
   
-  // Basic info
-  mitraName: varchar('mitra_name', { length: 100 }).notNull(),
-  mitraCode: varchar('mitra_code', { length: 50 }).unique(), // MITRA-YYYYMM-000001
-  nik: varchar('nik', { length: 16 }).unique(),
-  gender: varchar('gender', { length: 10 }), // Pria, Wanita
-  bornDate: varchar('born_date', { length: 10 }), // dd/MM/yyyy
+  // Mitra details
+  mitraType: varchar('mitra_type', { length: 20 }).notNull().default('Cleaner'),
+  status: varchar('status', { length: 20 }).default('Active'),
   
-  // Contact info
-  address: text('address'),
-  phone: varchar('phone', { length: 20 }),
+  // Financial details
+  baseRate: decimal('base_rate', { precision: 10, scale: 2 }).notNull(),
+  commissionRate: decimal('commission_rate', { precision: 5, scale: 2 }).default('10.00'),
+  totalEarnings: decimal('total_earnings', { precision: 12, scale: 2 }).default('0'),
+  totalVisits: integer('total_visits').default(0),
   
-  // Bank info
-  bankAccount: varchar('bank_account', { length: 50 }),
-  bankAccountNumber: varchar('bank_account_number', { length: 50 }),
-  bankHoldersName: varchar('bank_holders_name', { length: 100 }),
-  
-  // Assignment info
-  cityAssignment: varchar('city_assignment', { length: 100 }),
-  locationAssignment: varchar('location_assignment', { length: 100 }),
-  
-  // Partnership details
-  partnershipTypes: varchar('partnership_types', { length: 20 }), // Fulltime, Partime
-  status: varchar('status', { length: 20 }).default('ACTIVE'), // ACTIVE, EXIT, ACTIVE-FLAG, BANNED
-  tenure: varchar('tenure', { length: 2 }), // 3, 6, 12 (months)
-  bonus: varchar('bonus', { length: 20 }).default('Not Eligible'), // Eligible, Not Eligible
-  
-  // Dates
-  joinDate: varchar('join_date', { length: 10 }), // dd/MM/yyyy
-  exitDate: varchar('exit_date', { length: 10 }), // dd/MM/yyyy, optional
-  
-  // Legacy fields for backward compatibility
-  city: varchar('city', { length: 100 }),
-  mitraType: varchar('mitra_type', { length: 20 }).default('Cleaner'), // Cleaner, Supervisor, etc
-  contact: varchar('contact', { length: 20 }),
-  baseRate: decimal('base_rate', { precision: 10, scale: 2 }),
-  commissionRate: decimal('commission_rate', { precision: 5, scale: 2 }),
+  // Performance metrics
+  rating: decimal('rating', { precision: 2, scale: 1 }).default('0'),
+  totalReviews: integer('total_reviews').default(0),
   
   // Metadata
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  joinDate: date('join_date').defaultNow(),
+  lastVisitDate: date('last_visit_date'),
+  mitraNotes: text('mitra_notes'),
+  isActive: boolean('is_active').default(true),
   isDeleted: boolean('is_deleted').default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
 // Invoice Table
@@ -167,7 +158,6 @@ export const attendanceScheduleDB = pgTable('attendance_schedule_db', {
 // Attendance Record Table
 export const attendanceRecordDB = pgTable('attendance_record_db', {
   id: uuid('id').defaultRandom().primaryKey(),
-  no: serial('no'),
   scheduleId: uuid('schedule_id').references(() => attendanceScheduleDB.id),
   customerId: uuid('customer_id').references(() => customerDB.id).notNull(),
   mitraId: uuid('mitra_id').references(() => mitraDB.id).notNull(),
@@ -240,6 +230,14 @@ export const customerRelations = relations(customerDB, ({ one, many }) => ({
   subscriptionPackage: one(subscriptionPackageDB, {
     fields: [customerDB.subscriptionPackageId],
     references: [subscriptionPackageDB.id],
+  }),
+  assignedMitra: one(mitraDB, {
+    fields: [customerDB.assignedMitraId],
+    references: [mitraDB.id],
+  }),
+  backupMitra: one(mitraDB, {
+    fields: [customerDB.backupMitraId],
+    references: [mitraDB.id],
   }),
   invoices: many(invoiceDB),
   attendanceSchedules: many(attendanceScheduleDB),

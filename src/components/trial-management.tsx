@@ -1,10 +1,45 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { SessionData } from '@/types/auth';
 import { TrialListItem, TrialsResponse, TrialStatus, CreateTrialRequest, TrialFilters, AcquisitionType, ResidentialType } from '@/types/trial';
 import { Icons } from './icons';
 import TrialDetailView from './trial-detail';
+
+// Region interfaces
+interface City {
+  id: string;
+  name: string;
+}
+
+interface District {
+  id: string;
+  name: string;
+  city_id: string;
+}
+
+interface Village {
+  id: string;
+  name: string;
+  district_id: string;
+  postal_code: string;
+}
+
+// Mitra interface
+interface Mitra {
+  id: string;
+  name: string;
+  phone: string;
+}
+
+// Update trial interface
+interface UpdateTrialData {
+  id: string;
+  start_date?: string;
+  end_date?: string;
+  assigned_mitra?: string;
+  subscription_status?: TrialStatus;
+}
 
 interface TrialManagementProps {
   session: SessionData;
@@ -49,23 +84,39 @@ export default function TrialManagement({ session }: TrialManagementProps) {
   
   // Form state
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState<CreateTrialRequest>({
-    customerName: '',
-    acquisition: 'HOMA',
+  const [formData, setFormData] = useState({
+    customer_name: '',
+    contact: '',
     address: '',
-    district: '',
-    city: '',
-    village: '',
-    postalCode: '',
-    residentialType: 'House',
+    city_id: '',
+    district_id: '',
+    village_id: '',
+    postal_code: '',
+    residential_type: 'House' as ResidentialType,
     assignments: [{
-      trialStart: '',
-      trialEnd: '',
-      assignedCleaner: '',
-      status: 'Not Converted',
+      date: '',
+      selected_mitra: '',
+      status: 'Trial Scheduled',
     }],
-    notes: '',
   });
+
+  // Region dropdown states
+  const [cities, setCities] = useState<City[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [villages, setVillages] = useState<Village[]>([]);
+  const [mitras, setMitras] = useState<Mitra[]>([]);
+  
+  // Loading states
+  const [loadingCities, setLoadingCities] = useState(false);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [loadingVillages, setLoadingVillages] = useState(false);
+  const [loadingMitras, setLoadingMitras] = useState(false);
+  
+  // Error states
+  const [formError, setFormError] = useState<string>('');
+  
+  // Update loading state
+  const [updateLoading, setUpdateLoading] = useState<string | null>(null);
 
   // Filter state
   const [filters, setFilters] = useState<TrialFilters>({
@@ -85,12 +136,201 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     totalPages: 0,
   });
 
-  // Available cleaners list (matching customer API)
-  const availableCleaners = ['Ardi', 'Inem', 'Siti', 'Budi', 'Ani', 'Dewi', 'Rina', 'Tono', 'Wati', 'Didi', 'Maya', 'Joko'];
-
-  const fetchTrials = async () => {
+  // Fetch functions for cascading dropdowns
+  const fetchCities = async () => {
     try {
+      setLoadingCities(true);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await fetch('/api/regions/cities', {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        const result = await response.json();
+        setCities(result.success ? result.data : []);
+      } else {
+        console.error('Failed to fetch cities:', response.status, response.statusText);
+        setCities([]);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error('Cities fetch timed out');
+      } else {
+        console.error('Error fetching cities:', error);
+      }
+      setCities([]);
+    } finally {
+      setLoadingCities(false);
+    }
+  };
+
+  const fetchDistricts = async (cityId: string) => {
+    try {
+      setLoadingDistricts(true);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await fetch(`/api/regions/districts?city_id=${encodeURIComponent(cityId)}`, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        const result = await response.json();
+        setDistricts(result.success ? result.data : []);
+      } else {
+        console.error('Failed to fetch districts:', response.status, response.statusText);
+        setDistricts([]);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error('Districts fetch timed out');
+      } else {
+        console.error('Error fetching districts:', error);
+      }
+      setDistricts([]);
+    } finally {
+      setLoadingDistricts(false);
+    }
+  };
+
+  const fetchVillages = async (districtId: string) => {
+    try {
+      setLoadingVillages(true);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await fetch(`/api/regions/villages?district_id=${encodeURIComponent(districtId)}`, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        const result = await response.json();
+        setVillages(result.success ? result.data : []);
+      } else {
+        console.error('Failed to fetch villages:', response.status, response.statusText);
+        setVillages([]);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error('Villages fetch timed out');
+      } else {
+        console.error('Error fetching villages:', error);
+      }
+      setVillages([]);
+    } finally {
+      setLoadingVillages(false);
+    }
+  };
+
+  const fetchMitras = async (date?: string) => {
+    try {
+      setLoadingMitras(true);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const params = date ? `?available_date=${date}` : '';
+      console.log('Fetching mitras from:', `/api/mitra${params}`);
+      const response = await fetch(`/api/mitra${params}`, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Mitra API response:', data);
+        // Mitra API returns direct array for simple requests, not wrapped in success/data
+        const mitrasArray = Array.isArray(data) ? data : [];
+        console.log('Setting', mitrasArray.length, 'mitras to state');
+        setMitras(mitrasArray);
+      } else {
+        console.error('Failed to fetch mitras:', response.status, response.statusText);
+        setMitras([]);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error('Mitras fetch timed out');
+      } else {
+        console.error('Error fetching mitras:', error);
+      }
+      setMitras([]);
+    } finally {
+      setLoadingMitras(false);
+    }
+  };
+
+  // Load cities and mitras on component mount
+  useEffect(() => {
+    console.log('Component mounting, fetching initial data');
+    fetchCities();
+    fetchMitras();
+
+    // Cleanup function to reset loading states if component unmounts
+    return () => {
+      setLoadingCities(false);
+      setLoadingDistricts(false);
+      setLoadingVillages(false);
+      setLoadingMitras(false);
+    };
+  }, []);
+
+  // Handle cascading dropdown changes
+  const handleCityChange = (cityId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      city_id: cityId,
+      district_id: '',
+      village_id: '',
+      postal_code: ''
+    }));
+    setDistricts([]);
+    setVillages([]);
+    setFormError(''); // Clear any validation errors
+    if (cityId) {
+      fetchDistricts(cityId);
+    }
+  };
+
+  const handleDistrictChange = (districtId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      district_id: districtId,
+      village_id: '',
+      postal_code: ''
+    }));
+    setVillages([]);
+    setFormError(''); // Clear any validation errors
+    if (districtId) {
+      fetchVillages(districtId);
+    }
+  };
+
+  const handleVillageChange = (villageId: string) => {
+    const selectedVillage = villages.find(v => v.id === villageId);
+    setFormData(prev => ({
+      ...prev,
+      village_id: villageId,
+      postal_code: selectedVillage?.postal_code || ''
+    }));
+    setFormError(''); // Clear any validation errors
+  };
+
+  const fetchTrials = useCallback(async () => {
+    try {
+      console.log('Starting fetchTrials with filters:', filters);
       setLoading(true);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       const params = new URLSearchParams();
       if (filters.q) params.append('q', filters.q);
       if (filters.status) params.append('status', filters.status);
@@ -101,9 +341,15 @@ export default function TrialManagement({ session }: TrialManagementProps) {
       params.append('page', filters.page?.toString() || '1');
       params.append('limit', filters.limit?.toString() || '10');
 
-      const response = await fetch(`/api/trials?${params}`);
+      const response = await fetch(`/api/trials?${params}`, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
       if (response.ok) {
         const result = await response.json();
+        console.log('Trials API response:', result);
         
         // Handle new API response format
         if (result.success && result.data) {
@@ -123,17 +369,40 @@ export default function TrialManagement({ session }: TrialManagementProps) {
             totalPages: data.totalPages,
           });
         }
+      } else {
+        console.error('Failed to fetch trials:', response.status, response.statusText);
+        setTrials([]);
+        setPagination({ page: 1, total: 0, totalPages: 0 });
       }
     } catch (error) {
-      console.error('Error fetching trials:', error);
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error('Trials fetch timed out');
+      } else {
+        console.error('Error fetching trials:', error);
+      }
+      setTrials([]);
+      setPagination({ page: 1, total: 0, totalPages: 0 });
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
   useEffect(() => {
+    console.log('useEffect triggered for fetchTrials, filters:', filters);
     fetchTrials();
-  }, [filters]);
+  }, [fetchTrials]);
+  
+  // Fallback timeout to reset loading state
+  useEffect(() => {
+    const fallbackTimeout = setTimeout(() => {
+      if (loading) {
+        console.warn('Fallback: Forcing loading state to false after 30 seconds');
+        setLoading(false);
+      }
+    }, 30000);
+    
+    return () => clearTimeout(fallbackTimeout);
+  }, [loading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,59 +410,118 @@ export default function TrialManagement({ session }: TrialManagementProps) {
 
     try {
       setCreating(true);
+      setFormError('');
       
-      // Filter out empty assignments
-      const validAssignments = formData.assignments.filter(assignment => 
-        assignment.trialStart.trim() && assignment.assignedCleaner.trim()
-      );
-
-      if (validAssignments.length === 0) {
-        alert('Please add at least one trial assignment');
+      // Validate required fields
+      if (!formData.customer_name.trim()) {
+        setFormError('Customer name is required');
+        return;
+      }
+      if (!formData.contact.trim()) {
+        setFormError('Contact is required');
+        return;
+      }
+      if (!formData.address.trim()) {
+        setFormError('Address is required');
+        return;
+      }
+      if (!formData.city_id) {
+        setFormError('City is required');
+        return;
+      }
+      if (!formData.district_id) {
+        setFormError('District is required');
+        return;
+      }
+      if (!formData.village_id) {
+        setFormError('Village is required');
         return;
       }
 
-      const response = await fetch('/api/trials', {
+      // Validate assignments
+      const validAssignments = formData.assignments.filter(assignment => 
+        assignment.date && assignment.selected_mitra
+      );
+
+      if (validAssignments.length === 0) {
+        setFormError('Please add at least one trial assignment with date and mitra');
+        return;
+      }
+
+      // Validate assignment dates
+      for (let i = 0; i < validAssignments.length; i++) {
+        const assignment = validAssignments[i];
+        const assignmentDate = new Date(assignment.date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (assignmentDate < today) {
+          setFormError(`Assignment ${i + 1}: Date cannot be in the past`);
+          return;
+        }
+      }
+
+      // Add timeout to form submission
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout for form submission
+
+      const response = await fetch('/api/trial', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          assignments: validAssignments,
-        }),
+        body: JSON.stringify(formData),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          // Reset form
+          // Reset form completely
           setFormData({
-            customerName: '',
-            acquisition: 'HOMA',
+            customer_name: '',
+            contact: '',
             address: '',
-            district: '',
-            city: '',
-            village: '',
-            postalCode: '',
-            residentialType: 'House',
+            city_id: '',
+            district_id: '',
+            village_id: '',
+            postal_code: '',
+            residential_type: 'House' as ResidentialType,
             assignments: [{
-              trialStart: '',
-              trialEnd: '',
-              assignedCleaner: '',
-              status: 'Not Converted',
+              date: '',
+              selected_mitra: '',
+              status: 'Trial Scheduled',
             }],
-            notes: '',
           });
+          
+          // Reset dropdown states
+          setDistricts([]);
+          setVillages([]);
+          setFormError('');
           setShowForm(false);
+          
+          // Refresh the trials list
           fetchTrials();
+          
+          // Show success message
+          const assignmentCount = result.data?.assignments_created || 0;
+          setFormError(''); // Clear any previous errors
+          alert(`Trial created successfully${assignmentCount > 0 ? ` with ${assignmentCount} assignment(s)!` : '!'}`);
         } else {
-          alert(result.message || 'Failed to create trial');
+          setFormError(result.message || 'Failed to create trial');
         }
       } else {
         const errorResult = await response.json().catch(() => ({}));
-        alert(errorResult.message || errorResult.error || 'Failed to create trial');
+        setFormError(errorResult.message || errorResult.error || 'Failed to create trial');
       }
     } catch (error) {
-      console.error('Error creating trial:', error);
-      alert('Failed to create trial');
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error('Form submission timed out');
+        setFormError('Request timed out. Please try again.');
+      } else {
+        console.error('Error creating trial:', error);
+        setFormError('Network error: Failed to create trial');
+      }
     } finally {
       setCreating(false);
     }
@@ -215,14 +543,77 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     }
   };
 
+  const handleUpdateTrial = async (updateData: UpdateTrialData) => {
+    setUpdateLoading(updateData.id);
+    try {
+      const response = await fetch('/api/trial', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          // Refresh trials list to show updated data
+          fetchTrials();
+        } else {
+          alert(result.message || 'Failed to update trial');
+        }
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to update trial');
+      }
+    } catch (error) {
+      console.error('Error updating trial:', error);
+      alert('Network error: Failed to update trial');
+    } finally {
+      setUpdateLoading(null);
+    }
+  };
+
+  const convertToCustomer = async (trialId: string) => {
+    if (!confirm('Are you sure you want to convert this trial to a customer?')) return;
+    
+    try {
+      const response = await fetch('/api/trial', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: trialId,
+          subscription_status: 'Active'
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          alert('Trial successfully converted to customer!');
+          fetchTrials();
+        } else {
+          alert(result.message || 'Failed to convert trial');
+        }
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to convert trial');
+      }
+    } catch (error) {
+      console.error('Error converting trial:', error);
+      alert('Network error: Failed to convert trial');
+    }
+  };
+
   const addAssignment = () => {
     setFormData(prev => ({
       ...prev,
       assignments: [...prev.assignments, {
-        trialStart: '',
-        trialEnd: '',
-        assignedCleaner: '',
-        status: 'Not Converted',
+        date: '',
+        selected_mitra: '',
+        status: 'Trial Scheduled',
       }]
     }));
   };
@@ -234,6 +625,11 @@ export default function TrialManagement({ session }: TrialManagementProps) {
         i === index ? { ...assignment, [field]: value } : assignment
       )
     }));
+
+    // If date is changed, fetch available mitras for that date
+    if (field === 'date' && value) {
+      fetchMitras(value);
+    }
   };
 
   const removeAssignment = (index: number) => {
@@ -243,6 +639,31 @@ export default function TrialManagement({ session }: TrialManagementProps) {
         assignments: prev.assignments.filter((_, i) => i !== index)
       }));
     }
+  };
+
+  const handleCancelForm = () => {
+    // Reset form data
+    setFormData({
+      customer_name: '',
+      contact: '',
+      address: '',
+      city_id: '',
+      district_id: '',
+      village_id: '',
+      postal_code: '',
+      residential_type: 'House' as ResidentialType,
+      assignments: [{
+        date: '',
+        selected_mitra: '',
+        status: 'Trial Scheduled',
+      }],
+    });
+    
+    // Reset dropdown states
+    setDistricts([]);
+    setVillages([]);
+    setFormError('');
+    setShowForm(false);
   };
 
   return (
@@ -270,6 +691,22 @@ export default function TrialManagement({ session }: TrialManagementProps) {
 
         {showForm && (
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Error Display */}
+            {formError && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-red-800">{formError}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Basic Customer Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -279,53 +716,118 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                 <input
                   type="text"
                   required
-                  value={formData.customerName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, customerName: e.target.value }))}
-                  className="input-field"
+                  value={formData.customer_name}
+                  onChange={(e) => {
+                    setFormData(prev => ({ ...prev, customer_name: e.target.value }));
+                    if (formError && e.target.value.trim()) setFormError('');
+                  }}
+                  className={`input-field ${formError && !formData.customer_name.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
                   placeholder="Enter customer name"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Acquisition *
+                  Contact *
                 </label>
-                <select
-                  value={formData.acquisition}
-                  onChange={(e) => setFormData(prev => ({ ...prev, acquisition: e.target.value as AcquisitionType }))}
-                  className="input-field"
+                <input
+                  type="tel"
                   required
-                >
-                  <option value="HOMA">HOMA</option>
-                  <option value="Altrix">Altrix</option>
-                </select>
+                  value={formData.contact}
+                  onChange={(e) => {
+                    setFormData(prev => ({ ...prev, contact: e.target.value }));
+                    if (formError && e.target.value.trim()) setFormError('');
+                  }}
+                  className={`input-field ${formError && !formData.contact.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
+                  placeholder="+628123456789"
+                />
               </div>
+            </div>
 
+            {/* Address Information */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Address *
+              </label>
+              <textarea
+                required
+                value={formData.address}
+                onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                className="input-field"
+                rows={3}
+                placeholder="Complete address..."
+              />
+            </div>
+
+            {/* Cascading Region Dropdowns */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   City *
                 </label>
-                <input
-                  type="text"
+                <select
                   required
-                  value={formData.city}
-                  onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                  value={formData.city_id}
+                  onChange={(e) => handleCityChange(e.target.value)}
                   className="input-field"
-                  placeholder="Tangerang, Jakarta, etc."
-                />
+                  disabled={loadingCities}
+                >
+                  <option value="">Select city...</option>
+                  {Array.isArray(cities) && cities.map((city) => (
+                    <option key={city.id} value={city.id}>
+                      {city.name}
+                    </option>
+                  ))}
+                </select>
+                {loadingCities && (
+                  <p className="text-xs text-gray-500 mt-1">Loading cities...</p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Village
+                  District *
                 </label>
-                <input
-                  type="text"
-                  value={formData.village || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, village: e.target.value }))}
+                <select
+                  required
+                  value={formData.district_id}
+                  onChange={(e) => handleDistrictChange(e.target.value)}
                   className="input-field"
-                  placeholder="Kelurahan/Desa"
-                />
+                  disabled={!formData.city_id || loadingDistricts}
+                >
+                  <option value="">Select district...</option>
+                  {Array.isArray(districts) && districts.map((district) => (
+                    <option key={district.id} value={district.id}>
+                      {district.name}
+                    </option>
+                  ))}
+                </select>
+                {loadingDistricts && (
+                  <p className="text-xs text-gray-500 mt-1">Loading districts...</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Village *
+                </label>
+                <select
+                  required
+                  value={formData.village_id}
+                  onChange={(e) => handleVillageChange(e.target.value)}
+                  className="input-field"
+                  disabled={!formData.district_id || loadingVillages}
+                >
+                  <option value="">Select village...</option>
+                  {Array.isArray(villages) && villages.map((village) => (
+                    <option key={village.id} value={village.id}>
+                      {village.name}
+                    </option>
+                  ))}
+                </select>
+                {loadingVillages && (
+                  <p className="text-xs text-gray-500 mt-1">Loading villages...</p>
+                )}
               </div>
 
               <div>
@@ -335,73 +837,44 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                 <input
                   type="text"
                   required
-                  value={formData.postalCode}
-                  onChange={(e) => setFormData(prev => ({ ...prev, postalCode: e.target.value }))}
-                  className="input-field"
-                  placeholder="15148"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Residential Type *
-                </label>
-                <select
-                  value={formData.residentialType}
-                  onChange={(e) => setFormData(prev => ({ ...prev, residentialType: e.target.value as ResidentialType }))}
-                  className="input-field"
-                  required
-                >
-                  <option value="House">House</option>
-                  <option value="Office Space">Office Space</option>
-                  <option value="Apartment">Apartment</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Address Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Address *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.address}
-                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                  className="input-field"
-                  placeholder="1 Park Residences"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  District *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.district}
-                  onChange={(e) => setFormData(prev => ({ ...prev, district: e.target.value }))}
-                  className="input-field"
-                  placeholder="Jl Greenlake"
+                  value={formData.postal_code}
+                  readOnly
+                  className="input-field bg-gray-50"
+                  placeholder="Auto-filled"
                 />
               </div>
             </div>
 
-            {/* Trial Assignments - Infinite as per PRD */}
+            {/* Residential Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Residential Type *
+              </label>
+              <select
+                required
+                value={formData.residential_type || 'House'}
+                onChange={(e) => setFormData(prev => ({ ...prev, residential_type: e.target.value as ResidentialType }))}
+                className="input-field"
+              >
+                <option value="House">House</option>
+                <option value="Apartment">Apartment</option>
+                <option value="Office Space">Office Space</option>
+              </select>
+            </div>
+
+            {/* Trial Assignments */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <label className="block text-sm font-medium text-gray-700">
-                  Trial Assignments * (Start with 1 date + 1 cleaner, can be added infinitely)
+                  Trial Assignments *
                 </label>
                 <button
                   type="button"
                   onClick={addAssignment}
-                  className="text-sm text-blue-600 hover:text-blue-700"
+                  className="text-sm text-blue-600 hover:text-blue-700 flex items-center"
                 >
-                  + Add Assignment
+                  <Icons.plus className="w-4 h-4 mr-1" />
+                  Add Assignment
                 </button>
               </div>
               <div className="space-y-4">
@@ -419,99 +892,63 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                         </button>
                       )}
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Trial Start *
+                          Date *
                         </label>
                         <input
                           type="date"
                           required
-                          value={assignment.trialStart ? convertToDateInputFormat(assignment.trialStart) : ''}
-                          onChange={(e) => updateAssignment(index, 'trialStart', convertFromDateInputFormat(e.target.value))}
+                          value={assignment.date}
+                          onChange={(e) => updateAssignment(index, 'date', e.target.value)}
                           className="input-field"
                         />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Trial End
-                        </label>
-                        <input
-                          type="date"
-                          value={assignment.trialEnd ? convertToDateInputFormat(assignment.trialEnd) : ''}
-                          onChange={(e) => updateAssignment(index, 'trialEnd', convertFromDateInputFormat(e.target.value))}
-                          className="input-field"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Assigned Cleaner *
+                          Select Mitra *
                         </label>
                         <select
                           required
-                          value={assignment.assignedCleaner}
-                          onChange={(e) => updateAssignment(index, 'assignedCleaner', e.target.value)}
+                          value={assignment.selected_mitra}
+                          onChange={(e) => updateAssignment(index, 'selected_mitra', e.target.value)}
                           className="input-field"
+                          disabled={loadingMitras}
                         >
-                          <option value="">Select cleaner</option>
-                          {availableCleaners.map((cleaner) => (
-                            <option key={cleaner} value={cleaner}>{cleaner}</option>
+                          <option value="">Select mitra...</option>
+                          {Array.isArray(mitras) && mitras.map((mitra) => (
+                            <option key={mitra.id} value={mitra.id}>
+                              {mitra.name}
+                            </option>
                           ))}
                         </select>
+                        {loadingMitras && (
+                          <p className="text-xs text-gray-500 mt-1">Loading available mitras...</p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Status per Assignment
-                        </label>
-                        <select
-                          value={assignment.status || 'Not Converted'}
-                          onChange={(e) => updateAssignment(index, 'status', e.target.value)}
-                          className="input-field"
-                        >
-                          <option value="Not Converted">Not Converted</option>
-                          <option value="Converted">Converted</option>
-                          <option value="Stalling/Postpone">Stalling/Postpone</option>
-                          <option value="Cancelled">Cancelled</option>
-                        </select>
-                      </div>
-                    </div>
-                    {(assignment.status === 'Not Converted' || assignment.status === 'Stalling/Postpone' || assignment.status === 'Cancelled') && (
-                      <div className="mt-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Reason for Not Converting
+                          Status
                         </label>
                         <input
                           type="text"
-                          value={assignment.reasonForNotConverting || ''}
-                          onChange={(e) => updateAssignment(index, 'reasonForNotConverting', e.target.value)}
-                          className="input-field"
-                          placeholder="Schedule conflict, price too high, etc."
+                          value={assignment.status}
+                          readOnly
+                          className="input-field bg-gray-50"
                         />
                       </div>
-                    )}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Notes */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Notes
-              </label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                rows={3}
-                className="input-field"
-                placeholder="Additional notes about the customer and trial..."
-              />
-            </div>
-
             <div className="flex justify-end space-x-3">
               <button
                 type="button"
-                onClick={() => setShowForm(false)}
+                onClick={handleCancelForm}
+                disabled={creating}
                 className="btn-secondary"
               >
                 Cancel
@@ -521,7 +958,17 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                 disabled={creating}
                 className="btn-primary"
               >
-                {creating ? 'Creating...' : 'Create Trial'}
+                {creating ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Creating...
+                  </>
+                ) : (
+                  'Create Trial'
+                )}
               </button>
             </div>
           </form>
@@ -654,71 +1101,223 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {trials.map((trial) => (
-                    <tr
-                      key={trial.id}
-                      className="hover:bg-gray-50 cursor-pointer"
-                      onClick={() => setSelectedTrial(selectedTrial === trial.id ? null : trial.id)}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-blue-600 hover:text-blue-900">
-                          {trial.customerName}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {trial.assignedCleaners.length > 0 ? trial.assignedCleaners.join(', ') : 'No cleaner assigned'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${acquisitionColors[trial.acquisition]}`}>
-                          {trial.acquisition}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {trial.district}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {trial.city}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${residentialColors[trial.residentialType]}`}>
-                          {trial.residentialType}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {trial.overallStatus ? (
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColors[trial.overallStatus]}`}>
-                            {trial.overallStatus}
+                    <React.Fragment key={trial.id}>
+                      <tr
+                        className="hover:bg-gray-50 cursor-pointer"
+                        onClick={() => {
+                          const newSelectedTrial = selectedTrial === trial.id ? null : trial.id;
+                          setSelectedTrial(newSelectedTrial);
+                          // Refresh mitras when opening detail view
+                          if (newSelectedTrial) {
+                            console.log('Trial detail opened, refreshing mitras...');
+                            fetchMitras();
+                          }
+                        }}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-blue-600 hover:text-blue-900">
+                            {trial.customerName}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {trial.assignedCleaners.length > 0 ? trial.assignedCleaners.join(', ') : 'No cleaner assigned'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${acquisitionColors[trial.acquisition]}`}>
+                            {trial.acquisition}
                           </span>
-                        ) : (
-                          <span className="text-sm text-gray-500">-</span>
-                        )}
-                        {trial.nextTrialStartDate && (
-                          <div className="text-xs text-gray-500 mt-1">
-                            Start: {trial.nextTrialStartDate}
-                            {trial.nextTrialEndDate && ` - End: ${trial.nextTrialEndDate}`}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {trial.district}
                           </div>
-                        )}
-                        {trial.ltv !== undefined && (
-                          <div className="text-xs text-blue-600 mt-1">
-                            LTV: {trial.ltv} months
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {trial.city}
                           </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(trial.id);
-                          }}
-                          className="text-red-600 hover:text-red-900 ml-4"
-                        >
-                          <Icons.trash className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${residentialColors[trial.residentialType]}`}>
+                            {trial.residentialType}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {trial.overallStatus ? (
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColors[trial.overallStatus]}`}>
+                              {trial.overallStatus}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-gray-500">-</span>
+                          )}
+                          {trial.nextTrialStartDate && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              Start: {trial.nextTrialStartDate}
+                              {trial.nextTrialEndDate && ` - End: ${trial.nextTrialEndDate}`}
+                            </div>
+                          )}
+                          {trial.ltv !== undefined && (
+                            <div className="text-xs text-blue-600 mt-1">
+                              LTV: {trial.ltv} months
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(trial.id);
+                            }}
+                            className="text-red-600 hover:text-red-900 ml-4"
+                          >
+                            <Icons.trash className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                      
+                      {/* Expanded Detail View */}
+                      {selectedTrial === trial.id && (
+                        <tr className="bg-gray-50">
+                          <td colSpan={6} className="px-6 py-4">
+                            <div className="space-y-6">
+                              <h3 className="text-lg font-medium text-gray-900">Trial Assignment Details</h3>
+                              
+                              {/* Trial Assignment Form */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Start Date */}
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Start Date
+                                  </label>
+                                  <input
+                                    type="date"
+                                    defaultValue={trial.nextTrialStartDate ? (() => {
+                                      const parts = trial.nextTrialStartDate.split('/');
+                                      return parts.length === 3 ? `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}` : '';
+                                    })() : ''}
+                                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                                    onChange={(e) => {
+                                      if (e.target.value) {
+                                        handleUpdateTrial({
+                                          id: trial.id,
+                                          start_date: e.target.value
+                                        });
+                                      }
+                                    }}
+                                  />
+                                </div>
+                                
+                                {/* End Date */}
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    End Date
+                                  </label>
+                                  <input
+                                    type="date"
+                                    defaultValue={trial.nextTrialEndDate ? (() => {
+                                      const parts = trial.nextTrialEndDate.split('/');
+                                      return parts.length === 3 ? `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}` : '';
+                                    })() : ''}
+                                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                                    onChange={(e) => {
+                                      if (e.target.value) {
+                                        handleUpdateTrial({
+                                          id: trial.id,
+                                          end_date: e.target.value
+                                        });
+                                      }
+                                    }}
+                                  />
+                                </div>
+                                
+                                {/* Assigned Cleaner */}
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Assigned Cleaner
+                                  </label>
+                                  <select
+                                    defaultValue={trial.assignedMitraId || ''}
+                                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                                    onChange={(e) => {
+                                      handleUpdateTrial({
+                                        id: trial.id,
+                                        assigned_mitra: e.target.value
+                                      });
+                                    }}
+                                  >
+                                    <option value="">Select Cleaner</option>
+                                    {mitras.map((mitra) => (
+                                      <option key={mitra.id} value={mitra.id}>
+                                        {mitra.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  {loadingMitras && (
+                                    <div className="text-xs text-blue-600 mt-1">Loading cleaners...</div>
+                                  )}
+                                  {!loadingMitras && mitras.length === 0 && (
+                                    <div className="text-xs text-red-600 mt-1">No cleaners available</div>
+                                  )}
+                                  {!loadingMitras && mitras.length > 0 && (
+                                    <div className="text-xs text-gray-500 mt-1">{mitras.length} cleaners available</div>
+                                  )}
+                                </div>
+                                
+                                {/* Status */}
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Status
+                                  </label>
+                                  <select
+                                    defaultValue={trial.overallStatus || 'Not Converted'}
+                                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                                    onChange={(e) => {
+                                      handleUpdateTrial({
+                                        id: trial.id,
+                                        subscription_status: e.target.value as TrialStatus
+                                      });
+                                    }}
+                                  >
+                                    <option value="Not Converted">Not Converted</option>
+                                    <option value="Converted">Converted</option>
+                                    <option value="Stalling/Postpone">Stalling/Postpone</option>
+                                    <option value="Cancelled">Cancelled</option>
+                                  </select>
+                                </div>
+                              </div>
+                              
+                              {/* Action Buttons */}
+                              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
+                                {updateLoading === trial.id && (
+                                  <div className="flex items-center text-sm text-gray-600">
+                                    <Icons.spinner className="w-4 h-4 mr-2 animate-spin" />
+                                    Updating...
+                                  </div>
+                                )}
+                                
+                                {trial.overallStatus !== 'Converted' && (
+                                  <button
+                                    onClick={() => convertToCustomer(trial.id)}
+                                    disabled={updateLoading === trial.id}
+                                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                                  >
+                                    <Icons.check className="w-4 h-4 mr-2" />
+                                    Convert to Customer
+                                  </button>
+                                )}
+                                
+                                <button
+                                  onClick={() => setSelectedTrial(null)}
+                                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                >
+                                  Close
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>

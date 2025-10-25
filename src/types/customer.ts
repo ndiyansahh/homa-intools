@@ -1,5 +1,6 @@
 export type AcquisitionType = 'HOMA' | 'Altrix';
 export type ResidentialType = 'House' | 'Office Space' | 'Apartment';
+export type SubscriptionStatus = 'Active' | 'Inactive' | 'Suspended' | 'Cancelled' | 'Trial' | 'Trial Scheduled' | 'Expired';
 export type SubscriptionPackage = 
   | 'Monthly Subscription of Regular Cleaning (3 hours per visit; 2 visits per week)'
   | 'Monthly Subscription of Frequent Cleaning (3 hours per visit; 3 visits per week)'
@@ -62,7 +63,7 @@ export interface CustomerListItem {
   id: string;
   customerName: string;
   subscriptionPackage: string;
-  subscriptionStatus: string;
+  subscriptionStatus: SubscriptionStatus;
   monthlyFee: number;
   city: string;
   createdAt: string;
