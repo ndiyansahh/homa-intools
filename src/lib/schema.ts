@@ -62,8 +62,8 @@ export const customerDB = pgTable('customer_db', {
   totalPaid: decimal('total_paid', { precision: 10, scale: 2 }).default('0'),
   outstandingBalance: decimal('outstanding_balance', { precision: 10, scale: 2 }).default('0'),
   customerNotes: text('customer_notes'),
-  totalSessions: integer('total_sessions').default(0),
-  chosenDays: text('chosen_days'), // JSON string of selected days
+  // totalSessions: integer('total_sessions').default(0), // TODO: Add after database migration
+  // chosenDays: text('chosen_days'), // JSON string of selected days // TODO: Add after database migration
   isActive: boolean('is_active').default(true),
   isDeleted: boolean('is_deleted').default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
@@ -292,51 +292,8 @@ export const mitraPayoutRelations = relations(mitraPayoutDB, ({ one }) => ({
   }),
 }));
 
-// Trial Table - for managing trial customers
-export const trialDB = pgTable('trial_db', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  customerName: varchar('customer_name', { length: 255 }).notNull(),
-  acquisition: varchar('acquisition', { length: 20 }).notNull(), // HOMA, Altrix
-  address: text('address').notNull(),
-  district: varchar('district', { length: 100 }).notNull(),
-  city: varchar('city', { length: 100 }).notNull(),
-  postalCode: varchar('postal_code', { length: 10 }).notNull(),
-  residentialType: varchar('residential_type', { length: 50 }).notNull(), // House, Office Space, Apartment
-  notes: text('notes'),
-  
-  // Metadata
-  isDeleted: boolean('is_deleted').default(false),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-});
-
-// Trial Assignment Table - for tracking multiple trial attempts per customer
-export const trialAssignmentDB = pgTable('trial_assignment_db', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  trialId: uuid('trial_id').references(() => trialDB.id).notNull(),
-  
-  // Trial details
-  trialDate: date('trial_date').notNull(),
-  assignedCleaner: varchar('assigned_cleaner', { length: 100 }).notNull(),
-  status: varchar('status', { length: 30 }).default('Not Converted'), // Converted, Not Converted, Stalling/Postpone, Cancelled
-  reasonForNotConverting: text('reason_for_not_converting'),
-  
-  // Metadata
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-});
-
-// Trial Relations
-export const trialRelations = relations(trialDB, ({ many }) => ({
-  assignments: many(trialAssignmentDB),
-}));
-
-export const trialAssignmentRelations = relations(trialAssignmentDB, ({ one }) => ({
-  trial: one(trialDB, {
-    fields: [trialAssignmentDB.trialId],
-    references: [trialDB.id],
-  }),
-}));
+// Note: Trial data is stored in customer_db with subscription_status = 'Trial'
+// No separate trial tables needed since trials are just customers with Trial status
 
 // Export types for TypeScript
 export type Region = typeof regionDB.$inferSelect;
@@ -363,8 +320,4 @@ export type NewAttendanceRecord = typeof attendanceRecordDB.$inferInsert;
 export type MitraPayout = typeof mitraPayoutDB.$inferSelect;
 export type NewMitraPayout = typeof mitraPayoutDB.$inferInsert;
 
-export type Trial = typeof trialDB.$inferSelect;
-export type NewTrial = typeof trialDB.$inferInsert;
-
-export type TrialAssignment = typeof trialAssignmentDB.$inferSelect;
-export type NewTrialAssignment = typeof trialAssignmentDB.$inferInsert;
+// Trial types removed - trials are now just customers with subscription_status = 'Trial'
