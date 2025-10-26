@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { customerDB, attendanceScheduleDB, attendanceRecordDB, mitraDB } from '@/lib/schema';
+import { customerDB, attendanceScheduleDB, attendanceRecordDB, mitraDB, subscriptionPackageDB } from '@/lib/schema';
 import { eq, desc, like } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/logger';
@@ -135,7 +135,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       // Use database transaction for atomic operations
       const result = await db.transaction(async (tx) => {
-        // 1. Get assigned mitra info from first assignment
+        // 1. Get Trial subscription package from database
+        const trialPackageResult = await tx
+          .select()
+          .from(subscriptionPackageDB)
+          .where(eq(subscriptionPackageDB.subscriptionPackage, 'Trial'))
+          .limit(1);
+
+        if (trialPackageResult.length === 0) {
+          throw new Error('Trial subscription package not found in database');
+        }
+
+        const trialPackage = trialPackageResult[0];
+        console.log('Using Trial package:', {
+          id: trialPackage.id,
+          name: trialPackage.subscriptionPackage,
+          pricePerQty: trialPackage.pricePerQty,
+          priceNumeric: trialPackage.priceNumeric
+        });
+
+        // 2. Get assigned mitra info from first assignment
         let assignedMitraId = null;
         if (body.assignments && body.assignments.length > 0) {
           const firstAssignment = body.assignments[0];
@@ -157,7 +176,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }
         }
 
-        // Get trial date from first assignment
+        // 3. Get trial date from first assignment
         let subscriptionStart = null;
         if (body.assignments && body.assignments.length > 0) {
           const firstAssignment = body.assignments[0];
@@ -166,7 +185,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }
         }
 
-        // Create trial customer with proper cleaner assignment
+        // 4. Create trial customer in customer_db with Trial package
         const customerData = {
           customerName: body.customer_name.trim(),
           contact: body.contact.trim(),
@@ -176,11 +195,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           village: villageName.trim(), // Village name from form
           postalCode: body.postal_code.trim(),
           assignedMitraId, // Assign the cleaner
+          subscriptionPackageId: trialPackage.id, // Link to Trial package
+          subscriptionPackage: trialPackage.subscriptionPackage, // 'Trial'
           subscriptionStart, // Add trial start date
-          // residentialType: body.residential_type || 'House', // TODO: Add after database migration
-          subscriptionStatus: 'Trial', // Use Trial since Trial Scheduled not allowed by DB constraint
-          subscriptionPackage: 'Trial Package - Basic Cleaning (1 visit)',
-          monthlyFee: '0',
+          subscriptionStatus: 'Trial', // Trial status
+          monthlyFee: '0', // Trial is free
           totalPaid: '0',
           outstandingBalance: '0',
           customerNotes: `Trial customer created via API - Trial ID: ${trialId}${body.residential_type ? ` - Residential Type: ${body.residential_type}` : ''}`,
@@ -354,6 +373,7 @@ interface UpdateTrialRequest {
   subscription_package?: string; // Subscription package name
   total_sessions?: number; // Total sessions
   chosen_days?: string[]; // Array of chosen days
+  convert_to_customer?: boolean; // Flag for full customer conversion
 }
 
 export async function PUT(request: NextRequest): Promise<NextResponse> {
@@ -492,6 +512,71 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
         //   updateData.chosenDays = JSON.stringify(body.chosen_days); // Store as JSON string
         // }
 
+        // Handle customer conversion logic
+        if (body.convert_to_customer && body.subscription_package) {
+          console.log('Converting trial to customer with package:', body.subscription_package);
+          
+          // Fetch subscription package data for accurate pricing
+          const packageResult = await tx
+            .select()
+            .from(subscriptionPackageDB)
+            .where(eq(subscriptionPackageDB.subscriptionPackage, body.subscription_package))
+            .limit(1);
+
+          let monthlyFee = 0;
+          let subscriptionPackageId = null;
+
+          if (packageResult.length > 0) {
+            const packageData = packageResult[0];
+            monthlyFee = parseFloat(packageData.priceNumeric.toString());
+            subscriptionPackageId = packageData.id;
+            console.log('Found package in database:', {
+              id: packageData.id,
+              name: packageData.subscriptionPackage,
+              pricePerQty: packageData.pricePerQty,
+              priceNumeric: packageData.priceNumeric
+            });
+          } else {
+            console.log('Package not found in database:', body.subscription_package);
+            throw new Error(`Subscription package '${body.subscription_package}' not found in database`);
+          }
+
+          // Update customer data with subscription package information
+          updateData.monthlyFee = monthlyFee.toString();
+          updateData.subscriptionPackageId = subscriptionPackageId; // Link to subscription package
+          updateData.subscriptionStatus = 'Active'; // Set as active customer
+          
+          // Set subscription dates
+          if (body.start_date) {
+            updateData.subscriptionStart = body.start_date;
+            
+            // Calculate subscription end date (1 month from start)
+            const startDate = new Date(body.start_date);
+            const endDate = new Date(startDate);
+            endDate.setMonth(endDate.getMonth() + 1);
+            updateData.subscriptionEnd = endDate.toISOString().split('T')[0];
+          }
+
+          // Store total sessions and chosen days if provided
+          if (body.total_sessions !== undefined) {
+            updateData.totalSessions = body.total_sessions;
+          }
+          
+          if (body.chosen_days !== undefined && Array.isArray(body.chosen_days)) {
+            updateData.chosenDays = JSON.stringify(body.chosen_days); // Store as JSON string
+          }
+
+          console.log('Customer conversion data:', {
+            monthlyFee,
+            subscriptionPackageId,
+            subscriptionStart: updateData.subscriptionStart,
+            subscriptionEnd: updateData.subscriptionEnd,
+            package: body.subscription_package,
+            totalSessions: body.total_sessions,
+            chosenDays: body.chosen_days
+          });
+        }
+
         // 4. Update customer if there are changes
         if (Object.keys(updateData).length > 0) {
           updateData.updatedAt = new Date().toISOString();
@@ -501,6 +586,72 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
             .set(updateData)
             .where(eq(customerDB.id, body.id))
             .returning();
+
+          // 5. Create attendance schedule entries if converting to customer
+          if (body.convert_to_customer && body.subscription_package && assignedMitraId) {
+            console.log('Creating attendance schedule entries...');
+            
+            // Parse visits per week from package name
+            let visitsPerWeek = 1; // default
+            const packageMatch = body.subscription_package.match(/(\d+)\s*visits?\s*per\s*week/i);
+            if (packageMatch) {
+              visitsPerWeek = parseInt(packageMatch[1]);
+            }
+
+            console.log('Visits per week:', visitsPerWeek);
+
+            // Create schedule entries for the next month
+            if (body.start_date && body.chosen_days && body.chosen_days.length > 0) {
+              const startDate = new Date(body.start_date);
+              const endDate = new Date(startDate);
+              endDate.setMonth(endDate.getMonth() + 1);
+
+              const scheduleEntries = [];
+              const currentDate = new Date(startDate);
+
+              // Map day names to numbers
+              const dayMap = {
+                'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3,
+                'Thursday': 4, 'Friday': 5, 'Saturday': 6
+              };
+
+              let weekVisitCount = 0;
+              const chosenDayNumbers = body.chosen_days.map(day => dayMap[day]).filter(d => d !== undefined);
+
+              while (currentDate < endDate) {
+                const currentDayNumber = currentDate.getDay();
+                
+                if (chosenDayNumbers.includes(currentDayNumber) && weekVisitCount < visitsPerWeek) {
+                  scheduleEntries.push({
+                    customerId: body.id,
+                    mitraId: assignedMitraId,
+                    scheduledDate: new Date(currentDate),
+                    scheduledTime: '09:00', // Default time
+                    duration: 180, // 3 hours in minutes
+                    status: 'Scheduled',
+                    notes: `Auto-generated from ${body.subscription_package}`,
+                  });
+                  weekVisitCount++;
+                }
+
+                currentDate.setDate(currentDate.getDate() + 1);
+                
+                // Reset weekly count on Sunday
+                if (currentDate.getDay() === 0) {
+                  weekVisitCount = 0;
+                }
+              }
+
+              console.log('Creating', scheduleEntries.length, 'schedule entries');
+
+              // Insert attendance schedule entries
+              if (scheduleEntries.length > 0) {
+                await tx
+                  .insert(attendanceScheduleDB)
+                  .values(scheduleEntries);
+              }
+            }
+          }
 
           return updatedCustomer[0];
         }

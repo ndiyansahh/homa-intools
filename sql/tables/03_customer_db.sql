@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS customer_db (
     subscription_package VARCHAR(255), -- Backward compatibility
     subscription_start DATE,
     subscription_end DATE,
-    subscription_status VARCHAR(30) DEFAULT 'Active' CHECK (subscription_status IN ('Active', 'Inactive', 'Suspended', 'Trial Scheduled', 'Expired', 'Cancelled')),
+    subscription_status VARCHAR(30) DEFAULT 'Active' CHECK (subscription_status IN ('Active', 'Inactive', 'Suspended', 'Trial', 'Trial Scheduled', 'Expired', 'Cancelled')),
     
     -- Pricing
     monthly_fee DECIMAL(10,2) DEFAULT 0,

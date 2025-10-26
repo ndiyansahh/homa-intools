@@ -178,17 +178,23 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
       
       // First update the trial data if in edit mode
       if (isEditMode) {
+        console.log('Updating trial data before conversion:', editData);
+        
         const updatePayload = {
           id: trialId,
           start_date: editData.startDate,
           end_date: editData.endDate,
           assigned_mitra: editData.assignedMitraId,
-          subscription_status: 'Converted', // Set as converted since we're converting
+          subscription_status: 'Active', // Set as Active when converting to customer
           notes: editData.notes,
           subscription_package: editData.subscriptionPackage,
           total_sessions: editData.totalSessions,
-          chosen_days: editData.chosenDays
+          chosen_days: editData.chosenDays,
+          // Add additional fields for customer conversion
+          convert_to_customer: true
         };
+
+        console.log('Sending update payload:', updatePayload);
 
         const updateResponse = await fetch('/api/trial', {
           method: 'PUT',
@@ -200,6 +206,9 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
           const errorData = await updateResponse.json().catch(() => ({}));
           throw new Error(errorData.message || 'Failed to update trial data');
         }
+
+        const updateResult = await updateResponse.json();
+        console.log('Trial update result:', updateResult);
       }
 
       // Then convert to customer
@@ -350,6 +359,70 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         No cleaner assigned
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Subscription Package</label>
+                  <div className="mt-1 text-sm text-gray-900">
+                    {trial.subscriptionPackage ? (
+                      <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                        <div className="font-medium text-blue-900">{trial.subscriptionPackage}</div>
+                        {/* Display package details - for Trial status only show subscription_package */}
+                        {(() => {
+                          // Find matching package from database
+                          const selectedPackage = subscriptionPackages.find(pkg => 
+                            pkg.subscriptionPackage === trial.subscriptionPackage
+                          );
+                          
+                          return (
+                            <div className="mt-2 space-y-1">
+                              {selectedPackage && (
+                                <>
+                                  {/* For Trial package, only show package name, not pricing */}
+                                  {selectedPackage.subscriptionPackage === 'Trial' ? (
+                                    <div className="text-xs text-blue-700">
+                                       Trial Package
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div className="text-xs text-blue-700">
+                                        💰 {selectedPackage.pricePerQty} / month
+                                      </div>
+                                      {/* Extract hours and visits from package name */}
+                                      {(() => {
+                                        const match = selectedPackage.subscriptionPackage.match(/(\d+)\s*hours?.*?(\d+)\s*visits?\s*per\s*week/i);
+                                        if (match) {
+                                          return (
+                                            <div className="text-xs text-blue-700">
+                                              📅 {match[1]} hours per visit • {match[2]} visits per week
+                                            </div>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
+                                    </>
+                                  )}
+                                </>
+                              )}
+                              {trial.totalSessions > 0 && (
+                                <div className="text-xs text-blue-700">
+                                  🎯 {trial.totalSessions} total sessions
+                                </div>
+                              )}
+                              {trial.chosenDays && trial.chosenDays.length > 0 && (
+                                <div className="text-xs text-blue-700">
+                                  📆 Available days: {Array.isArray(trial.chosenDays) ? trial.chosenDays.join(', ') : trial.chosenDays}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        No package selected
                       </span>
                     )}
                   </div>

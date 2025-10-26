@@ -32,11 +32,11 @@ export const regionDB = pgTable('region_db', {
 // Subscription Package Table - Master Data
 export const subscriptionPackageDB = pgTable('subscription_package_db', {
   id: uuid('id').defaultRandom().primaryKey(),
-  subscriptionPackage: varchar('subscription_package', { length: 255 }).notNull(), // Full package name with details
-  pricePerQty: varchar('price_per_qty', { length: 50 }).notNull(), // Price in string format like "Rp1,125,000"
-  priceNumeric: decimal('price_numeric', { precision: 10, scale: 2 }).notNull(), // Price in numeric format for calculations
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  subscriptionPackage: varchar('subscription_package', { length: 255 }).notNull(),
+  pricePerQty: varchar('price_per_qty', { length: 50 }).notNull(),
+  priceNumeric: decimal('price_numeric', { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
 // Customer Table - matching exact database structure

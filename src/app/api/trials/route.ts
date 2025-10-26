@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { customerDB, regionDB, mitraDB } from '@/lib/schema';
+import { customerDB, regionDB, mitraDB, subscriptionPackageDB } from '@/lib/schema';
 import { sql, and, or, ilike, eq, desc, count } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { CreateTrialRequest, TrialListItem, TrialsResponse, TrialData } from '@/types/trial';
@@ -127,6 +127,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     try {
+      // Get Trial subscription package from database
+      const trialPackageResult = await db
+        .select()
+        .from(subscriptionPackageDB)
+        .where(eq(subscriptionPackageDB.subscriptionPackage, 'Trial'))
+        .limit(1);
+
+      if (trialPackageResult.length === 0) {
+        return NextResponse.json(
+          { success: false, message: 'Trial subscription package not found in database' },
+          { status: 500 }
+        );
+      }
+
+      const trialPackage = trialPackageResult[0];
+      console.log('Using Trial package for trials route:', {
+        id: trialPackage.id,
+        name: trialPackage.subscriptionPackage,
+        pricePerQty: trialPackage.pricePerQty,
+        priceNumeric: trialPackage.priceNumeric
+      });
+
       // Convert dd/MM/yyyy to Date object for database storage
       const convertDateString = (dateStr: string): Date => {
         const [day, month, year] = dateStr.split('/');
@@ -138,13 +160,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const trialStartDate = convertDateString(firstAssignment.trialStart);
       const trialEndDate = firstAssignment.trialEnd ? convertDateString(firstAssignment.trialEnd) : null;
 
-      // Determine trial package based on assigned cleaner
-      let trialPackage = 'Trial Package - Basic Cleaning (1 visit)';
-      if (firstAssignment.assignedCleaner.toLowerCase().includes('office')) {
-        trialPackage = 'Trial Package - Office Cleaning (1 visit)';
-      }
-
-      // Create trial customer in customerDB
+      // Create trial customer in customerDB with Trial package from database
       const trialCustomerData = {
         customerName: body.customerName.trim(),
         contact: '628000000000', // Default contact for trials
@@ -153,8 +169,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         city: body.city.trim(),
         postalCode: body.postalCode.trim(),
         village: body.village || '', // Optional field
-        // residentialType: body.residentialType, // TODO: Enable after database migration
-        subscriptionPackage: trialPackage,
+        subscriptionPackageId: trialPackage.id, // Link to Trial package
+        subscriptionPackage: trialPackage.subscriptionPackage, // 'Trial'
         subscriptionStart: trialStartDate.toISOString().split('T')[0], // Store as YYYY-MM-DD
         subscriptionEnd: trialEndDate ? trialEndDate.toISOString().split('T')[0] : null,
         subscriptionStatus: 'Trial',

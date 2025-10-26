@@ -1,73 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { subscriptionPackageDB } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
 import type { SubscriptionPackagesResponse, SubscriptionApiError } from '@/types/subscription';
-
-// Mock subscription packages data - matching new structure
-const mockPackages = [
-  {
-    id: '1',
-    subscriptionPackage: 'Monthly Subscription of Regular Cleaning (3 hours per visit; 2 visits per week)',
-    pricePerQty: 'Rp1,125,000',
-    priceNumeric: 1125000,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: '2',
-    subscriptionPackage: 'Monthly Subscription of Frequent Cleaning (3 hours per visit; 3 visits per week)',
-    pricePerQty: 'Rp1,650,000',
-    priceNumeric: 1650000,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: '3',
-    subscriptionPackage: 'Monthly Subscription of Special Partnership (3 hours per visit; 1 visit per week)',
-    pricePerQty: 'Rp562,500',
-    priceNumeric: 562500,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: '4',
-    subscriptionPackage: 'Monthly Subscription of Basic Cleaning (3 hours per visit; 1 visit per week)',
-    pricePerQty: 'Rp600,000',
-    priceNumeric: 600000,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: '5',
-    subscriptionPackage: 'Trial',
-    pricePerQty: 'Rp0',
-    priceNumeric: 0,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  }
-];
 
 export async function GET(request: NextRequest): Promise<NextResponse<SubscriptionPackagesResponse | SubscriptionApiError>> {
   try {
-    // Try database first
+    console.log('Fetching subscription packages from database...');
+    
+    // Fetch all packages from database
     const result = await db
-      .select()
+      .select({
+        id: subscriptionPackageDB.id,
+        subscriptionPackage: subscriptionPackageDB.subscriptionPackage,
+        pricePerQty: subscriptionPackageDB.pricePerQty,
+        priceNumeric: subscriptionPackageDB.priceNumeric,
+        createdAt: subscriptionPackageDB.createdAt,
+        updatedAt: subscriptionPackageDB.updatedAt,
+      })
       .from(subscriptionPackageDB)
       .orderBy(subscriptionPackageDB.priceNumeric); // Order by price
 
+    console.log(`Found ${result.length} subscription packages in database`);
+
+    if (result.length === 0) {
+      console.warn('No subscription packages found in database');
+      return NextResponse.json({
+        success: false,
+        message: 'No subscription packages available',
+      }, { status: 404 });
+    }
+
+    // Convert decimal fields to numbers for TypeScript compatibility
+    const formattedResult = result.map(pkg => ({
+      ...pkg,
+      priceNumeric: parseFloat(pkg.priceNumeric.toString()),
+    }));
+
     return NextResponse.json({
       success: true,
-      data: result,
+      data: formattedResult,
     });
 
   } catch (error) {
-    console.error('Subscription packages API error, using mock data:', error);
+    console.error('Database error when fetching subscription packages:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
     
     return NextResponse.json({
-      success: true,
-      data: mockPackages,
-      message: 'Using mock data - database not connected',
-    });
+      success: false,
+      message: 'Failed to fetch subscription packages from database',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Database error',
+    }, { status: 500 });
   }
 }
