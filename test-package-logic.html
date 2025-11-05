@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Package Logic</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e9; color: #2e7d32; }
+    </style>
+</head>
+<body>
+    <h1>Package Logic Test</h1>
+    <button onclick="testPackageAPI()">Test Package API</button>
+    <button onclick="testPreviewAPI()">Test Preview API</button>
+    <div id="results"></div>
+
+    <script>
+        async function testPackageAPI() {
+            const results = document.getElementById('results');
+            try {
+                const response = await fetch('http://localhost:3000/api/packages');
+                const data = await response.json();
+                
+                if (data.success) {
+                    results.innerHTML += `<div class="result success">✓ Packages API Working: Found ${data.data.length} packages</div>`;
+                    
+                    // Test specific packages
+                    const basicPackage = data.data.find(p => p.subscriptionPackage.includes('Basic Cleaning'));
+                    const regularPackage = data.data.find(p => p.subscriptionPackage.includes('Regular Cleaning'));
+                    const frequentPackage = data.data.find(p => p.subscriptionPackage.includes('Frequent Cleaning'));
+                    
+                    if (basicPackage) {
+                        results.innerHTML += `<div class="result ${basicPackage.visitsPerWeek === 1 ? 'success' : 'error'}">Basic Cleaning: ${basicPackage.visitsPerWeek} visits/week (should be 1)</div>`;
+                    }
+                    if (regularPackage) {
+                        results.innerHTML += `<div class="result ${regularPackage.visitsPerWeek === 2 ? 'success' : 'error'}">Regular Cleaning: ${regularPackage.visitsPerWeek} visits/week (should be 2)</div>`;
+                    }
+                    if (frequentPackage) {
+                        results.innerHTML += `<div class="result ${frequentPackage.visitsPerWeek === 3 ? 'success' : 'error'}">Frequent Cleaning: ${frequentPackage.visitsPerWeek} visits/week (should be 3)</div>`;
+                    }
+                } else {
+                    results.innerHTML += `<div class="result error">✗ API Error: ${data.message}</div>`;
+                }
+            } catch (error) {
+                results.innerHTML += `<div class="result error">✗ Network Error: ${error.message}</div>`;
+            }
+        }
+
+        async function testPreviewAPI() {
+            const results = document.getElementById('results');
+            try {
+                // Test with Basic Cleaning package (1 day)
+                const response = await fetch('http://localhost:3000/api/subscriptions/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        subscriptionPackageId: 'ae1bd8e9-a730-4539-8d20-689e15d54ff3',
+                        dayPattern: ['Monday'],
+                        startDate: '2025-11-03'
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    results.innerHTML += `<div class="result success">✓ Preview API Working: Generated ${data.data.totalVisits} visits for Basic Cleaning</div>`;
+                    results.innerHTML += `<div class="result">Visits per week: ${data.data.visitsPerWeek}</div>`;
+                } else {
+                    results.innerHTML += `<div class="result error">✗ Preview API Error: ${data.message}</div>`;
+                }
+            } catch (error) {
+                results.innerHTML += `<div class="result error">✗ Preview Network Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

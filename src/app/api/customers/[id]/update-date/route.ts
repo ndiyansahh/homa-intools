@@ -6,7 +6,7 @@ import { getSession } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/logger';
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 export async function POST(
   request: NextRequest,
@@ -29,7 +29,7 @@ export async function POST(
       );
     }
 
-    const customerId = params.id;
+    const { id: customerId } = await params;
     if (!customerId) {
       return NextResponse.json(
         { success: false, message: 'Customer ID is required' },
@@ -109,10 +109,15 @@ export async function POST(
 
       // Log audit event
       if (session) {
-        await logAuditEvent(session.userId, 'CUSTOMER_DATE_UPDATED', { 
-          customerId, 
-          newDate, 
-          endDate: endDate || null 
+        await logAuditEvent({
+          action: 'CUSTOMER_DATE_UPDATED',
+          userId: session.userId,
+          email: session.email,
+          details: { 
+            customerId, 
+            newDate, 
+            endDate: endDate || null 
+          }
         });
       }
 

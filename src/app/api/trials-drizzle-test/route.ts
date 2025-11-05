@@ -70,8 +70,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({
       success: false,
       message: 'Drizzle ORM test failed',
-      error: error.message,
-      stack: error.stack
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : 'No stack trace'
     }, { status: 500 });
   }
 }

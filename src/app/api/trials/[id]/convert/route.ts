@@ -6,7 +6,7 @@ import { getSession } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/logger';
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function POST(
@@ -30,7 +30,7 @@ export async function POST(
       );
     }
 
-    const trialId = params.id;
+    const { id: trialId } = await params;
     if (!trialId) {
       return NextResponse.json(
         { success: false, message: 'Trial ID is required' },
@@ -74,12 +74,17 @@ export async function POST(
 
       // Log audit event
       if (session) {
-        await logAuditEvent(session.userId, 'TRIAL_CONVERTED_TO_CUSTOMER', {
-          customerId: trialId,
-          customerName: trialCustomer.customerName,
-          originalStatus: 'Trial',
-          newStatus: 'Converted',
-          convertedAt: new Date().toISOString(),
+        await logAuditEvent({
+          action: 'TRIAL_CONVERTED_TO_CUSTOMER',
+          userId: session.userId,
+          email: session.email,
+          details: {
+            customerId: trialId,
+            customerName: trialCustomer.customerName,
+            originalStatus: 'Trial',
+            newStatus: 'Converted',
+            convertedAt: new Date().toISOString(),
+          }
         });
       }
 

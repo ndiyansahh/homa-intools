@@ -622,12 +622,18 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     setFormData(prev => ({
       ...prev,
       assignments: prev.assignments.map((assignment, i) => 
-        i === index ? { ...assignment, [field]: value } : assignment
+        i === index ? { 
+          ...assignment, 
+          [field]: value,
+          // Clear selected mitra when date changes
+          ...(field === 'date' && { selected_mitra: '' })
+        } : assignment
       )
     }));
 
     // If date is changed, fetch available mitras for that date
     if (field === 'date' && value) {
+      console.log(`Checking mitra availability for date: ${value}`);
       fetchMitras(value);
     }
   };
@@ -914,9 +920,9 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                           value={assignment.selected_mitra}
                           onChange={(e) => updateAssignment(index, 'selected_mitra', e.target.value)}
                           className="input-field"
-                          disabled={loadingMitras}
+                          disabled={loadingMitras || (!loadingMitras && mitras.length === 0 && !!assignment.date)}
                         >
-                          <option value="">Select mitra...</option>
+                          <option value="">{!assignment.date ? 'Select date first...' : 'Select mitra...'}</option>
                           {Array.isArray(mitras) && mitras.map((mitra) => (
                             <option key={mitra.id} value={mitra.id}>
                               {mitra.name}
@@ -924,7 +930,13 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                           ))}
                         </select>
                         {loadingMitras && (
-                          <p className="text-xs text-gray-500 mt-1">Loading available mitras...</p>
+                          <p className="text-xs text-blue-500 mt-1">Checking mitra availability...</p>
+                        )}
+                        {!loadingMitras && assignment.date && mitras.length === 0 && (
+                          <p className="text-xs text-red-500 mt-1">Mitra tidak available pada tanggal ini</p>
+                        )}
+                        {!loadingMitras && assignment.date && mitras.length > 0 && (
+                          <p className="text-xs text-green-500 mt-1">{mitras.length} mitra tersedia</p>
                         )}
                       </div>
                       <div>
@@ -1198,6 +1210,9 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                                     onChange={(e) => {
                                       if (e.target.value) {
+                                        // Check mitra availability for the new date
+                                        console.log(`Checking mitra availability for trial start date: ${e.target.value}`);
+                                        fetchMitras(e.target.value);
                                         handleUpdateTrial({
                                           id: trial.id,
                                           start_date: e.target.value
@@ -1238,6 +1253,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                                   <select
                                     defaultValue={trial.assignedMitraId || ''}
                                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                                    disabled={loadingMitras || mitras.length === 0}
                                     onChange={(e) => {
                                       handleUpdateTrial({
                                         id: trial.id,
@@ -1253,13 +1269,13 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                                     ))}
                                   </select>
                                   {loadingMitras && (
-                                    <div className="text-xs text-blue-600 mt-1">Loading cleaners...</div>
+                                    <div className="text-xs text-blue-500 mt-1">Checking cleaners availability...</div>
                                   )}
                                   {!loadingMitras && mitras.length === 0 && (
-                                    <div className="text-xs text-red-600 mt-1">No cleaners available</div>
+                                    <div className="text-xs text-red-500 mt-1">Mitra tidak available</div>
                                   )}
                                   {!loadingMitras && mitras.length > 0 && (
-                                    <div className="text-xs text-gray-500 mt-1">{mitras.length} cleaners available</div>
+                                    <div className="text-xs text-green-500 mt-1">{mitras.length} mitra tersedia</div>
                                   )}
                                 </div>
                                 

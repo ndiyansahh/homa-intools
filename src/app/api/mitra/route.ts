@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { mitraDB, attendanceScheduleDB } from '@/lib/schema';
 import { sql, and, or, ilike, eq, desc, count, not, inArray } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
-import { CreateMitraRequest, MitraListItem, MitraResponse, MitraData } from '@/types/mitra';
+import { CreateMitraRequest, MitraListItem, MitraResponse, MitraData, MitraGender, MitraPartnershipType, MitraStatus, MitraBonusCommission, MitraCityAssignment } from '@/types/mitra';
 import { logAuditEvent } from '@/lib/logger';
 
 // Simple interface for available mitra response
@@ -61,12 +61,13 @@ async function getAvailableMitra(availableDate: string | null): Promise<NextResp
       }
     }
 
-    // Get available mitra from database
+    // Get available mitra from database with new schema
     const result = await db
       .select({
         id: mitraDB.id,
         name: mitraDB.mitraName,
-        phone: mitraDB.contact,
+        phone: mitraDB.mitraPhone,
+        contact: mitraDB.contact, // Legacy fallback
       })
       .from(mitraDB)
       .where(and(...conditions))
@@ -75,7 +76,7 @@ async function getAvailableMitra(availableDate: string | null): Promise<NextResp
     const availableMitra: AvailableMitra[] = result.map(mitra => ({
       id: mitra.id,
       name: mitra.name || 'Unknown',
-      phone: mitra.phone || '',
+      phone: mitra.phone || mitra.contact || '', // Use new field with fallback
     }));
 
     return NextResponse.json(availableMitra);
@@ -97,24 +98,24 @@ async function getAvailableMitra(availableDate: string | null): Promise<NextResp
   }
 }
 
-// Mock data storage (replace with real database)
-let mitraData: MitraData[] = [
+// Mock data storage (replace with real database) - Updated to match new schema
+let mitraData: any[] = [
   {
     id: '1',
     joinDate: '15/10/2022',
     mitraCode: 'MITRA-202210-000001',
-    nik: '3171081506950002',
-    name: 'Syeila Nurhasanah',
-    gender: 'Wanita',
-    bornDate: '15/06/1995',
+    name: 'Syeila Nurhasanah', // Legacy field for compatibility
+    nik: '3171081506950002', // Legacy field for compatibility
+    gender: 'Wanita', // Legacy field for compatibility
+    bornDate: '06/15/1995', // Legacy field for compatibility
     address: 'Jl. Kebon Jeruk No. 123, Jakarta Barat',
-    phone: '6281291662589',
+    phone: '081291662589',
     bankAccount: 'BCA',
     bankAccountNumber: '5271236489',
     bankHoldersName: 'Syeila Nurhasanah',
-    cityAssignment: 'Jakarta',
+    cityAssignment: 'Jakarta Barat',
     locationAssignment: 'Jakarta Barat',
-    partnershipTypes: 'Fulltime',
+    partnershipTypes: 'Full Time',
     status: 'ACTIVE',
     tenure: '12',
     bonus: 'Eligible',
@@ -126,18 +127,18 @@ let mitraData: MitraData[] = [
     id: '2',
     joinDate: '20/10/2022',
     mitraCode: 'MITRA-202210-000002',
-    nik: '3172082107880003',
-    name: 'Ahmad Rizki',
-    gender: 'Pria',
-    bornDate: '21/07/1988',
+    name: 'Ahmad Rizki', // Legacy field for compatibility
+    nik: '3172082107880003', // Legacy field for compatibility
+    gender: 'Pria', // Legacy field for compatibility
+    bornDate: '07/21/1988', // Legacy field for compatibility
     address: 'Jl. Sudirman No. 456, Jakarta Pusat',
-    phone: '6281234567890',
+    phone: '081234567890',
     bankAccount: 'Mandiri',
     bankAccountNumber: '1234567890',
     bankHoldersName: 'Ahmad Rizki',
-    cityAssignment: 'Jakarta',
+    cityAssignment: 'Jakarta Pusat',
     locationAssignment: 'Jakarta Pusat',
-    partnershipTypes: 'Partime',
+    partnershipTypes: 'Part Time',
     status: 'ACTIVE',
     tenure: '6',
     bonus: 'Eligible',
@@ -199,22 +200,41 @@ const generateMitraCode = async (): Promise<string> => {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
+  const yearMonth = `${year}${month}`;
   
   try {
-    // Count existing mitras in database for sequence number
+    // Count existing mitras in database created in the same month for sequence number
+    console.log(`🔍 Generating mitraCode for ${yearMonth}...`);
+    
     const countResult = await db
       .select({ count: count() })
       .from(mitraDB)
-      .where(or(eq(mitraDB.isDeleted, false), sql`${mitraDB.isDeleted} IS NULL`));
+      .where(
+        and(
+          sql`${mitraDB.mitraCode} LIKE ${`MITRA-${yearMonth}-%`}`,
+          or(eq(mitraDB.isDeleted, false), sql`${mitraDB.isDeleted} IS NULL`)
+        )
+      );
     
-    const dbCount = countResult[0]?.count || 0;
-    const sequence = String(dbCount + 1).padStart(6, '0');
-    return `MITRA-${year}${month}-${sequence}`;
-  } catch {
-    // Fallback to mock data count
-    const count = mitraData.filter(m => !m.isDeleted).length + 1;
-    const sequence = String(count).padStart(6, '0');
-    return `MITRA-${year}${month}-${sequence}`;
+    const monthlyCount = countResult[0]?.count || 0;
+    console.log(`📊 Found ${monthlyCount} existing mitras for ${yearMonth}`);
+    
+    const sequence = String(monthlyCount + 1).padStart(6, '0');
+    const newCode = `MITRA-${yearMonth}-${sequence}`;
+    
+    console.log(`✅ Generated mitraCode: ${newCode}`);
+    return newCode;
+    
+  } catch (error) {
+    console.error('❌ Database error in mitraCode generation, using fallback:', error);
+    
+    // Fallback to mock data count for current month
+    const mockCount = mitraData.filter(m => !m.isDeleted && m.mitraCode && m.mitraCode.includes(yearMonth)).length;
+    const sequence = String(mockCount + 1).padStart(6, '0');
+    const fallbackCode = `MITRA-${yearMonth}-${sequence}`;
+    
+    console.log(`🔄 Fallback mitraCode: ${fallbackCode}`);
+    return fallbackCode;
   }
 };
 
@@ -232,87 +252,206 @@ export async function POST(request: NextRequest) {
 
     const body: CreateMitraRequest = await request.json();
 
-    // Validation
-    if (!body.name?.trim()) {
-      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    // Comprehensive validation for new schema
+    if (!body.mitraName?.trim()) {
+      return NextResponse.json({ error: 'Mitra name is required' }, { status: 400 });
     }
 
-    if (!body.nik?.trim()) {
-      return NextResponse.json({ error: 'NIK is required' }, { status: 400 });
+    if (!body.mitraNIK?.trim()) {
+      return NextResponse.json({ error: 'Mitra NIK is required' }, { status: 400 });
     }
 
-    // Validate date format (dd/MM/yyyy)
-    const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
-    if (!dateRegex.test(body.bornDate)) {
+    // Validate NIK format (exactly 16 digits)
+    if (!/^\d{16}$/.test(body.mitraNIK)) {
       return NextResponse.json({ 
-        error: 'Invalid born date format. Use dd/MM/yyyy format' 
+        error: 'NIK must be exactly 16 digits' 
       }, { status: 400 });
     }
 
-    if (body.exitDate && !dateRegex.test(body.exitDate)) {
+    // Validate phone format (10-12 digits)
+    if (!body.mitraPhone?.trim() || !/^\d{10,12}$/.test(body.mitraPhone)) {
       return NextResponse.json({ 
-        error: 'Invalid exit date format. Use dd/MM/yyyy format' 
+        error: 'Phone must be 10-12 digits' 
+      }, { status: 400 });
+    }
+
+    // Validate gender enum
+    if (!body.mitraGender || !['Pria', 'Wanita'].includes(body.mitraGender)) {
+      return NextResponse.json({ 
+        error: 'Gender must be either "Pria" or "Wanita"' 
+      }, { status: 400 });
+    }
+
+    // Validate date format (mm/dd/yyyy)
+    const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+    if (!body.mitraDOB || !dateRegex.test(body.mitraDOB)) {
+      return NextResponse.json({ 
+        error: 'Invalid birth date format. Use mm/dd/yyyy format' 
+      }, { status: 400 });
+    }
+
+    // Validate age (must be at least 17 years old)
+    const dobParts = body.mitraDOB.split('/');
+    if (dobParts.length === 3) {
+      const [month, day, year] = dobParts.map(Number);
+      const birthDate = new Date(year, month - 1, day); // month is 0-indexed
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      
+      // Adjust age if birthday hasn't occurred this year
+      const actualAge = (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) 
+        ? age - 1 
+        : age;
+      
+      if (actualAge < 17) {
+        return NextResponse.json({ 
+          error: 'Mitra must be at least 17 years old for employment eligibility' 
+        }, { status: 400 });
+      }
+      
+      if (actualAge > 80) {
+        return NextResponse.json({ 
+          error: 'Please verify the date of birth. Age appears to be over 80 years.' 
+        }, { status: 400 });
+      }
+    }
+
+    // Validate exit date format (dd/mm/yyyy) if provided
+    const exitDateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+    if (body.mitraExitDate && !exitDateRegex.test(body.mitraExitDate)) {
+      return NextResponse.json({ 
+        error: 'Invalid exit date format. Use dd/mm/yyyy format' 
+      }, { status: 400 });
+    }
+
+    // Validate partnership type
+    if (!body.mitraPartnership || !['Full Time', 'Part Time'].includes(body.mitraPartnership)) {
+      return NextResponse.json({ 
+        error: 'Partnership type must be "Full Time" or "Part Time"' 
+      }, { status: 400 });
+    }
+
+    // Validate bonus commission
+    if (!body.mitraBonusCommission || !['Eligible', 'Not Eligible'].includes(body.mitraBonusCommission)) {
+      return NextResponse.json({ 
+        error: 'Bonus commission must be "Eligible" or "Not Eligible"' 
+      }, { status: 400 });
+    }
+
+    // Validate required banking information
+    if (!body.mitraBankAccount?.trim()) {
+      return NextResponse.json({ error: 'Bank account is required' }, { status: 400 });
+    }
+
+    if (!body.mitraBankHolderName?.trim()) {
+      return NextResponse.json({ error: 'Bank holder name is required' }, { status: 400 });
+    }
+
+    if (!body.mitraBankAccountNumber?.trim()) {
+      return NextResponse.json({ error: 'Bank account number is required' }, { status: 400 });
+    }
+
+    // Validate city assignment
+    const validCities: MitraCityAssignment[] = ['Jakarta', 'Bogor', 'Depok', 'Tangerang', 'Bekasi', 'Jakarta Pusat', 'Jakarta Barat', 'Jakarta Timur', 'Jakarta Selatan', 'Jakarta Utara'];
+    if (!body.mitraCityAssignment || !validCities.includes(body.mitraCityAssignment)) {
+      return NextResponse.json({ 
+        error: `City assignment must be one of: ${validCities.join(', ')}` 
+      }, { status: 400 });
+    }
+
+    // Validate location assignment (array of districts)
+    if (!body.mitraLocationAssignment || !Array.isArray(body.mitraLocationAssignment) || body.mitraLocationAssignment.length === 0) {
+      return NextResponse.json({ 
+        error: 'Location assignment must be a non-empty array of districts' 
+      }, { status: 400 });
+    }
+
+    // Validate tenure is a number
+    if (body.mitraTenure !== undefined && (typeof body.mitraTenure !== 'number' || body.mitraTenure < 0)) {
+      return NextResponse.json({ 
+        error: 'Tenure must be a non-negative number' 
       }, { status: 400 });
     }
 
     try {
-      // TODO: Check NIK uniqueness (NIK column doesn't exist in current DB schema)
-      // const existingNik = await db
-      //   .select({ id: mitraDB.id })
-      //   .from(mitraDB)
-      //   .where(
-      //     and(
-      //       eq(mitraDB.nik, body.nik),
-      //       or(eq(mitraDB.isDeleted, false), sql`${mitraDB.isDeleted} IS NULL`)
-      //     )
-      //   )
-      //   .limit(1);
+      // Check NIK uniqueness with the new schema
+      const existingNik = await db
+        .select({ id: mitraDB.id })
+        .from(mitraDB)
+        .where(
+          and(
+            eq(mitraDB.mitraNIK, body.mitraNIK),
+            or(eq(mitraDB.isDeleted, false), sql`${mitraDB.isDeleted} IS NULL`)
+          )
+        )
+        .limit(1);
 
-      // if (existingNik.length > 0) {
-      //   return NextResponse.json({ error: 'NIK already exists' }, { status: 400 });
-      // }
-
-      const joinDate = new Date().toLocaleDateString('en-GB', {
-        timeZone: 'Asia/Jakarta',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      }).replace(/\//g, '/');
+      if (existingNik.length > 0) {
+        return NextResponse.json({ error: 'NIK already exists' }, { status: 400 });
+      }
 
       const mitraCode = await generateMitraCode();
 
-      // Create mitra in database
+      // Create mitra in database with new comprehensive schema
       const newMitraData = {
-        mitraName: body.name.trim(),
-        mitraCode,
-        nik: body.nik.trim(),
-        gender: body.gender,
-        bornDate: body.bornDate,
+        mitraName: body.mitraName.trim(),
+        
+        // Core identification
+        mitraCode: mitraCode,
+        mitraNIK: body.mitraNIK.trim(),
+        mitraGender: body.mitraGender,
+        mitraDOB: body.mitraDOB,
+        mitraPhone: body.mitraPhone.trim(),
+        
+        // Legacy contact and address (for backward compatibility)
+        contact: body.mitraPhone.trim(), // Legacy field
         address: body.address?.trim() || '',
-        phone: body.phone?.trim() || '',
-        bankAccount: body.bankAccount?.trim() || '',
-        bankAccountNumber: body.bankAccountNumber?.trim() || '',
-        bankHoldersName: body.bankHoldersName?.trim() || '',
-        cityAssignment: body.cityAssignment?.trim() || '',
-        locationAssignment: body.locationAssignment?.trim() || '',
-        partnershipTypes: body.partnershipTypes,
-        status: body.status,
-        tenure: body.tenure,
-        bonus: body.bonus,
-        joinDate,
-        exitDate: body.exitDate,
-        city: body.cityAssignment, // Legacy field
-        contact: body.phone, // Legacy field
+        city: body.mitraCityAssignment, // Legacy field
+        district: body.mitraLocationAssignment[0] || '', // First district as legacy
+        village: null,
+        postalCode: null,
+        
+        // Banking information
+        mitraBankAccount: body.mitraBankAccount.trim(),
+        mitraBankHolderName: body.mitraBankHolderName.trim(),
+        mitraBankAccountNumber: body.mitraBankAccountNumber.trim(),
+        
+        // Assignment details
+        mitraCityAssignment: body.mitraCityAssignment,
+        mitraLocationAssignment: JSON.stringify(body.mitraLocationAssignment),
+        mitraPartnership: body.mitraPartnership,
+        mitraTenure: body.mitraTenure || 0,
+        mitraExitDate: body.mitraExitDate || null,
+        mitraBonusCommission: body.mitraBonusCommission,
+        
+        // Legacy mitra details
+        mitraType: 'Cleaner',
+        status: body.status || 'Active',
+        
+        // Financial details
+        baseRate: '50000.00', // Default base rate
+        commissionRate: '10.00', // Default commission rate
+        totalEarnings: '0',
+        totalVisits: 0,
+        
+        // Performance metrics
+        rating: '0',
+        totalReviews: 0,
+        
+        // Metadata
+        mitraNotes: null,
+        isActive: true,
         isDeleted: false,
       };
 
       const result = await db
         .insert(mitraDB)
         .values(newMitraData)
-        .returning({ id: mitraDB.id, mitraCode: mitraDB.mitraCode });
+        .returning({ id: mitraDB.id, mitraName: mitraDB.mitraName });
 
       const newMitraId = result[0]?.id;
-      const newMitraCode = result[0]?.mitraCode;
+      const newMitraName = result[0]?.mitraName;
 
       if (!newMitraId) {
         return NextResponse.json({ error: 'Failed to create mitra' }, { status: 500 });
@@ -320,17 +459,32 @@ export async function POST(request: NextRequest) {
 
       // Log audit event
       if (session) {
-        await logAuditEvent(session.userId, 'MITRA_CREATED', {
-          mitraId: newMitraId,
-          mitraCode: newMitraCode,
-          name: body.name.trim(),
-          nik: body.nik.trim(),
+        await logAuditEvent({
+          action: 'MITRA_CREATED',
+          userId: session.userId,
+          email: session.email,
+          details: {
+            mitraId: newMitraId,
+            mitraName: newMitraName,
+            mitraCode: mitraCode,
+            mitraNIK: body.mitraNIK.trim(),
+            mitraGender: body.mitraGender,
+            mitraPartnership: body.mitraPartnership,
+            mitraCityAssignment: body.mitraCityAssignment
+          }
         });
       }
 
       return NextResponse.json({ 
         success: true,
-        data: { id: newMitraId, mitraCode: newMitraCode },
+        data: { 
+          id: newMitraId, 
+          mitraName: newMitraName,
+          mitraCode: mitraCode,
+          mitraNIK: body.mitraNIK,
+          mitraGender: body.mitraGender,
+          mitraPartnership: body.mitraPartnership
+        },
         message: 'Mitra created successfully'
       }, { status: 201 });
 
@@ -338,11 +492,12 @@ export async function POST(request: NextRequest) {
       console.error('Database error during mitra creation:', dbError);
       
       // Fallback to mock data behavior
-      if (mitraData.some(m => m.nik === body.nik && !m.isDeleted)) {
+      if (mitraData.some(m => m.nik === body.mitraNIK && !m.isDeleted)) {
         return NextResponse.json({ error: 'NIK already exists' }, { status: 400 });
       }
 
-      const newMitra: MitraData = {
+      const mitraCode = await generateMitraCode();
+      const newMitra: any = {
         id: Date.now().toString(),
         joinDate: new Date().toLocaleDateString('en-GB', {
           timeZone: 'Asia/Jakarta',
@@ -350,8 +505,23 @@ export async function POST(request: NextRequest) {
           month: '2-digit',
           year: 'numeric'
         }).replace(/\//g, '/'),
-        mitraCode: await generateMitraCode(),
-        ...body,
+        mitraCode: mitraCode,
+        name: body.mitraName,
+        nik: body.mitraNIK,
+        gender: body.mitraGender,
+        bornDate: body.mitraDOB,
+        phone: body.mitraPhone,
+        bankAccount: body.mitraBankAccount,
+        bankHoldersName: body.mitraBankHolderName,
+        bankAccountNumber: body.mitraBankAccountNumber,
+        cityAssignment: body.mitraCityAssignment,
+        locationAssignment: body.mitraLocationAssignment.join(', '),
+        partnershipTypes: body.mitraPartnership,
+        status: body.status || 'Active',
+        tenure: body.mitraTenure?.toString() || '0',
+        bonus: body.mitraBonusCommission,
+        exitDate: body.mitraExitDate,
+        address: body.address || '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         isDeleted: false,
@@ -361,7 +531,12 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ 
         success: true,
-        data: { id: newMitra.id, mitraCode: newMitra.mitraCode },
+        data: { 
+          id: newMitra.id, 
+          mitraCode: newMitra.mitraCode,
+          mitraName: body.mitraName,
+          mitraNIK: body.mitraNIK
+        },
         message: 'Mitra created successfully (using mock data)'
       }, { status: 201 });
     }
@@ -408,12 +583,15 @@ export async function GET(request: NextRequest) {
       // Build where conditions
       const conditions = [];
       
-      // Search in name, mitra code, nik, or phone
+      // Search in name, mitra code, nik, or phone with new schema
       if (q) {
         conditions.push(
           or(
             ilike(mitraDB.mitraName, `%${q}%`),
-            ilike(mitraDB.contact, `%${q}%`),
+            ilike(mitraDB.mitraCode, `%${q}%`),
+            ilike(mitraDB.mitraNIK, `%${q}%`),
+            ilike(mitraDB.mitraPhone, `%${q}%`),
+            ilike(mitraDB.contact, `%${q}%`), // Legacy fallback
             ilike(mitraDB.address, `%${q}%`)
           )
         );
@@ -424,14 +602,19 @@ export async function GET(request: NextRequest) {
         conditions.push(eq(mitraDB.status, status));
       }
 
-      // Partnership type filter
+      // Partnership type filter with new schema
       if (partnershipType) {
-        // conditions.push(eq(mitraDB.partnershipTypes, partnershipType)); // Column doesn't exist in DB
+        conditions.push(eq(mitraDB.mitraPartnership, partnershipType));
       }
 
-      // City filter
+      // City filter with new schema
       if (city) {
-        conditions.push(ilike(mitraDB.city, `%${city}%`)); // Use actual city column
+        conditions.push(
+          or(
+            ilike(mitraDB.mitraCityAssignment, `%${city}%`),
+            ilike(mitraDB.city, `%${city}%`) // Legacy fallback
+          )
+        );
       }
 
       // Add soft delete condition (only show non-deleted)
@@ -447,21 +630,31 @@ export async function GET(request: NextRequest) {
       
       total = countResult[0]?.count || 0;
 
-      // Get paginated mitras from database
+      // Get paginated mitras from database with new schema fields
       const result = await db
         .select({
           id: mitraDB.id,
           mitraName: mitraDB.mitraName,
+          mitraCode: mitraDB.mitraCode,
+          mitraNIK: mitraDB.mitraNIK,
+          mitraGender: mitraDB.mitraGender,
+          mitraDOB: mitraDB.mitraDOB,
+          mitraPhone: mitraDB.mitraPhone,
           contact: mitraDB.contact,
           address: mitraDB.address,
           city: mitraDB.city,
           district: mitraDB.district,
-          village: mitraDB.village,
-          postalCode: mitraDB.postalCode,
-          mitraType: mitraDB.mitraType,
+          mitraBankAccount: mitraDB.mitraBankAccount,
+          mitraBankHolderName: mitraDB.mitraBankHolderName,
+          mitraBankAccountNumber: mitraDB.mitraBankAccountNumber,
+          mitraCityAssignment: mitraDB.mitraCityAssignment,
+          mitraLocationAssignment: mitraDB.mitraLocationAssignment,
+          mitraPartnership: mitraDB.mitraPartnership,
+          mitraTenure: mitraDB.mitraTenure,
+          mitraExitDate: mitraDB.mitraExitDate,
+          mitraBonusCommission: mitraDB.mitraBonusCommission,
           status: mitraDB.status,
-          baseRate: mitraDB.baseRate,
-          commissionRate: mitraDB.commissionRate,
+          joinDate: mitraDB.joinDate,
           createdAt: mitraDB.createdAt,
         })
         .from(mitraDB)
@@ -472,19 +665,19 @@ export async function GET(request: NextRequest) {
 
       mitras = result.map(mitra => ({
         id: mitra.id,
-        joinDate: mitra.joinDate || new Date().toLocaleDateString('en-GB').replace(/\//g, '/'),
-        name: mitra.mitraName,
-        nik: mitra.nik || '',
+        joinDate: mitra.joinDate ? new Date(mitra.joinDate).toLocaleDateString('en-GB').replace(/\//g, '/') : (mitra.createdAt ? new Date(mitra.createdAt).toLocaleDateString('en-GB').replace(/\//g, '/') : new Date().toLocaleDateString('en-GB').replace(/\//g, '/')),
+        name: mitra.mitraName || '',
+        nik: mitra.mitraNIK || '',
         mitraCode: mitra.mitraCode || '',
         address: mitra.address || '',
-        phone: mitra.phone || '',
-        bankAccount: mitra.bankAccount || '',
-        bankAccountNumber: mitra.bankAccountNumber || '',
-        bankHoldersName: mitra.bankHoldersName || '',
+        phone: mitra.mitraPhone || mitra.contact || '',
+        bankAccount: mitra.mitraBankAccount || '',
+        bankAccountNumber: mitra.mitraBankAccountNumber || '',
+        bankHoldersName: mitra.mitraBankHolderName || '',
         status: mitra.status as any || 'ACTIVE',
-        partnershipTypes: mitra.partnershipTypes as any || 'Fulltime',
-        cityAssignment: mitra.cityAssignment || '',
-        locationAssignment: mitra.locationAssignment || '',
+        partnershipTypes: mitra.mitraPartnership as any || 'Full Time',
+        cityAssignment: mitra.mitraCityAssignment || mitra.city || '',
+        locationAssignment: mitra.mitraLocationAssignment ? (typeof mitra.mitraLocationAssignment === 'string' ? mitra.mitraLocationAssignment : JSON.stringify(mitra.mitraLocationAssignment)) : (mitra.district || ''),
       }));
 
     } catch (dbError) {

@@ -195,12 +195,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       // Log audit event
       if (session) {
-        await logAuditEvent(session.userId, 'TRIAL_CUSTOMER_CREATED', {
-          customerId: newTrialId,
-          customerName: body.customerName.trim(),
-          trialStartDate: firstAssignment.trialStart,
-          trialEndDate: firstAssignment.trialEnd,
-          assignedCleaner: firstAssignment.assignedCleaner,
+        await logAuditEvent({
+          action: 'TRIAL_CUSTOMER_CREATED',
+          userId: session.userId,
+          email: session.email,
+          details: {
+            customerId: newTrialId,
+            customerName: body.customerName.trim(),
+            trialStartDate: firstAssignment.trialStart,
+            trialEndDate: firstAssignment.trialEnd,
+            assignedCleaner: firstAssignment.assignedCleaner,
+          }
         });
       }
 
@@ -357,23 +362,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         
         // Infer residential type from subscription package or address (database column not yet migrated)
         let residentialType: 'House' | 'Office Space' | 'Apartment' = 'House';
-        if (customer.subscriptionPackage?.toLowerCase().includes('office')) {
+        if ((customer as any).subscriptionPackage?.toLowerCase().includes('office')) {
           residentialType = 'Office Space';
-        } else if (customer.address?.toLowerCase().includes('apartment')) {
+        } else if ((customer as any).address?.toLowerCase().includes('apartment')) {
           residentialType = 'Apartment';
         }
 
         // Format trial start date from subscription start
         let nextTrialStartDate: string | undefined;
-        if (customer.subscriptionStart) {
-          const date = new Date(customer.subscriptionStart);
+        if ((customer as any).subscriptionStart) {
+          const date = new Date((customer as any).subscriptionStart);
           nextTrialStartDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
         }
 
         // Format trial end date from subscription end
         let nextTrialEndDate: string | undefined;
-        if (customer.subscriptionEnd) {
-          const date = new Date(customer.subscriptionEnd);
+        if ((customer as any).subscriptionEnd) {
+          const date = new Date((customer as any).subscriptionEnd);
           nextTrialEndDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
         }
 
@@ -403,7 +408,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           nextTrialStartDate,
           nextTrialEndDate,
           assignedCleaners,
-          assignedMitraId: customer.assignedMitraId, // Include mitra ID for editing
+          assignedMitraId: customer.assignedMitraId || undefined, // Include mitra ID for editing
           overallStatus: 'Not Converted' as const, // Default trial status
           ltv,
           createdAt: customer.createdAt?.toISOString() || new Date().toISOString(),
@@ -414,11 +419,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     } catch (dbError) {
       console.error('Database error during trials fetch:', dbError);
       console.error('Database error details:', {
-        message: dbError?.message,
-        code: dbError?.code,
-        table: dbError?.table,
-        column: dbError?.column,
-        stack: dbError?.stack
+        message: (dbError as any)?.message,
+        code: (dbError as any)?.code,
+        table: (dbError as any)?.table,
+        column: (dbError as any)?.column,
+        stack: (dbError as any)?.stack
       });
       
       // Return empty results with friendly message

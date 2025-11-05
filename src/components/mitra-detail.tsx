@@ -10,15 +10,17 @@ interface MitraDetailProps {
 }
 
 const statusColors = {
-  'ACTIVE': 'bg-green-100 text-green-800',
-  'EXIT': 'bg-red-100 text-red-800',
-  'ACTIVE-FLAG': 'bg-yellow-100 text-yellow-800',
-  'BANNED': 'bg-gray-100 text-gray-800',
+  'Active': 'bg-green-100 text-green-800',
+  'Exit': 'bg-red-100 text-red-800',
+  'Active-Flag': 'bg-yellow-100 text-yellow-800',
+  'Banned': 'bg-gray-100 text-gray-800',
 };
 
 const partnershipColors = {
-  'Fulltime': 'bg-blue-100 text-blue-800',
-  'Partime': 'bg-purple-100 text-purple-800',
+  'Full Time': 'bg-blue-100 text-blue-800',
+  'Part Time': 'bg-purple-100 text-purple-800',
+  'Fulltime': 'bg-blue-100 text-blue-800', // Legacy support
+  'Partime': 'bg-purple-100 text-purple-800', // Legacy support
 };
 
 const bonusColors = {
@@ -90,6 +92,9 @@ export default function MitraDetailView({ mitraId, onClose }: MitraDetailProps) 
           <div>
             <h2 className="text-2xl font-semibold text-gray-900">Mitra Details</h2>
             <p className="text-sm text-gray-600">Partner: {mitra.name}</p>
+            {mitra.mitraCode && (
+              <p className="text-xs text-gray-500 font-mono">{mitra.mitraCode}</p>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -119,12 +124,18 @@ export default function MitraDetailView({ mitraId, onClose }: MitraDetailProps) 
                   <div className="mt-1 text-sm text-gray-900">{mitra.gender}</div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Born Date</label>
+                  <label className="block text-sm font-medium text-gray-700">Date of Birth</label>
                   <div className="mt-1 text-sm text-gray-900">{mitra.bornDate}</div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Phone</label>
-                  <div className="mt-1 text-sm text-gray-900">{mitra.phone}</div>
+                  <div className="mt-1 text-sm text-gray-900">
+                    {mitra.phone ? (
+                      <a href={`tel:+62${mitra.phone.replace(/^0/, '')}`} className="text-blue-600 hover:text-blue-800">
+                        {mitra.phone}
+                      </a>
+                    ) : 'Not provided'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -143,7 +154,7 @@ export default function MitraDetailView({ mitraId, onClose }: MitraDetailProps) 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Partnership Type</label>
                   <div className="mt-1">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${partnershipColors[mitra.partnershipTypes]}`}>
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${partnershipColors[mitra.partnershipTypes as keyof typeof partnershipColors] || 'bg-gray-100 text-gray-800'}`}>
                       {mitra.partnershipTypes}
                     </span>
                   </div>
@@ -151,14 +162,16 @@ export default function MitraDetailView({ mitraId, onClose }: MitraDetailProps) 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Status</label>
                   <div className="mt-1">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColors[mitra.status]}`}>
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColors[mitra.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'}`}>
                       {mitra.status}
                     </span>
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Tenure</label>
-                  <div className="mt-1 text-sm text-gray-900">{mitra.tenure} months</div>
+                  <div className="mt-1 text-sm text-gray-900">
+                    {mitra.tenure} {parseInt(mitra.tenure) === 1 ? 'month' : 'months'}
+                  </div>
                 </div>
                 {mitra.exitDate && (
                   <div>
@@ -174,18 +187,36 @@ export default function MitraDetailView({ mitraId, onClose }: MitraDetailProps) 
           <div>
             <h3 className="text-lg font-medium text-gray-900 mb-4">Address & Assignment</h3>
             <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Address</label>
-                <div className="mt-1 text-sm text-gray-900">{mitra.address}</div>
-              </div>
+              {mitra.address && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Residential Address</label>
+                  <div className="mt-1 text-sm text-gray-900">{mitra.address}</div>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">City Assignment</label>
-                  <div className="mt-1 text-sm text-gray-900">{mitra.cityAssignment}</div>
+                  <div className="mt-1">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {mitra.cityAssignment || 'Not assigned'}
+                    </span>
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Location Assignment</label>
-                  <div className="mt-1 text-sm text-gray-900">{mitra.locationAssignment}</div>
+                  <label className="block text-sm font-medium text-gray-700">Location Assignment (Districts)</label>
+                  <div className="mt-1 text-sm text-gray-900">
+                    {mitra.locationAssignment ? (
+                      <div className="flex flex-wrap gap-1">
+                        {mitra.locationAssignment.split(',').map((location, index) => (
+                          <span key={index} className="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-200 text-gray-700">
+                            {location.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      'Not assigned'
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -198,15 +229,25 @@ export default function MitraDetailView({ mitraId, onClose }: MitraDetailProps) 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Bank</label>
-                  <div className="mt-1 text-sm text-gray-900">{mitra.bankAccount}</div>
+                  <div className="mt-1 text-sm text-gray-900">
+                    <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-800 font-medium">
+                      {mitra.bankAccount || 'Not provided'}
+                    </span>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Account Number</label>
-                  <div className="mt-1 text-sm font-mono text-gray-900">{mitra.bankAccountNumber}</div>
+                  <div className="mt-1 text-sm font-mono text-gray-900 bg-white px-2 py-1 rounded border">
+                    {mitra.bankAccountNumber ? (
+                      <span className="select-all">{mitra.bankAccountNumber}</span>
+                    ) : (
+                      <span className="text-gray-400">Not provided</span>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Account Holder</label>
-                  <div className="mt-1 text-sm text-gray-900">{mitra.bankHoldersName}</div>
+                  <div className="mt-1 text-sm text-gray-900">{mitra.bankHoldersName || 'Not provided'}</div>
                 </div>
               </div>
             </div>
@@ -217,7 +258,7 @@ export default function MitraDetailView({ mitraId, onClose }: MitraDetailProps) 
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">Bonus Status</h3>
               <div className="bg-gray-50 rounded-lg p-4">
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${bonusColors[mitra.bonus]}`}>
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${bonusColors[mitra.bonus as keyof typeof bonusColors] || 'bg-gray-100 text-gray-800'}`}>
                   {mitra.bonus}
                 </span>
               </div>

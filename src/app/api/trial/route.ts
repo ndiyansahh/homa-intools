@@ -259,12 +259,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       // Log audit event
       if (session) {
-        await logAuditEvent(session.userId, 'TRIAL_CUSTOMER_CREATED', {
-          customerId: newCustomer.id,
-          trialId: trialId,
-          customerName: body.customer_name,
-          assignmentsCount: body.assignments?.length || 0,
-          method: 'trial_api',
+        await logAuditEvent({
+          action: 'TRIAL_CUSTOMER_CREATED',
+          userId: session.userId,
+          email: session.email,
+          details: {
+            customerId: newCustomer.id,
+            trialId: trialId,
+            customerName: body.customer_name,
+            assignmentsCount: body.assignments?.length || 0,
+            method: 'trial_api',
+          }
         });
       }
 
@@ -373,6 +378,7 @@ interface UpdateTrialRequest {
   subscription_package?: string; // Subscription package name
   total_sessions?: number; // Total sessions
   chosen_days?: string[]; // Array of chosen days
+  qty_package?: number; // Quantity for package (1 qty = 1 month)
   convert_to_customer?: boolean; // Flag for full customer conversion
 }
 
@@ -528,13 +534,16 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
           if (packageResult.length > 0) {
             const packageData = packageResult[0];
-            monthlyFee = parseFloat(packageData.priceNumeric.toString());
+            const quantity = body.qty_package || 1; // Default to 1 if not specified
+            monthlyFee = parseFloat(packageData.priceNumeric.toString()) * quantity;
             subscriptionPackageId = packageData.id;
             console.log('Found package in database:', {
               id: packageData.id,
               name: packageData.subscriptionPackage,
               pricePerQty: packageData.pricePerQty,
-              priceNumeric: packageData.priceNumeric
+              priceNumeric: packageData.priceNumeric,
+              quantity: quantity,
+              totalPrice: monthlyFee
             });
           } else {
             console.log('Package not found in database:', body.subscription_package);
@@ -546,15 +555,20 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
           updateData.subscriptionPackageId = subscriptionPackageId; // Link to subscription package
           updateData.subscriptionStatus = 'Active'; // Set as active customer
           
-          // Set subscription dates
+          // Set subscription dates and calculate LTV
           if (body.start_date) {
             updateData.subscriptionStart = body.start_date;
             
-            // Calculate subscription end date (1 month from start)
+            // Calculate subscription end date based on quantity (1 qty = 1 month)
+            const quantity = body.qty_package || 1;
             const startDate = new Date(body.start_date);
             const endDate = new Date(startDate);
-            endDate.setMonth(endDate.getMonth() + 1);
+            endDate.setMonth(endDate.getMonth() + quantity);
             updateData.subscriptionEnd = endDate.toISOString().split('T')[0];
+            
+            // Set LTV based on quantity (1 qty = 1 month)
+            updateData.ltv = quantity;
+            console.log('Calculated LTV for trial conversion (quantity-based):', updateData.ltv, 'months');
           }
 
           // Store total sessions and chosen days if provided
@@ -616,7 +630,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
               };
 
               let weekVisitCount = 0;
-              const chosenDayNumbers = body.chosen_days.map(day => dayMap[day]).filter(d => d !== undefined);
+              const chosenDayNumbers = body.chosen_days.map(day => (dayMap as any)[day]).filter(d => d !== undefined);
 
               while (currentDate < endDate) {
                 const currentDayNumber = currentDate.getDay();
@@ -661,10 +675,15 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
       // Log audit event
       if (session) {
-        await logAuditEvent(session.userId, 'TRIAL_CUSTOMER_UPDATED', {
-          customerId: body.id,
-          updatedFields: Object.keys(body).filter(key => key !== 'id'),
-          method: 'trial_update_api',
+        await logAuditEvent({
+          action: 'TRIAL_CUSTOMER_UPDATED',
+          userId: session.userId,
+          email: session.email,
+          details: {
+            customerId: body.id,
+            updatedFields: Object.keys(body).filter(key => key !== 'id'),
+            method: 'trial_update_api',
+          }
         });
       }
 
@@ -678,7 +697,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
             subscription_start: result.subscriptionStart,
             subscription_end: result.subscriptionEnd,
             assigned_mitra_id: result.assignedMitraId,
-            updated_at: result.updatedAt,
+            updated_at: new Date().toISOString(),
           },
           message: 'Trial customer updated successfully',
         },

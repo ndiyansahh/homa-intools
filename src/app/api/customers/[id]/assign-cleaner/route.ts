@@ -1,16 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { customerDB, mitraDB } from '@/lib/schema';
+import { eq, and, or, sql } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/logger';
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
-// Available cleaners list  
-const availableCleaners = [
-  'Ardi', 'Inem', 'Siti', 'Budi', 'Ani', 'Dewi', 
-  'Rina', 'Tono', 'Wati', 'Didi', 'Maya', 'Joko'
-];
+// Get available cleaners from database
+async function getAvailableCleaners(): Promise<string[]> {
+  try {
+    const mitras = await db
+      .select({
+        mitraName: mitraDB.mitraName,
+      })
+      .from(mitraDB)
+      .where(
+        and(
+          eq(mitraDB.status, 'Active'),
+          or(eq(mitraDB.isDeleted, false), sql`${mitraDB.isDeleted} IS NULL`)
+        )
+      );
+    
+    return mitras.map(m => m.mitraName);
+  } catch (error) {
+    console.error('Error fetching mitras:', error);
+    // Fallback to hardcoded list if database fails
+    return [
+      'Ardi', 'Inem', 'Siti', 'Budi', 'Ani', 'Dewi', 
+      'Rina', 'Tono', 'Wati', 'Didi', 'Maya', 'Joko'
+    ];
+  }
+}
 
 export async function POST(
   request: NextRequest,
@@ -33,9 +56,12 @@ export async function POST(
       );
     }
 
-    const customerId = params.id;
+    const { id: customerId } = await params;
     const body = await request.json();
     const { cleaner1, cleaner2 } = body;
+
+    // Get available cleaners from database
+    const availableCleaners = await getAvailableCleaners();
 
     // Validate cleaners
     if (cleaner1 && !availableCleaners.includes(cleaner1)) {
@@ -59,22 +85,96 @@ export async function POST(
       );
     }
 
-    // For now, we'll just return success since we don't have a cleaners table
-    // In a real implementation, you would update the customer record or create assignment records
+    try {
+      // Check if customer exists
+      const existingCustomer = await db
+        .select()
+        .from(customerDB)
+        .where(
+          and(
+            eq(customerDB.id, customerId),
+            or(eq(customerDB.isDeleted, false), sql`${customerDB.isDeleted} IS NULL`)
+          )
+        )
+        .limit(1);
 
-    // Log audit event
-    if (session) {
-      await logAuditEvent(session.userId, 'CLEANER_ASSIGNED', { 
-        customerId, 
-        cleaner1, 
-        cleaner2 
+      if (existingCustomer.length === 0) {
+        return NextResponse.json(
+          { success: false, error: 'Customer not found' },
+          { status: 404 }
+        );
+      }
+
+      // Find mitra IDs for the cleaner names (if we have mitras in database)
+      let primaryMitraId = null;
+      let backupMitraId = null;
+
+      if (cleaner1) {
+        const primaryMitra = await db
+          .select({ id: mitraDB.id })
+          .from(mitraDB)
+          .where(eq(mitraDB.mitraName, cleaner1))
+          .limit(1);
+        
+        if (primaryMitra.length > 0) {
+          primaryMitraId = primaryMitra[0].id;
+        }
+      }
+
+      if (cleaner2) {
+        const backupMitra = await db
+          .select({ id: mitraDB.id })
+          .from(mitraDB)
+          .where(eq(mitraDB.mitraName, cleaner2))
+          .limit(1);
+        
+        if (backupMitra.length > 0) {
+          backupMitraId = backupMitra[0].id;
+        }
+      }
+
+      // Update customer with assigned cleaner information
+      const updateData: any = {
+        updatedAt: new Date(),
+      };
+
+      // Update mitra IDs if found in database
+      if (primaryMitraId) updateData.assignedMitraId = primaryMitraId;
+      if (backupMitraId) updateData.backupMitraId = backupMitraId;
+
+      await db
+        .update(customerDB)
+        .set(updateData)
+        .where(eq(customerDB.id, customerId));
+
+      // Log audit event
+      if (session) {
+        logAuditEvent({ 
+          action: 'CLEANER_ASSIGNED',
+          userId: session.userId,
+          email: session.email,
+          details: {
+            customerId, 
+            cleaner1, 
+            cleaner2,
+            primaryMitraId,
+            backupMitraId
+          }
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Cleaners assigned successfully',
       });
-    }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Cleaners assigned successfully',
-    });
+    } catch (dbError) {
+      console.error('Database error during cleaner assignment:', dbError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to assign cleaners - database error' },
+        { status: 500 }
+      );
+    }
 
   } catch (error) {
     console.error('Assign cleaner API error:', error);
@@ -105,6 +205,9 @@ export async function GET(
         { status: 403 }
       );
     }
+
+    // Get available cleaners from database
+    const availableCleaners = await getAvailableCleaners();
 
     return NextResponse.json({
       success: true,

@@ -23,13 +23,14 @@ export async function POST(request: NextRequest) {
     const rateLimit = checkRateLimit(clientIp);
     if (!rateLimit.success) {
       logAuthEvent({
-        level: 'warn',
         action: 'login_rate_limited',
         email,
-        ip: clientIp,
-        userAgent,
-        success: false,
-        error: 'Rate limit exceeded',
+        details: {
+          ip: clientIp,
+          userAgent,
+          success: false,
+          error: 'Rate limit exceeded',
+        },
       });
 
       return NextResponse.json(
@@ -42,13 +43,14 @@ export async function POST(request: NextRequest) {
     
     if (!user) {
       logAuthEvent({
-        level: 'warn',
         action: 'login_failed',
         email,
-        ip: clientIp,
-        userAgent,
-        success: false,
-        error: 'Invalid credentials',
+        details: {
+          ip: clientIp,
+          userAgent,
+          success: false,
+          error: 'Invalid credentials',
+        },
       });
 
       return NextResponse.json(
@@ -60,13 +62,14 @@ export async function POST(request: NextRequest) {
     await createSession(user.id, user.role, user.email);
 
     logAuthEvent({
-      level: 'info',
       action: 'login_success',
       userId: user.id,
       email: user.email,
-      ip: clientIp,
-      userAgent,
-      success: true,
+      details: {
+        ip: clientIp,
+        userAgent,
+        success: true,
+      },
     });
 
     const response: LoginResponse = {
@@ -82,10 +85,11 @@ export async function POST(request: NextRequest) {
     console.error('Login API error:', error);
     
     logAuthEvent({
-      level: 'error',
       action: 'login_error',
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      details: {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
     });
 
     return NextResponse.json(

@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { mitraDB } from '@/lib/schema';
+import { eq, and, or, sql } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { UpdateMitraRequest, MitraData } from '@/types/mitra';
 import { logAuditEvent } from '@/lib/logger';
@@ -105,7 +108,7 @@ let mitraData: MitraData[] = [
 // GET /api/mitra/[id] - Get individual mitra details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -118,13 +121,101 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
+    
+    try {
+      // Try to get mitra from database first
+      const result = await db
+        .select({
+          id: mitraDB.id,
+          mitraName: mitraDB.mitraName,
+          mitraCode: mitraDB.mitraCode,
+          mitraNIK: mitraDB.mitraNIK,
+          mitraGender: mitraDB.mitraGender,
+          mitraDOB: mitraDB.mitraDOB,
+          mitraPhone: mitraDB.mitraPhone,
+          mitraBankAccount: mitraDB.mitraBankAccount,
+          mitraBankHolderName: mitraDB.mitraBankHolderName,
+          mitraBankAccountNumber: mitraDB.mitraBankAccountNumber,
+          mitraCityAssignment: mitraDB.mitraCityAssignment,
+          mitraLocationAssignment: mitraDB.mitraLocationAssignment,
+          mitraPartnership: mitraDB.mitraPartnership,
+          mitraTenure: mitraDB.mitraTenure,
+          mitraExitDate: mitraDB.mitraExitDate,
+          mitraBonusCommission: mitraDB.mitraBonusCommission,
+          // Legacy fields
+          contact: mitraDB.contact,
+          address: mitraDB.address,
+          city: mitraDB.city,
+          district: mitraDB.district,
+          status: mitraDB.status,
+          joinDate: mitraDB.joinDate,
+          createdAt: mitraDB.createdAt,
+          updatedAt: mitraDB.updatedAt,
+        })
+        .from(mitraDB)
+        .where(
+          and(
+            eq(mitraDB.id, id),
+            or(eq(mitraDB.isDeleted, false), sql`${mitraDB.isDeleted} IS NULL`)
+          )
+        )
+        .limit(1);
+
+      if (result.length > 0) {
+        const dbMitra = result[0];
+        
+        // Convert database result to expected format
+        const mitraData: MitraData = {
+          id: dbMitra.id,
+          joinDate: dbMitra.joinDate ? new Date(dbMitra.joinDate).toLocaleDateString('en-GB').replace(/\//g, '/') : (dbMitra.createdAt ? new Date(dbMitra.createdAt).toLocaleDateString('en-GB').replace(/\//g, '/') : ''),
+          mitraCode: dbMitra.mitraCode || '',
+          nik: dbMitra.mitraNIK || '',
+          name: dbMitra.mitraName || '',
+          gender: dbMitra.mitraGender || 'Wanita',
+          bornDate: dbMitra.mitraDOB || '',
+          address: dbMitra.address || '',
+          phone: dbMitra.mitraPhone || dbMitra.contact || '',
+          bankAccount: dbMitra.mitraBankAccount || '',
+          bankAccountNumber: dbMitra.mitraBankAccountNumber || '',
+          bankHoldersName: dbMitra.mitraBankHolderName || '',
+          cityAssignment: dbMitra.mitraCityAssignment || dbMitra.city || '',
+          locationAssignment: (() => {
+            if (dbMitra.mitraLocationAssignment) {
+              try {
+                const parsed = JSON.parse(dbMitra.mitraLocationAssignment);
+                return Array.isArray(parsed) ? parsed.join(', ') : dbMitra.mitraLocationAssignment;
+              } catch {
+                return dbMitra.mitraLocationAssignment;
+              }
+            }
+            return dbMitra.district || '';
+          })(),
+          partnershipTypes: dbMitra.mitraPartnership as any || 'Full Time',
+          status: dbMitra.status as any || 'ACTIVE',
+          tenure: dbMitra.mitraTenure?.toString() || '0',
+          exitDate: dbMitra.mitraExitDate || undefined,
+          bonus: dbMitra.mitraBonusCommission as any || 'Eligible',
+          createdAt: dbMitra.createdAt?.toISOString() || new Date().toISOString(),
+          updatedAt: dbMitra.updatedAt?.toISOString() || new Date().toISOString(),
+          isDeleted: false,
+        };
+        
+        console.log(`✅ Found mitra in database: ${mitraData.name} (${mitraData.mitraCode})`);
+        return NextResponse.json(mitraData);
+      }
+    } catch (dbError) {
+      console.error('Database error, falling back to mock data:', dbError);
+    }
+    
+    // Fallback to mock data if database lookup fails
     const mitra = mitraData.find(m => m.id === id && !m.isDeleted);
 
     if (!mitra) {
       return NextResponse.json({ error: 'Mitra not found' }, { status: 404 });
     }
 
+    console.log(`🔄 Found mitra in mock data: ${mitra.name} (${mitra.mitraCode})`);
     return NextResponse.json(mitra);
   } catch (error) {
     console.error('Get mitra details error:', error);
@@ -135,7 +226,7 @@ export async function GET(
 // PUT /api/mitra/[id] - Update mitra
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -148,7 +239,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
     const body: Partial<UpdateMitraRequest> = await request.json();
 
     const mitraIndex = mitraData.findIndex(m => m.id === id && !m.isDeleted);
@@ -157,21 +248,21 @@ export async function PUT(
     }
 
     // Check NIK uniqueness if NIK is being updated
-    if (body.nik && body.nik !== mitraData[mitraIndex].nik) {
-      if (mitraData.some(m => m.nik === body.nik && m.id !== id && !m.isDeleted)) {
+    if (body.mitraNIK && body.mitraNIK !== mitraData[mitraIndex].nik) {
+      if (mitraData.some(m => m.nik === body.mitraNIK && m.id !== id && !m.isDeleted)) {
         return NextResponse.json({ error: 'NIK already exists' }, { status: 400 });
       }
     }
 
     // Validate date format if dates are being updated
     const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
-    if (body.bornDate && !dateRegex.test(body.bornDate)) {
+    if (body.mitraDOB && !dateRegex.test(body.mitraDOB)) {
       return NextResponse.json({ 
         error: 'Invalid born date format. Use dd/MM/yyyy format' 
       }, { status: 400 });
     }
 
-    if (body.exitDate && !dateRegex.test(body.exitDate)) {
+    if (body.mitraExitDate && !dateRegex.test(body.mitraExitDate)) {
       return NextResponse.json({ 
         error: 'Invalid exit date format. Use dd/MM/yyyy format' 
       }, { status: 400 });
@@ -188,12 +279,17 @@ export async function PUT(
 
     // Log audit event
     if (session) {
-      await logAuditEvent(session.userId, 'MITRA_UPDATED', {
-        mitraId: updatedMitra.id,
-        mitraCode: updatedMitra.mitraCode,
-        name: updatedMitra.name,
-        nik: updatedMitra.nik,
-        updatedFields: Object.keys(body),
+      await logAuditEvent({
+        action: 'MITRA_UPDATED',
+        userId: session.userId,
+        email: session.email,
+        details: {
+          mitraId: updatedMitra.id,
+          mitraCode: updatedMitra.mitraCode,
+          name: updatedMitra.name,
+          nik: updatedMitra.nik,
+          updatedFields: Object.keys(body),
+        }
       });
     }
 
@@ -210,7 +306,7 @@ export async function PUT(
 // DELETE /api/mitra/[id] - Soft delete mitra
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -223,7 +319,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
     const mitraIndex = mitraData.findIndex(m => m.id === id && !m.isDeleted);
 
     if (mitraIndex === -1) {
@@ -239,11 +335,16 @@ export async function DELETE(
 
     // Log audit event
     if (session) {
-      await logAuditEvent(session.userId, 'MITRA_DELETED', {
-        mitraId: mitraData[mitraIndex].id,
-        mitraCode: mitraData[mitraIndex].mitraCode,
-        name: mitraData[mitraIndex].name,
-        nik: mitraData[mitraIndex].nik,
+      await logAuditEvent({
+        action: 'MITRA_DELETED',
+        userId: session.userId,
+        email: session.email,
+        details: {
+          mitraId: mitraData[mitraIndex].id,
+          mitraCode: mitraData[mitraIndex].mitraCode,
+          name: mitraData[mitraIndex].name,
+          nik: mitraData[mitraIndex].nik,
+        }
       });
     }
 

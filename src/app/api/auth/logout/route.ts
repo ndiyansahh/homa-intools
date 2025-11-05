@@ -10,13 +10,14 @@ export async function POST(request: NextRequest) {
 
     if (session) {
       logAuthEvent({
-        level: 'info',
         action: 'logout_success',
         userId: session.userId,
         email: session.email,
-        ip: clientIp,
-        userAgent,
-        success: true,
+        details: {
+          ip: clientIp,
+          userAgent,
+          success: true,
+        },
       });
     }
 
@@ -28,10 +29,11 @@ export async function POST(request: NextRequest) {
     console.error('Logout API error:', error);
     
     logAuthEvent({
-      level: 'error',
       action: 'logout_error',
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      details: {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
     });
 
     return new NextResponse(null, { status: 204 });

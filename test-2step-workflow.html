@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 2-Step Subscription Workflow</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; max-width: 800px; }
+        .step { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        .step.success { background: #e8f5e9; border-color: #4caf50; }
+        .step.pending { background: #fff3e0; border-color: #ff9800; }
+        button { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; cursor: pointer; }
+        .btn-primary { background: #2196f3; color: white; }
+        .btn-success { background: #4caf50; color: white; }
+        .btn-primary:hover { background: #1976d2; }
+        .btn-success:hover { background: #388e3c; }
+        .result { margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 5px; }
+        .loading { opacity: 0.6; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <h1>2-Step Subscription Workflow Test</h1>
+    <p>This demonstrates the new workflow where subscription creation and customer conversion are separate steps.</p>
+
+    <div id="step1" class="step pending">
+        <h3>Step 1: Create Subscription</h3>
+        <p>Create subscription with all the details but don't convert trial yet.</p>
+        <button id="createBtn" class="btn-primary" onclick="testCreateSubscription()">
+            Create Subscription
+        </button>
+        <div id="step1Result" class="result" style="display: none;"></div>
+    </div>
+
+    <div id="step2" class="step pending">
+        <h3>Step 2: Convert to Customer</h3>
+        <p>After subscription is created successfully, convert the trial to customer.</p>
+        <button id="convertBtn" class="btn-success" onclick="testConvertCustomer()" disabled>
+            Convert to Customer
+        </button>
+        <div id="step2Result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        let subscriptionData = null;
+
+        async function testCreateSubscription() {
+            const createBtn = document.getElementById('createBtn');
+            const step1Result = document.getElementById('step1Result');
+            const step1 = document.getElementById('step1');
+
+            createBtn.textContent = 'Creating...';
+            createBtn.disabled = true;
+            step1.classList.add('loading');
+
+            try {
+                // Test data - you may need to adjust these IDs based on your database
+                const response = await fetch('http://localhost:3000/api/subscriptions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        customerId: 'b8cb4d68-e85e-4ede-a7bc-cee28e1cd9b0', // Sample trial ID
+                        subscriptionPackageId: 'ae1bd8e9-a730-4539-8d20-689e15d54ff3', // Basic Cleaning
+                        dayPattern: { day1: 'Monday', day2: '', day3: '' },
+                        subscriptionStartDate: '2025-11-03',
+                        mitraId: 'some-mitra-id'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    subscriptionData = data.data;
+                    step1Result.innerHTML = `
+                        <strong>✅ Subscription Created!</strong><br>
+                        Package: ${subscriptionData.packageName}<br>
+                        Total Visits: ${subscriptionData.totalVisits}<br>
+                        Subscription ID: ${subscriptionData.subscriptionId}
+                    `;
+                    step1Result.style.display = 'block';
+                    step1.classList.remove('pending');
+                    step1.classList.add('success');
+                    
+                    // Enable step 2
+                    document.getElementById('convertBtn').disabled = false;
+                    document.getElementById('step2').classList.remove('pending');
+                } else {
+                    step1Result.innerHTML = `<strong>❌ Error:</strong> ${data.message}`;
+                    step1Result.style.display = 'block';
+                }
+            } catch (error) {
+                step1Result.innerHTML = `<strong>❌ Network Error:</strong> ${error.message}`;
+                step1Result.style.display = 'block';
+            } finally {
+                createBtn.textContent = 'Create Subscription';
+                createBtn.disabled = false;
+                step1.classList.remove('loading');
+            }
+        }
+
+        async function testConvertCustomer() {
+            if (!subscriptionData) {
+                alert('Please create subscription first');
+                return;
+            }
+
+            const convertBtn = document.getElementById('convertBtn');
+            const step2Result = document.getElementById('step2Result');
+            const step2 = document.getElementById('step2');
+
+            convertBtn.textContent = 'Converting...';
+            convertBtn.disabled = true;
+            step2.classList.add('loading');
+
+            try {
+                const response = await fetch('http://localhost:3000/api/trials/b8cb4d68-e85e-4ede-a7bc-cee28e1cd9b0', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        status: 'Converted',
+                        notes: `Converted to customer with subscription: ${subscriptionData.packageName}`
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    step2Result.innerHTML = `
+                        <strong>✅ Trial Converted to Customer!</strong><br>
+                        Trial Status: Converted<br>
+                        Complete workflow successful!
+                    `;
+                    step2Result.style.display = 'block';
+                    step2.classList.add('success');
+                } else {
+                    step2Result.innerHTML = `<strong>❌ Conversion Error:</strong> ${data.message}`;
+                    step2Result.style.display = 'block';
+                }
+            } catch (error) {
+                step2Result.innerHTML = `<strong>❌ Network Error:</strong> ${error.message}`;
+                step2Result.style.display = 'block';
+            } finally {
+                convertBtn.textContent = 'Convert to Customer';
+                convertBtn.disabled = false;
+                step2.classList.remove('loading');
+            }
+        }
+    </script>
+</body>
+</html>

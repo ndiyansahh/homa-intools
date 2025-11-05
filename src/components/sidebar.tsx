@@ -27,8 +27,10 @@ export default function Sidebar({ navigationItems, session, isOpen, onClose }: S
       action: 'menu_click',
       userId: session.userId,
       email: session.email,
-      path: item.href,
-      menuItem: item.name,
+      details: {
+        path: item.href,
+        menuItem: item.name,
+      }
     });
     
     if (onClose) {

@@ -1,51 +1,67 @@
 export type MitraGender = 'Pria' | 'Wanita';
-export type MitraPartnershipType = 'Fulltime' | 'Partime';
-export type MitraStatus = 'ACTIVE' | 'EXIT' | 'ACTIVE-FLAG' | 'BANNED';
-export type MitraTenure = '3' | '6' | '12';
-export type MitraBonus = 'Eligible' | 'Not Eligible';
+export type MitraPartnershipType = 'Full Time' | 'Part Time';
+export type MitraStatus = 'Active' | 'Inactive' | 'Exit' | 'Banned' | 'Active-Flag';
+export type MitraBonusCommission = 'Eligible' | 'Not Eligible';
+
+// Jabodetabek cities for assignment
+export type MitraCityAssignment = 'Jakarta' | 'Bogor' | 'Depok' | 'Tangerang' | 'Bekasi' | 'Jakarta Pusat' | 'Jakarta Barat' | 'Jakarta Timur' | 'Jakarta Selatan' | 'Jakarta Utara';
 
 export interface MitraData {
   id: string;
   joinDate: string; // dd/mm/yyyy format
-  mitraCode: string; // MITRA-202210-000001
-  nik: string; // 12345678901283782
-  name: string;
-  gender: MitraGender;
-  bornDate: string; // dd/mm/yyyy format
-  address: string;
-  phone: string; // 6281291662589
-  bankAccount: string; // BCA
-  bankAccountNumber: string; // 52712364890
-  bankHoldersName: string;
-  cityAssignment: string;
-  locationAssignment: string;
-  partnershipTypes: MitraPartnershipType;
-  status: MitraStatus;
-  tenure: MitraTenure;
+  mitraCode: string; // MITRA-YEARMONTH-SEQUENCE (e.g., MITRA-202407-000046)
+  name: string; // Legacy field name for compatibility
+  nik: string; // Legacy field name for compatibility
+  gender: string; // Legacy field name for compatibility
+  bornDate: string; // Legacy field name for compatibility
+  phone: string; // Legacy field name for compatibility
+  
+  // Legacy fields (for backward compatibility)
+  address?: string;
+  
+  // Banking information
+  bankAccount: string; // Legacy field name for compatibility
+  bankHoldersName: string; // Legacy field name for compatibility
+  bankAccountNumber: string; // Legacy field name for compatibility
+  
+  // Assignment details
+  cityAssignment: string; // Legacy field name for compatibility
+  locationAssignment: string; // Legacy field name for compatibility (comma-separated)
+  partnershipTypes: string; // Legacy field name for compatibility
+  tenure: string; // Legacy field name for compatibility (string)
   exitDate?: string; // dd/mm/yyyy format, optional
-  bonus: MitraBonus;
+  bonus: string; // Legacy field name for compatibility
+  
+  status: MitraStatus;
   createdAt: string;
   updatedAt: string;
   isDeleted?: boolean;
 }
 
 export interface CreateMitraRequest {
-  name: string;
-  nik: string;
-  gender: MitraGender;
-  bornDate: string;
-  address: string;
-  phone: string;
-  bankAccount: string;
-  bankAccountNumber: string;
-  bankHoldersName: string;
-  cityAssignment: string;
-  locationAssignment: string;
-  partnershipTypes: MitraPartnershipType;
-  status: MitraStatus;
-  tenure: MitraTenure;
-  exitDate?: string;
-  bonus: MitraBonus;
+  mitraName: string;
+  mitraNIK: string; // 16 digit number
+  mitraGender: MitraGender; // Wanita, Pria
+  mitraDOB: string; // mm/dd/yyyy format
+  mitraPhone: string; // 10-12 digits
+  
+  // Banking information
+  mitraBankAccount: string; // Free text (e.g., BCA)
+  mitraBankHolderName: string; // Free text
+  mitraBankAccountNumber: string; // Number
+  
+  // Assignment details
+  mitraCityAssignment: MitraCityAssignment; // Jabodetabek cities
+  mitraLocationAssignment: string[]; // Array of districts
+  mitraPartnership: MitraPartnershipType; // Full Time, Part Time
+  mitraTenure: number; // Free number
+  mitraExitDate?: string; // dd/mm/yyyy format, optional
+  mitraBonusCommission: MitraBonusCommission; // Eligible, Not Eligible
+  
+  status?: MitraStatus; // Optional, defaults to Active
+  
+  // Legacy fields (optional for backward compatibility)
+  address?: string;
 }
 
 export interface UpdateMitraRequest extends Partial<CreateMitraRequest> {

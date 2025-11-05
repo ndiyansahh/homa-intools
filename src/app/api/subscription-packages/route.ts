@@ -34,6 +34,8 @@ export async function GET(request: NextRequest): Promise<NextResponse<Subscripti
     const formattedResult = result.map(pkg => ({
       ...pkg,
       priceNumeric: parseFloat(pkg.priceNumeric.toString()),
+      createdAt: pkg.createdAt || new Date(),
+      updatedAt: pkg.updatedAt || new Date(),
     }));
 
     return NextResponse.json({
@@ -44,15 +46,15 @@ export async function GET(request: NextRequest): Promise<NextResponse<Subscripti
   } catch (error) {
     console.error('Database error when fetching subscription packages:', error);
     console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      stack: error.stack
+      message: error instanceof Error ? error.message : 'Unknown error',
+      code: (error as any)?.code,
+      stack: error instanceof Error ? error.stack : 'No stack trace'
     });
     
     return NextResponse.json({
       success: false,
       message: 'Failed to fetch subscription packages from database',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Database error',
+      error: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : 'Database error',
     }, { status: 500 });
   }
 }

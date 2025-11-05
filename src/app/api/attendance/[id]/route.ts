@@ -68,7 +68,7 @@ let attendanceData: AttendanceRecord[] = [
 // GET /api/attendance/[id] - Get individual attendance record
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -81,7 +81,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
     const attendance = attendanceData.find(a => a.id === id && !a.isDeleted);
 
     if (!attendance) {
@@ -98,7 +98,7 @@ export async function GET(
 // PUT /api/attendance/[id] - Update attendance record
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -111,7 +111,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
     const body: Partial<UpdateAttendanceRequest> = await request.json();
 
     const attendanceIndex = attendanceData.findIndex(a => a.id === id && !a.isDeleted);
@@ -173,7 +173,7 @@ export async function PUT(
 // DELETE /api/attendance/[id] - Soft delete attendance record
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -186,7 +186,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
     const attendanceIndex = attendanceData.findIndex(a => a.id === id && !a.isDeleted);
 
     if (attendanceIndex === -1) {

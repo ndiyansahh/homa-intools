@@ -26,7 +26,9 @@ export default function AppShell({ children, session }: AppShellProps) {
       action: 'page_view',
       userId: session.userId,
       email: session.email,
-      path: pathname,
+      details: {
+        path: pathname,
+      }
     });
   }, [pathname, session.userId, session.email]);
 

@@ -47,6 +47,21 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
   const [subscriptionPackages, setSubscriptionPackages] = useState<any[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
   
+  // Package-driven subscription states
+  const [selectedPackageId, setSelectedPackageId] = useState('');
+  const [requiredDays, setRequiredDays] = useState(0);
+  const [dayPattern, setDayPattern] = useState({ day1: '', day2: '', day3: '' });
+  const [subscriptionStartDate, setSubscriptionStartDate] = useState('');
+  const [previewVisits, setPreviewVisits] = useState<any[]>([]);
+  const [availableMitras, setAvailableMitras] = useState<any[]>([]);
+  const [selectedMitraForSubscription, setSelectedMitraForSubscription] = useState('');
+  
+  // 2-step workflow states
+  const [subscriptionCreated, setSubscriptionCreated] = useState(false);
+  const [subscriptionData, setSubscriptionData] = useState<any>(null);
+  const [creatingSubscription, setCreatingSubscription] = useState(false);
+  const [convertingToCustomer, setConvertingToCustomer] = useState(false);
+  
   // Edit form data
   const [editData, setEditData] = useState({
     startDate: '',
@@ -85,7 +100,7 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
   const fetchSubscriptionPackages = async () => {
     try {
       setLoadingPackages(true);
-      const response = await fetch('/api/subscription-packages');
+      const response = await fetch('/api/packages');
       
       if (response.ok) {
         const data = await response.json();
@@ -103,51 +118,248 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
     }
   };
 
-  useEffect(() => {
-    const fetchTrial = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await fetch(`/api/trials/${trialId}`);
-        
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.data) {
-            setTrial(result.data);
-            
-            // Populate edit form data when trial is loaded
-            const trialData = result.data;
-            const firstAssignment = trialData.assignments?.[0];
-            
-            console.log('Trial data for edit form:', trialData);
-            console.log('First assignment:', firstAssignment);
-            
-            // Populate edit data with existing trial information
-            setEditData({
-              startDate: firstAssignment?.trialStart ? convertToDateInputFormat(firstAssignment.trialStart) : '',
-              endDate: firstAssignment?.trialEnd ? convertToDateInputFormat(firstAssignment.trialEnd) : '',
-              assignedMitraId: trialData.assignedMitraId || '',
-              status: firstAssignment?.status || 'Not Converted',
-              notes: trialData.notes || '',
-              subscriptionPackage: trialData.subscriptionPackage || '',
-              totalSessions: trialData.totalSessions || 0,
-              chosenDays: trialData.chosenDays || []
-            });
-          } else {
-            setError('Failed to load trial details');
-          }
-        } else {
-          const errorData = await response.json().catch(() => ({}));
-          setError(errorData.message || 'Failed to load trial details');
-        }
-      } catch (err) {
-        setError('Failed to load trial details');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Handle package selection for subscription
+  const handlePackageSelect = async (packageId: string) => {
+    setSelectedPackageId(packageId);
+    
+    if (!packageId) {
+      setRequiredDays(0);
+      setDayPattern({ day1: '', day2: '', day3: '' });
+      setPreviewVisits([]);
+      return;
+    }
 
-    fetchTrial();
+    // Find the selected package and get its visitsPerWeek
+    const selectedPackage = subscriptionPackages.find(pkg => pkg.id === packageId);
+    if (selectedPackage) {
+      setRequiredDays(selectedPackage.visitsPerWeek || 0);
+    }
+  };
+
+  // Generate visit preview
+  const generateVisitPreview = async () => {
+    if (!selectedPackageId || !subscriptionStartDate) return;
+    
+    // Get selected days from dayPattern
+    const selectedDays = [dayPattern.day1, dayPattern.day2, dayPattern.day3]
+      .filter(day => day && day !== '');
+    
+    if (selectedDays.length === 0) return;
+
+    try {
+      const response = await fetch('/api/subscriptions/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscriptionPackageId: selectedPackageId,
+          dayPattern: selectedDays,
+          startDate: subscriptionStartDate
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setPreviewVisits(data.data.scheduledDates);
+        }
+      }
+    } catch (error) {
+      console.error('Error generating visit preview:', error);
+    }
+  };
+
+  // Check mitra availability
+  const checkMitraAvailability = async () => {
+    if (!subscriptionStartDate || previewVisits.length === 0) return;
+
+    // Get selected days from dayPattern
+    const selectedDays = [dayPattern.day1, dayPattern.day2, dayPattern.day3]
+      .filter(day => day && day !== '');
+    
+    if (selectedDays.length === 0) return;
+
+    // Calculate end date (1 month)
+    const startDate = new Date(subscriptionStartDate);
+    const endDate = new Date(startDate);
+    endDate.setMonth(endDate.getMonth() + 1);
+    endDate.setDate(endDate.getDate() - 1);
+
+    try {
+      const response = await fetch('/api/mitras/check-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          dayPattern: selectedDays,
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0]
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setAvailableMitras(data.data.availableMitras);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking mitra availability:', error);
+    }
+  };
+
+  // Step 1: Create subscription only (don't convert trial yet)
+  const handleCreateSubscription = async () => {
+    if (!selectedPackageId || !subscriptionStartDate || !selectedMitraForSubscription) {
+      alert('Please complete all subscription requirements');
+      return;
+    }
+
+    setCreatingSubscription(true);
+    try {
+      const response = await fetch('/api/subscriptions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: trialId,
+          subscriptionPackageId: selectedPackageId,
+          dayPattern,
+          subscriptionStartDate,
+          mitraId: selectedMitraForSubscription
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // Store subscription data and mark as created
+          setSubscriptionData(data.data);
+          setSubscriptionCreated(true);
+          // Don't close popup yet - wait for customer conversion
+        } else {
+          alert(data.message || 'Failed to create subscription');
+        }
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to create subscription');
+      }
+    } catch (error) {
+      console.error('Error creating subscription:', error);
+      alert('Failed to create subscription');
+    } finally {
+      setCreatingSubscription(false);
+    }
+  };
+
+  // Step 2: Convert trial to customer (includes notes update)
+  const handleConvertToCustomer = async () => {
+    if (!subscriptionData) {
+      alert('No subscription data available');
+      return;
+    }
+
+    setConvertingToCustomer(true);
+    try {
+      // Use only user notes, no automatic subscription info added
+      const userNotes = editData.notes?.trim() || '';
+
+      // Get the selected package name from the subscription packages list
+      const selectedPackage = subscriptionPackages.find(pkg => pkg.id === selectedPackageId);
+      const packageName = selectedPackage?.subscriptionPackage || subscriptionData.packageName;
+
+      // Update trial status to "Active" and save all dynamic data including subscription info
+      const response = await fetch(`/api/trial`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: trialId,
+          start_date: subscriptionData.subscriptionPeriod?.start || editData.startDate,
+          end_date: subscriptionData.subscriptionPeriod?.end || editData.endDate,
+          assigned_mitra: selectedMitraForSubscription || editData.assignedMitraId,
+          subscription_status: 'Active',
+          notes: userNotes,
+          subscription_package: packageName, // Use the selected package name
+          total_sessions: subscriptionData.totalVisits || editData.totalSessions,
+          chosen_days: dayPattern ? Object.values(dayPattern).filter(day => day) : editData.chosenDays,
+          qty_package: subscriptionData.quantity || 1, // Include quantity for proper pricing and LTV
+          convert_to_customer: true // Use dynamic conversion logic
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          alert(`Trial successfully converted to customer! Subscription created with ${subscriptionData.totalVisits} visits.`);
+          onClose(); // Now we can close the popup
+        } else {
+          alert(data.message || 'Failed to convert trial to customer');
+        }
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to convert trial to customer');
+      }
+    } catch (error) {
+      console.error('Error converting to customer:', error);
+      alert('Failed to convert trial to customer');
+    } finally {
+      setConvertingToCustomer(false);
+    }
+  };
+
+  // Auto-generate visit preview when dependencies change
+  useEffect(() => {
+    generateVisitPreview();
+  }, [subscriptionStartDate, dayPattern, selectedPackageId, requiredDays]);
+
+  // Auto-check mitra availability when preview visits change
+  useEffect(() => {
+    checkMitraAvailability();
+  }, [previewVisits]);
+
+  // Fetch trial data function (can be reused)
+  const fetchTrialData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`/api/trials/${trialId}`);
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          setTrial(result.data);
+          
+          // Populate edit form data when trial is loaded
+          const trialData = result.data;
+          const firstAssignment = trialData.assignments?.[0];
+          
+          console.log('Trial data for edit form:', trialData);
+          console.log('First assignment:', firstAssignment);
+          
+          // Populate edit data with existing trial information
+          setEditData({
+            startDate: firstAssignment?.trialStart ? convertToDateInputFormat(firstAssignment.trialStart) : '',
+            endDate: firstAssignment?.trialEnd ? convertToDateInputFormat(firstAssignment.trialEnd) : '',
+            assignedMitraId: trialData.assignedMitraId || '',
+            status: firstAssignment?.status || 'Not Converted',
+            notes: trialData.customerNotes || '',
+            subscriptionPackage: trialData.subscriptionPackage || '',
+            totalSessions: trialData.totalSessions || 0,
+            chosenDays: trialData.chosenDays || []
+          });
+        } else {
+          setError('Failed to load trial details');
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData.message || 'Failed to load trial details');
+      }
+    } catch (err) {
+      setError('Failed to load trial details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTrialData();
     fetchMitras(); // Load mitras when component mounts
     fetchSubscriptionPackages(); // Load subscription packages
   }, [trialId]);
@@ -166,7 +378,7 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
     return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
   };
 
-  const handleConvertToCustomer = async () => {
+  const handleLegacyConvertToCustomer = async () => {
     if (!trial || updating) return;
 
     if (!confirm(`Are you sure you want to convert trial "${trial.customerName}" to a customer? This will update the trial information and convert it to an active customer.`)) {
@@ -230,12 +442,61 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
       }
     } catch (err) {
       console.error('Error converting trial:', err);
-      alert(`Failed to convert trial: ${err.message}`);
+      alert(`Failed to convert trial: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setUpdating(false);
     }
   };
 
+  // Save trial changes in edit mode
+  const handleSaveTrialChanges = async () => {
+    if (!trial || updating) return;
+
+    try {
+      setUpdating(true);
+      
+      const updatePayload = {
+        id: trialId,
+        start_date: editData.startDate,
+        end_date: editData.endDate,
+        assigned_mitra_id: editData.assignedMitraId,
+        status: editData.status,
+        notes: editData.notes,
+        subscription_package: editData.subscriptionPackage,
+        total_sessions: editData.totalSessions,
+        chosen_days: editData.chosenDays
+      };
+
+      console.log('Saving trial changes with payload:', updatePayload);
+
+      const response = await fetch(`/api/trials/${trialId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatePayload)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          alert('Trial data updated successfully!');
+          // Refresh trial data
+          fetchTrialData();
+          // Exit edit mode
+          setIsEditMode(false);
+        } else {
+          alert(result.message || 'Failed to update trial data');
+        }
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to update trial data');
+      }
+    } catch (error) {
+      console.error('Error updating trial data:', error);
+      alert('Failed to update trial data');
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   const toggleEditMode = () => {
     if (isEditMode) {
@@ -248,7 +509,7 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
           endDate: firstAssignment?.trialEnd ? convertToDateInputFormat(firstAssignment.trialEnd) : '',
           assignedMitraId: trial.assignedMitraId || '',
           status: firstAssignment?.status || 'Not Converted',
-          notes: trial.notes || '',
+          notes: (trial as any).customerNotes || '',
           subscriptionPackage: trial.subscriptionPackage || '',
           totalSessions: trial.totalSessions || 0,
           chosenDays: trial.chosenDays || []
@@ -406,7 +667,7 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
                                   )}
                                 </>
                               )}
-                              {trial.totalSessions > 0 && (
+                              {(trial.totalSessions || 0) > 0 && (
                                 <div className="text-xs text-blue-700">
                                   🎯 {trial.totalSessions} total sessions
                                 </div>
@@ -466,186 +727,221 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
             <h3 className="text-lg font-medium text-gray-900 mb-4">Trial Assignments</h3>
             
             {isEditMode ? (
-              /* Edit Mode - Editable Form */
-              <div className="border border-gray-200 rounded-lg p-6 bg-blue-50">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-sm font-medium text-gray-900">Edit Trial Assignment</h4>
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    Edit Mode
-                  </span>
-                </div>
+              /* Edit Mode - Package-Driven Subscription Management */
+              <div>
+                <h4 className="text-lg font-medium text-gray-900 mb-4">Package-Driven Subscription Management</h4>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  {/* Start Date */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Start Date
-                    </label>
-                    <input
-                      type="date"
-                      value={editData.startDate}
-                      onChange={(e) => setEditData({ ...editData, startDate: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  {/* End Date */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      End Date
-                    </label>
-                    <input
-                      type="date"
-                      value={editData.endDate}
-                      onChange={(e) => setEditData({ ...editData, endDate: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  {/* Assigned Cleaner */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Assigned Cleaner
-                    </label>
-                    <select
-                      value={editData.assignedMitraId}
-                      onChange={(e) => setEditData({ ...editData, assignedMitraId: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      disabled={loadingMitras}
-                    >
-                      <option value="">Select Cleaner</option>
-                      {mitras.map((mitra) => (
-                        <option key={mitra.id} value={mitra.id}>
-                          {mitra.name}
-                        </option>
-                      ))}
-                    </select>
-                    {loadingMitras && (
-                      <div className="text-xs text-blue-600 mt-1">Loading cleaners...</div>
-                    )}
-                    {!loadingMitras && mitras.length === 0 && (
-                      <div className="text-xs text-red-600 mt-1">No cleaners available</div>
-                    )}
-                    {!loadingMitras && mitras.length > 0 && (
-                      <div className="text-xs text-gray-500 mt-1">{mitras.length} cleaners available</div>
-                    )}
-                  </div>
-                  
-                  {/* Status */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Status
-                    </label>
-                    <select
-                      value={editData.status}
-                      onChange={(e) => setEditData({ ...editData, status: e.target.value as TrialStatus })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="Not Converted">Not Converted</option>
-                      <option value="Converted">Converted</option>
-                      <option value="Stalling/Postpone">Stalling/Postpone</option>
-                      <option value="Cancelled">Cancelled</option>
-                    </select>
-                  </div>
-                </div>
-                
-                {/* Subscription Package and Sessions */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Subscription Package */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Subscription Package
-                    </label>
-                    <select
-                      value={editData.subscriptionPackage}
-                      onChange={(e) => setEditData({ ...editData, subscriptionPackage: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      disabled={loadingPackages}
-                    >
-                      <option value="">Select Package</option>
-                      {subscriptionPackages.map((pkg) => (
-                        <option key={pkg.id} value={pkg.subscriptionPackage}>
+                {/* Step 1: Package Selection */}
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h5 className="text-sm font-medium text-blue-900 mb-2">
+                    <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-600 text-white text-xs font-bold rounded-full mr-2">1</span>
+                    Select Subscription Package
+                  </h5>
+                  <select
+                    value={selectedPackageId}
+                    onChange={(e) => handlePackageSelect(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Choose a package...</option>
+                    {subscriptionPackages
+                      .filter(pkg => !pkg.subscriptionPackage.toLowerCase().includes('trial'))
+                      .map((pkg) => (
+                        <option key={pkg.id} value={pkg.id}>
                           {pkg.subscriptionPackage} - {pkg.pricePerQty}
                         </option>
                       ))}
-                    </select>
-                    {loadingPackages && (
-                      <div className="text-xs text-blue-600 mt-1">Loading packages...</div>
+                  </select>
+                  {selectedPackageId && (
+                    <div className="mt-2 text-sm text-blue-700">
+                      ✅ This package requires selecting {requiredDays} day(s) per week
+                    </div>
+                  )}
+                </div>
+
+                {/* Step 2: Start Date Selection */}
+                {selectedPackageId && (
+                  <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <h5 className="text-sm font-medium text-green-900 mb-2">
+                      <span className="inline-flex items-center justify-center w-6 h-6 bg-green-600 text-white text-xs font-bold rounded-full mr-2">2</span>
+                      Select Start Date
+                    </h5>
+                    <input
+                      type="date"
+                      value={subscriptionStartDate}
+                      onChange={(e) => setSubscriptionStartDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    {subscriptionStartDate && (
+                      <div className="mt-2 text-sm text-green-700">
+                        ✅ Subscription period: {subscriptionStartDate} to {new Date(new Date(subscriptionStartDate).getTime() + 30*24*60*60*1000).toISOString().split('T')[0]}
+                      </div>
                     )}
                   </div>
-                  
-                  {/* Total Sessions */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Total Sessions (based on mitra availability)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={editData.totalSessions}
-                      onChange={(e) => setEditData({ ...editData, totalSessions: parseInt(e.target.value) || 0 })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g. 8"
-                    />
-                  </div>
-                </div>
-                
-                {/* Chosen Days */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Chosen Days (Select available days)
-                  </label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-                      <label key={day} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          checked={editData.chosenDays.includes(day)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setEditData({ ...editData, chosenDays: [...editData.chosenDays, day] });
-                            } else {
-                              setEditData({ ...editData, chosenDays: editData.chosenDays.filter(d => d !== day) });
-                            }
-                          }}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700">{day}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Selected: {editData.chosenDays.length > 0 ? editData.chosenDays.join(', ') : 'None'}
-                  </div>
-                </div>
-                
-                {/* Notes Field */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Notes
-                  </label>
-                  <textarea
-                    value={editData.notes}
-                    onChange={(e) => setEditData({ ...editData, notes: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows={4}
-                    placeholder="Add notes about this trial..."
-                  />
-                </div>
-                
-                {/* Info Text */}
-                <div className="bg-blue-100 border border-blue-200 rounded-md p-3">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <Icons.users className="h-5 w-5 text-blue-400" />
+                )}
+
+                {/* Step 3: Day Pattern Selection */}
+                {selectedPackageId && subscriptionStartDate && (
+                  <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <h5 className="text-sm font-medium text-yellow-900 mb-2">
+                      <span className="inline-flex items-center justify-center w-6 h-6 bg-yellow-600 text-white text-xs font-bold rounded-full mr-2">3</span>
+                      Select Day Pattern ({requiredDays} days required)
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {Array.from({ length: requiredDays }, (_, index) => (
+                        <div key={index}>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Day {index + 1}</label>
+                          <select
+                            value={dayPattern[`day${index + 1}` as keyof typeof dayPattern]}
+                            onChange={(e) => setDayPattern({ 
+                              ...dayPattern, 
+                              [`day${index + 1}`]: e.target.value 
+                            })}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                          >
+                            <option value="">Select day...</option>
+                            {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                              .filter(day => !Object.values(dayPattern).includes(day) || dayPattern[`day${index + 1}` as keyof typeof dayPattern] === day)
+                              .map((day) => (
+                                <option key={day} value={day}>{day}</option>
+                              ))}
+                          </select>
+                        </div>
+                      ))}
                     </div>
-                    <div className="ml-3">
-                      <p className="text-sm text-blue-800">
-                        When you convert to customer, all the updated information above will be saved and the trial will become an active customer.
-                      </p>
+                    {Object.values(dayPattern).filter(day => day).length === requiredDays && (
+                      <div className="mt-2 text-sm text-yellow-700">
+                        ✅ Selected days: {Object.values(dayPattern).filter(day => day).join(', ')}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Step 4: Visit Preview */}
+                {previewVisits.length > 0 && (
+                  <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                    <h5 className="text-sm font-medium text-purple-900 mb-2">
+                      <span className="inline-flex items-center justify-center w-6 h-6 bg-purple-600 text-white text-xs font-bold rounded-full mr-2">4</span>
+                      Generated Visits Preview ({previewVisits.length} total)
+                    </h5>
+                    <div className="max-h-40 overflow-y-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-purple-100">
+                          <tr>
+                            <th className="p-2 text-left">Visit #</th>
+                            <th className="p-2 text-left">Date</th>
+                            <th className="p-2 text-left">Day</th>
+                            <th className="p-2 text-left">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {previewVisits.map((visit) => (
+                            <tr key={visit.visitNumber} className="border-t border-purple-200">
+                              <td className="p-2">Visit-{visit.visitNumber}</td>
+                              <td className="p-2">{visit.date}</td>
+                              <td className="p-2">{visit.day}</td>
+                              <td className="p-2 text-gray-500">Scheduled</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="mt-2 text-sm text-purple-700">
+                      ✅ Auto-based on day pattern and calendar dates
                     </div>
                   </div>
-                </div>
+                )}
+
+                {/* Step 5: Mitra Selection */}
+                {(subscriptionStartDate && previewVisits.length > 0) && (
+                  <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+                    <h5 className="text-sm font-medium text-indigo-900 mb-2">
+                      <span className="inline-flex items-center justify-center w-6 h-6 bg-indigo-600 text-white text-xs font-bold rounded-full mr-2">5</span>
+                      Select Available Mitra
+                    </h5>
+                    {availableMitras.length > 0 ? (
+                      <>
+                        <select
+                          value={selectedMitraForSubscription}
+                          onChange={(e) => setSelectedMitraForSubscription(e.target.value)}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          <option value="">Choose mitra...</option>
+                          {availableMitras.map((mitra) => (
+                            <option key={mitra.mitraId} value={mitra.mitraId}>
+                              {mitra.mitraName} - Available for all {previewVisits.length} visits
+                            </option>
+                          ))}
+                        </select>
+                        {selectedMitraForSubscription && (
+                          <div className="mt-2 text-sm text-indigo-700">
+                            ✅ Selected mitra is available for complete subscription pattern
+                          </div>
+                        )}
+                        <div className="mt-2 text-sm text-green-600">
+                          {availableMitras.length} mitra tersedia untuk jadwal ini
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <select
+                          disabled
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 text-gray-500 cursor-not-allowed"
+                        >
+                          <option value="">No mitra available...</option>
+                        </select>
+                        <div className="mt-2 text-sm text-red-500">
+                          Mitra tidak available untuk jadwal yang dipilih. Silakan pilih tanggal atau pola hari yang berbeda.
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* 2-Step Workflow: Create Subscription + Convert Customer */}
+                {selectedPackageId && subscriptionStartDate && previewVisits.length > 0 && availableMitras.length > 0 && selectedMitraForSubscription && !subscriptionCreated && (
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <button
+                      onClick={handleCreateSubscription}
+                      disabled={creatingSubscription}
+                      className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {creatingSubscription ? (
+                        <>
+                          <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Creating Subscription...
+                        </>
+                      ) : (
+                        `Step 1: Create Subscription (${previewVisits.length} visits)`
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Step 2: Subscription Created - Show Success Message Only */}
+                {subscriptionCreated && subscriptionData && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="text-center">
+                      <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-3">
+                        <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-medium text-green-900 mb-2">Subscription Created Successfully!</h3>
+                      <div className="text-sm text-green-700 mb-4">
+                        <p><strong>Package:</strong> {subscriptionData.packageName}</p>
+                        <p><strong>Total Visits:</strong> {subscriptionData.totalVisits}</p>
+                        <p><strong>Period:</strong> {subscriptionData.subscriptionPeriod?.start} to {subscriptionData.subscriptionPeriod?.end}</p>
+                      </div>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+                        <p className="text-sm text-blue-700 text-center">
+                          <strong>Ready to convert this trial to a customer?</strong><br/>
+                          Click "Convert to Customer" below to save all changes and complete the process.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               /* View Mode - Display Information */
@@ -701,6 +997,7 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
             )}
           </div>
 
+
           {/* Timeline */}
           <div>
             <h3 className="text-lg font-medium text-gray-900 mb-4">Timeline</h3>
@@ -739,38 +1036,100 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
           {/* Notes */}
           <div>
             <h3 className="text-lg font-medium text-gray-900 mb-4">Notes</h3>
-            <div className="bg-gray-50 rounded-lg p-4">
-              {trial.notes ? (
-                <p className="text-sm text-gray-900 whitespace-pre-wrap">{trial.notes}</p>
-              ) : (
-                <p className="text-sm text-gray-600">No notes added</p>
-              )}
-            </div>
+            {isEditMode ? (
+              <div>
+                <textarea
+                  value={editData.notes}
+                  onChange={(e) => setEditData({ ...editData, notes: e.target.value })}
+                  placeholder="Add notes about this trial..."
+                  rows={4}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">Notes will be saved when you convert this trial to customer.</p>
+              </div>
+            ) : (
+              <div className="bg-gray-50 rounded-lg p-4">
+                {(trial as any).customerNotes ? (
+                  <p className="text-sm text-gray-900 whitespace-pre-wrap">{(trial as any).customerNotes}</p>
+                ) : (
+                  <p className="text-sm text-gray-600">No notes added</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-200 flex justify-between">
-          <button 
-            onClick={handleConvertToCustomer}
-            disabled={updating}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {updating ? (
+          {isEditMode ? (
+            subscriptionCreated && subscriptionData ? (
+              /* Step 2: Convert to Customer Footer */
               <>
-                <Icons.spinner className="w-4 h-4 mr-2 inline animate-spin" />
-                Converting...
+                <button 
+                  onClick={toggleEditMode}
+                  disabled={convertingToCustomer}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConvertToCustomer}
+                  disabled={convertingToCustomer}
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  {convertingToCustomer ? (
+                    <>
+                      <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Converting to Customer...
+                    </>
+                  ) : (
+                    <>
+                      <Icons.check className="w-4 h-4 mr-2 inline" />
+                      Step 2: Convert to Customer
+                    </>
+                  )}
+                </button>
               </>
             ) : (
+              /* Edit Mode Footer - Package-Driven Workflow */
               <>
-                <Icons.check className="w-4 h-4 mr-2 inline" />
-                Convert to Customer
+                <button 
+                  onClick={toggleEditMode}
+                  disabled={updating}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Exit Edit Mode
+                </button>
+                <p className="text-sm text-gray-600 self-center">
+                  Notes will be saved when subscription is converted to customer
+                </p>
               </>
-            )}
-          </button>
-          <button onClick={onClose} className="btn-primary">
-            Close
-          </button>
+            )
+          ) : (
+            /* View Mode Footer */
+            <>
+              <button 
+                onClick={handleLegacyConvertToCustomer}
+                disabled={updating}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {updating ? (
+                  <>
+                    <Icons.spinner className="w-4 h-4 mr-2 inline animate-spin" />
+                    Converting...
+                  </>
+                ) : (
+                  <>
+                    <Icons.check className="w-4 h-4 mr-2 inline" />
+                    Convert to Customer
+                  </>
+                )}
+              </button>
+              <button onClick={onClose} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                Close
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -62,31 +62,55 @@ export const customerDB = pgTable('customer_db', {
   totalPaid: decimal('total_paid', { precision: 10, scale: 2 }).default('0'),
   outstandingBalance: decimal('outstanding_balance', { precision: 10, scale: 2 }).default('0'),
   customerNotes: text('customer_notes'),
-  // totalSessions: integer('total_sessions').default(0), // TODO: Add after database migration
-  // chosenDays: text('chosen_days'), // JSON string of selected days // TODO: Add after database migration
+  totalSessions: integer('total_sessions').default(0),
+  chosenDays: text('chosen_days'), // JSON string of selected days
+  dayPattern: text('day_pattern'), // JSON: {"day1":"Monday","day2":"Friday","day3":null}
+  ltv: integer('ltv').default(0), // Lifetime Value in months
   isActive: boolean('is_active').default(true),
   isDeleted: boolean('is_deleted').default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
-// Mitra (Cleaner/Partner) Table - Matching actual database structure
+// Mitra (Cleaner/Partner) Table - Updated with comprehensive fields
 export const mitraDB = pgTable('mitra_db', {
   id: uuid('id').defaultRandom().primaryKey(),
   mitraName: varchar('mitra_name', { length: 255 }).notNull(),
-  contact: varchar('contact', { length: 20 }).notNull(),
-  address: text('address').notNull(),
-  city: varchar('city', { length: 100 }).notNull(),
+  
+  // Core identification
+  mitraCode: varchar('mitra_code', { length: 50 }).unique().notNull(), // MITRA-YEARMONTH-SEQUENCE
+  mitraNIK: varchar('mitra_nik', { length: 16 }).unique().notNull(), // 16 digit national ID
+  mitraGender: varchar('mitra_gender', { length: 10 }).notNull(), // Wanita, Pria
+  mitraDOB: varchar('mitra_dob', { length: 10 }).notNull(), // mm/dd/yyyy format
+  mitraPhone: varchar('mitra_phone', { length: 12 }).notNull(), // 10-12 digits
+  
+  // Legacy contact and address (keeping for backward compatibility)
+  contact: varchar('contact', { length: 20 }),
+  address: text('address'),
+  city: varchar('city', { length: 100 }),
   district: varchar('district', { length: 100 }),
   village: varchar('village', { length: 100 }),
   postalCode: varchar('postal_code', { length: 10 }),
   
-  // Mitra details
+  // Banking information
+  mitraBankAccount: text('mitra_bank_account'), // Free text (e.g., "BCA")
+  mitraBankHolderName: varchar('mitra_bank_holder_name', { length: 255 }), // Free text
+  mitraBankAccountNumber: varchar('mitra_bank_account_number', { length: 50 }), // Bank account number
+  
+  // Assignment details
+  mitraCityAssignment: varchar('mitra_city_assignment', { length: 100 }), // Jabodetabek cities
+  mitraLocationAssignment: text('mitra_location_assignment'), // JSON array of districts ["Sudirman", "Kuningan"]
+  mitraPartnership: varchar('mitra_partnership', { length: 20 }).notNull().default('Full Time'), // Full Time, Part Time
+  mitraTenure: integer('mitra_tenure').default(0), // Free number (years/months)
+  mitraExitDate: varchar('mitra_exit_date', { length: 10 }), // dd/mm/yyyy format
+  mitraBonusCommission: varchar('mitra_bonus_commission', { length: 20 }).default('Eligible'), // Eligible, Not Eligible
+  
+  // Legacy mitra details (keeping for backward compatibility)
   mitraType: varchar('mitra_type', { length: 20 }).notNull().default('Cleaner'),
   status: varchar('status', { length: 20 }).default('Active'),
   
   // Financial details
-  baseRate: decimal('base_rate', { precision: 10, scale: 2 }).notNull(),
+  baseRate: decimal('base_rate', { precision: 10, scale: 2 }).default('0'),
   commissionRate: decimal('commission_rate', { precision: 5, scale: 2 }).default('10.00'),
   totalEarnings: decimal('total_earnings', { precision: 12, scale: 2 }).default('0'),
   totalVisits: integer('total_visits').default(0),
@@ -222,6 +246,29 @@ export const mitraPayoutDB = pgTable('mitra_payout_db', {
   isDeleted: boolean('is_deleted').default(false),
 });
 
+// Visit Table - Individual visit tracking for subscriptions
+export const visitDB = pgTable('visit_db', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  customerId: uuid('customer_id').references(() => customerDB.id).notNull(),
+  mitraId: uuid('mitra_id').references(() => mitraDB.id).notNull(),
+  
+  // Visit details
+  visitNumber: integer('visit_number').notNull(), // 1, 2, 3, etc.
+  scheduledDate: date('scheduled_date').notNull(), // YYYY-MM-DD
+  scheduledDay: varchar('scheduled_day', { length: 10 }).notNull(), // Monday, Tuesday, etc.
+  actualDate: date('actual_date'), // Nullable - when visit actually happened
+  
+  // Status and execution
+  status: varchar('status', { length: 20 }).default('Scheduled'), // "Scheduled" | "Pending" | "Done" | "Cancelled"
+  durationHours: integer('duration_hours').default(3),
+  visitNotes: text('visit_notes'),
+  
+  // Metadata
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+});
+
 // Simple Relations without problematic references
 export const customerRelations = relations(customerDB, ({ one, many }) => ({
   subscriptionPackage: one(subscriptionPackageDB, {
@@ -239,6 +286,7 @@ export const customerRelations = relations(customerDB, ({ one, many }) => ({
   invoices: many(invoiceDB),
   attendanceSchedules: many(attendanceScheduleDB),
   attendanceRecords: many(attendanceRecordDB),
+  visits: many(visitDB),
 }));
 
 export const subscriptionPackageRelations = relations(subscriptionPackageDB, ({ many }) => ({
@@ -256,6 +304,18 @@ export const mitraRelations = relations(mitraDB, ({ many }) => ({
   attendanceSchedules: many(attendanceScheduleDB),
   attendanceRecords: many(attendanceRecordDB),
   payouts: many(mitraPayoutDB),
+  visits: many(visitDB),
+}));
+
+export const visitRelations = relations(visitDB, ({ one }) => ({
+  customer: one(customerDB, {
+    fields: [visitDB.customerId],
+    references: [customerDB.id],
+  }),
+  mitra: one(mitraDB, {
+    fields: [visitDB.mitraId],
+    references: [mitraDB.id],
+  }),
 }));
 
 export const attendanceScheduleRelations = relations(attendanceScheduleDB, ({ one, many }) => ({
@@ -319,5 +379,8 @@ export type NewAttendanceRecord = typeof attendanceRecordDB.$inferInsert;
 
 export type MitraPayout = typeof mitraPayoutDB.$inferSelect;
 export type NewMitraPayout = typeof mitraPayoutDB.$inferInsert;
+
+export type Visit = typeof visitDB.$inferSelect;
+export type NewVisit = typeof visitDB.$inferInsert;
 
 // Trial types removed - trials are now just customers with subscription_status = 'Trial'

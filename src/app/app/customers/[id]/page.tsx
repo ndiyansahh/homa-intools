@@ -3,7 +3,7 @@ import { getSession } from '@/lib/auth';
 import CustomerDetail from '@/components/customer-detail';
 
 interface CustomerDetailPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function CustomerDetailPage({ params }: CustomerDetailPageProps) {
@@ -15,13 +15,15 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
 
   // Check RBAC - ADMIN/OWNER/STAFF can access
   if (!['ADMIN', 'OWNER', 'STAFF'].includes(session.role)) {
-    redirect('/app');
+    redirect('/app/dashboard');
   }
+
+  const { id } = await params;
 
   return (
     <div className="h-full">
       <div>
-        <CustomerDetail customerId={params.id} session={session} />
+        <CustomerDetail customerId={id} session={session} />
       </div>
     </div>
   );

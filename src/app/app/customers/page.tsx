@@ -21,7 +21,7 @@ export default async function CustomersPage() {
 
   // Check RBAC - ADMIN/OWNER/STAFF can access
   if (!['ADMIN', 'OWNER', 'STAFF'].includes(currentSession.role)) {
-    redirect('/app');
+    redirect('/app/dashboard');
   }
 
   return (

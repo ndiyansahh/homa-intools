@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { customerDB, regionDB, mitraDB } from '@/lib/schema';
+import { customerDB, regionDB, mitraDB, subscriptionPackageDB } from '@/lib/schema';
 import { sql, and, or, eq } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { TrialDetail, TrialData } from '@/types/trial';
 import { logAuditEvent } from '@/lib/logger';
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 // Helper function to calculate LTV in months using the formula: DATEDIF(start, end || today, "m")
@@ -65,7 +65,7 @@ export async function GET(
       );
     }
 
-    const trialId = params.id;
+    const trialId = (await params).id;
     if (!trialId) {
       return NextResponse.json(
         { success: false, message: 'Trial ID is required' },
@@ -187,7 +187,7 @@ export async function GET(
         address: customer.address,
         district: customer.district || '',
         city: customer.city,
-        village: customer.village,
+        village: customer.village || undefined,
         postalCode: customer.postalCode || '',
         residentialType,
         assignedCleaner: assignedCleaner || null,
@@ -247,7 +247,7 @@ export async function DELETE(
       );
     }
 
-    const trialId = params.id;
+    const trialId = (await params).id;
     if (!trialId) {
       return NextResponse.json(
         { success: false, message: 'Trial ID is required' },
@@ -286,9 +286,14 @@ export async function DELETE(
 
       // Log audit event
       if (session) {
-        await logAuditEvent(session.userId, 'TRIAL_CUSTOMER_SOFT_DELETED', {
-          customerId: trialId,
-          customerName: existingCustomer[0].customerName,
+        await logAuditEvent({
+          action: 'TRIAL_CUSTOMER_SOFT_DELETED',
+          userId: session.userId,
+          email: session.email,
+          details: {
+            customerId: trialId,
+            customerName: existingCustomer[0].customerName,
+          }
         });
       }
 
@@ -309,6 +314,220 @@ export async function DELETE(
     console.error('Delete trial error:', error);
     return NextResponse.json(
       { success: false, message: 'Failed to delete trial' },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT: Update trial data (including notes)
+export async function PUT(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
+  try {
+    const session = await getSession();
+    if (!session && process.env.NODE_ENV !== 'development') {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Check RBAC - ADMIN/OWNER/STAFF can update
+    if (session && !['ADMIN', 'OWNER', 'STAFF'].includes(session.role)) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden' },
+        { status: 403 }
+      );
+    }
+
+    const trialId = (await params).id;
+    if (!trialId) {
+      return NextResponse.json(
+        { success: false, message: 'Trial ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+    const {
+      start_date,
+      end_date,
+      assigned_mitra_id,
+      status,
+      notes,
+      subscription_package,
+      total_sessions,
+      chosen_days
+    } = body;
+
+    try {
+      // Check if trial exists
+      const existingTrial = await db
+        .select()
+        .from(customerDB)
+        .where(eq(customerDB.id, trialId))
+        .limit(1);
+
+      if (existingTrial.length === 0) {
+        return NextResponse.json(
+          { success: false, message: 'Trial not found' },
+          { status: 404 }
+        );
+      }
+
+      // Prepare update data
+      const updateData: any = {};
+      
+      if (start_date !== undefined) updateData.trialStartDate = start_date;
+      if (end_date !== undefined) updateData.trialEndDate = end_date;
+      if (assigned_mitra_id !== undefined) updateData.assignedMitraId = assigned_mitra_id;
+      if (status !== undefined) updateData.overallStatus = status;
+      if (notes !== undefined) updateData.notes = notes;
+      if (subscription_package !== undefined) updateData.subscriptionPackage = subscription_package;
+      if (total_sessions !== undefined) updateData.totalSessions = total_sessions;
+      if (chosen_days !== undefined) updateData.chosenDays = chosen_days;
+
+      console.log('Update data:', updateData);
+      console.log('Request body:', body);
+
+      // Check if there's anything to update
+      if (Object.keys(updateData).length === 0) {
+        return NextResponse.json(
+          { success: false, message: 'No data to update' },
+          { status: 400 }
+        );
+      }
+
+      // Calculate LTV based on subscription dates
+      const calculateLTV = (startDate: string | undefined, endDate: string | undefined): number => {
+        if (!startDate || startDate === '') return 0;
+        
+        const start = new Date(startDate);
+        const end = endDate && endDate !== '' ? new Date(endDate) : new Date();
+        
+        // Add 1 day to end date for inclusive calculation (like Excel DATEDIF)
+        if (endDate && endDate !== '') {
+          end.setDate(end.getDate() + 1);
+        }
+        
+        // Calculate months difference
+        const months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+        return Math.max(0, months);
+      };
+
+      const ltv = calculateLTV(updateData.trialStartDate, updateData.trialEndDate);
+
+      // Dynamic multi-table transaction for trial to customer conversion
+      await db.transaction(async (tx) => {
+        // 1. Update customerDB with conversion data including LTV
+        await tx
+          .update(customerDB)
+          .set({
+            ...(updateData.notes !== undefined && { customerNotes: updateData.notes }),
+            ...(updateData.trialStartDate !== undefined && updateData.trialStartDate !== '' && { subscriptionStart: updateData.trialStartDate }),
+            ...(updateData.trialEndDate !== undefined && updateData.trialEndDate !== '' && { subscriptionEnd: updateData.trialEndDate }),
+            ...(updateData.assignedMitraId !== undefined && { assignedMitraId: updateData.assignedMitraId }),
+            ...(updateData.overallStatus !== undefined && { subscriptionStatus: updateData.overallStatus }),
+            ...(updateData.subscriptionPackage !== undefined && { subscriptionPackage: updateData.subscriptionPackage }),
+            ...(updateData.totalSessions !== undefined && { totalSessions: updateData.totalSessions }),
+            ...(updateData.chosenDays !== undefined && { chosenDays: JSON.stringify(updateData.chosenDays) }),
+            // Update LTV when dates are provided
+            ...(ltv !== 0 && { ltv: ltv }),
+            updatedAt: new Date()
+          })
+          .where(eq(customerDB.id, trialId));
+
+        // 2. If converting to Active status (trial to customer conversion)
+        if (updateData.overallStatus === 'Active') {
+          // Update mitra total customers/visits count if mitra assigned
+          if (updateData.assignedMitraId) {
+            await tx.execute(sql`
+              UPDATE mitra_db 
+              SET total_visits = COALESCE(total_visits, 0) + ${updateData.totalSessions || 0},
+                  updated_at = CURRENT_TIMESTAMP
+              WHERE id = ${updateData.assignedMitraId}
+            `);
+          }
+
+          // If subscription package is specified, link to package and ensure it's not Trial
+          if (updateData.subscriptionPackage && updateData.subscriptionPackage !== 'Trial') {
+            // Find the subscription package ID
+            const packageResult = await tx
+              .select({ id: subscriptionPackageDB.id, subscriptionPackage: subscriptionPackageDB.subscriptionPackage })
+              .from(subscriptionPackageDB)
+              .where(eq(subscriptionPackageDB.subscriptionPackage, updateData.subscriptionPackage))
+              .limit(1);
+
+            if (packageResult.length > 0) {
+              // Update customer with package ID and ensure package name is set correctly
+              await tx
+                .update(customerDB)
+                .set({ 
+                  subscriptionPackageId: packageResult[0].id,
+                  subscriptionPackage: packageResult[0].subscriptionPackage, // Ensure package name is updated
+                  updatedAt: new Date()
+                })
+                .where(eq(customerDB.id, trialId));
+            }
+          } else if (!updateData.subscriptionPackage || updateData.subscriptionPackage === 'Trial') {
+            // If no package specified or still Trial, default to a basic package for conversion
+            console.log('Warning: Converting trial without specific package, defaulting to basic package');
+          }
+
+          // Update subscription end date if start date is provided
+          if (updateData.trialStartDate && updateData.trialStartDate !== '') {
+            const startDate = new Date(updateData.trialStartDate);
+            const endDate = new Date(startDate);
+            endDate.setMonth(endDate.getMonth() + 1); // Default 1 month subscription
+            
+            await tx
+              .update(customerDB)
+              .set({ 
+                subscriptionEnd: endDate.toISOString().split('T')[0],
+                updatedAt: new Date()
+              })
+              .where(eq(customerDB.id, trialId));
+          }
+        }
+      });
+
+      // Get updated data
+      const result = await db
+        .select()
+        .from(customerDB)
+        .where(eq(customerDB.id, trialId))
+        .limit(1);
+
+      // Log audit event
+      if (session) {
+        await logAuditEvent({
+          action: 'TRIAL_UPDATED',
+          userId: session.userId,
+          email: session.email,
+          details: {
+            trialId,
+            updatedFields: Object.keys(updateData),
+            notes: notes || 'Trial data updated'
+          }
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Trial updated successfully',
+        data: result[0]
+      });
+
+    } catch (dbError) {
+      console.error('Database error during trial update:', dbError);
+      return NextResponse.json(
+        { success: false, message: 'Failed to update trial - database error' },
+        { status: 500 }
+      );
+    }
+
+  } catch (error) {
+    console.error('Update trial error:', error);
+    return NextResponse.json(
+      { success: false, message: 'Failed to update trial' },
       { status: 500 }
     );
   }

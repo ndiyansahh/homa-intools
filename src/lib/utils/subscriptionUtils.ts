@@ -1,0 +1,270 @@
+/**
+ * Subscription Management Utilities
+ * Package-driven subscription system for cleaning services
+ */
+
+import { eq, sql } from 'drizzle-orm';
+
+// Extract visits per week from package name
+export function extractVisitsPerWeek(packageName: string): number {
+  if (!packageName) return 0;
+  
+  // Handle trial packages
+  if (packageName.toLowerCase().includes('trial')) return 0;
+  
+  // Extract number from pattern like "Monthly Subscription of Basic Cleaning (3 hours per visit; 1 visit per week)"
+  const match = packageName.match(/(\d+)\s*visits?\s*per\s*week/i);
+  return match ? parseInt(match[1]) : 1;
+}
+
+// Generate schedule dates based on day pattern and start/end date
+export function generateScheduleDates(
+  startDate: Date,
+  endDate: Date, 
+  dayPattern: string[]
+): Date[] {
+  const scheduledDates: Date[] = [];
+  const currentDate = new Date(startDate);
+  
+  while (currentDate <= endDate) {
+    const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
+    
+    if (dayPattern.includes(dayName)) {
+      scheduledDates.push(new Date(currentDate));
+    }
+    
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  return scheduledDates;
+}
+
+// Check if mitra is available on specific date
+export function isMitraAvailableOnDate(mitraId: string, date: Date, existingVisits: any[]): boolean {
+  const dateStr = date.toISOString().split('T')[0];
+  
+  // Get visits for this mitra on this date
+  const visitsOnDate = existingVisits.filter(visit => 
+    visit.mitraId === mitraId && 
+    visit.scheduledDate === dateStr && 
+    visit.status !== 'Cancelled'
+  );
+  
+  // Calculate current hours (each visit = 3 hours)
+  const currentHours = visitsOnDate.length * 3;
+  
+  // Check if can handle one more visit (max 8 hours per day)
+  return (currentHours + 3) <= 8;
+}
+
+// Get mitra availability for complete day pattern
+export function getMitraAvailabilityForPattern(
+  dayPattern: string[],
+  startDate: Date,
+  endDate: Date,
+  mitras: any[],
+  existingVisits: any[]
+): Array<{
+  mitraId: string;
+  mitraName: string;
+  contact: string;
+  availableForAllDates: boolean;
+  totalSessionsNeeded: number;
+  wouldHaveHours: number;
+  conflictDates?: string[];
+}> {
+  // Generate all dates for the pattern
+  const allDates = generateScheduleDates(startDate, endDate, dayPattern);
+  
+  return mitras.map(mitra => {
+    let availableForAll = true;
+    const conflictDates: string[] = [];
+    
+    // Check availability for each date
+    for (const date of allDates) {
+      if (!isMitraAvailableOnDate(mitra.id, date, existingVisits)) {
+        availableForAll = false;
+        conflictDates.push(date.toISOString().split('T')[0]);
+      }
+    }
+    
+    return {
+      mitraId: mitra.id,
+      mitraName: mitra.mitraName,
+      contact: mitra.contact,
+      availableForAllDates: availableForAll,
+      totalSessionsNeeded: allDates.length,
+      wouldHaveHours: allDates.length * 3,
+      conflictDates: availableForAll ? undefined : conflictDates
+    };
+  });
+}
+
+// Calculate subscription pricing based on package and duration
+export function calculateSubscriptionPrice(
+  packagePrice: number,
+  durationMonths: number = 1
+): number {
+  return packagePrice * durationMonths;
+}
+
+// Validate day pattern against package requirements
+export function validateDayPattern(
+  dayPattern: { day1: string; day2: string; day3: string },
+  requiredDays: number
+): {
+  isValid: boolean;
+  errors: string[];
+} {
+  const errors: string[] = [];
+  const selectedDays = [dayPattern.day1, dayPattern.day2, dayPattern.day3]
+    .filter(day => day && day !== '');
+
+  // Check if correct number of days selected
+  if (selectedDays.length !== requiredDays) {
+    errors.push(`Please select exactly ${requiredDays} day(s) for this package`);
+  }
+
+  // Check for duplicate days
+  const uniqueDays = new Set(selectedDays);
+  if (uniqueDays.size !== selectedDays.length) {
+    errors.push('Cannot select the same day multiple times');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+}
+
+// Format day pattern for display
+export function formatDayPattern(dayPattern: { day1: string; day2: string; day3: string }): string {
+  const selectedDays = [dayPattern.day1, dayPattern.day2, dayPattern.day3]
+    .filter(day => day && day !== '');
+  
+  if (selectedDays.length === 0) return 'No days selected';
+  if (selectedDays.length === 1) return selectedDays[0];
+  if (selectedDays.length === 2) return `${selectedDays[0]} and ${selectedDays[1]}`;
+  
+  return `${selectedDays[0]}, ${selectedDays[1]}, and ${selectedDays[2]}`;
+}
+
+// Create complete subscription with auto-generated visits
+export async function createSubscriptionWithDayPattern(params: {
+  customerId: string;
+  subscriptionPackageId: string;
+  dayPattern: { day1?: string; day2?: string; day3?: string };
+  subscriptionStartDate: Date;
+  mitraId: string;
+}, db: any, { customerDB, subscriptionPackageDB, visitDB, mitraDB }: any) {
+  
+  // 1. Get package from database
+  const packageResult = await db
+    .select()
+    .from(subscriptionPackageDB)
+    .where(eq(subscriptionPackageDB.id, params.subscriptionPackageId))
+    .limit(1);
+    
+  if (packageResult.length === 0) {
+    throw new Error('Package not found');
+  }
+  
+  const pkg = packageResult[0];
+  
+  // 2. Extract visits per week
+  const visitsPerWeek = extractVisitsPerWeek(pkg.subscriptionPackage);
+  
+  // 3. Parse day pattern (remove null/empty)
+  const selectedDays = [params.dayPattern.day1, params.dayPattern.day2, params.dayPattern.day3]
+    .filter((day): day is string => day !== null && day !== undefined && day !== "");
+  
+  // 4. VALIDATE: selectedDays.length === visitsPerWeek
+  if (selectedDays.length !== visitsPerWeek) {
+    throw new Error(
+      `Package "${pkg.subscriptionPackage}" requires ${visitsPerWeek} day(s) per week, but ${selectedDays.length} day(s) selected`
+    );
+  }
+  
+  // 5. Calculate subscription end date
+  const endDate = new Date(params.subscriptionStartDate);
+  endDate.setMonth(endDate.getMonth() + 1);
+  endDate.setDate(endDate.getDate() - 1);
+  
+  // 6. Generate all scheduled dates
+  const scheduledDates = generateScheduleDates(
+    params.subscriptionStartDate,
+    endDate,
+    selectedDays
+  );
+  
+  // 7. Get existing visits for validation
+  const existingVisits = await db.select().from(visitDB);
+  
+  // 8. VALIDATE: Check mitra availability for ALL dates
+  for (const date of scheduledDates) {
+    if (!isMitraAvailableOnDate(params.mitraId, date, existingVisits)) {
+      throw new Error(
+        `Mitra not available on ${date.toISOString().split('T')[0]}. Please select another mitra or dates.`
+      );
+    }
+  }
+  
+  // 9. Start transaction
+  return await db.transaction(async (tx: any) => {
+    // Update customerDB
+    await tx.update(customerDB).set({
+      subscriptionPackageId: params.subscriptionPackageId,
+      subscriptionPackage: pkg.subscriptionPackage,
+      assignedMitraId: params.mitraId,
+      subscriptionStart: params.subscriptionStartDate.toISOString().split('T')[0],
+      subscriptionEnd: endDate.toISOString().split('T')[0],
+      subscriptionStatus: "Active",
+      monthlyFee: pkg.priceNumeric,
+      dayPattern: JSON.stringify({
+        day1: params.dayPattern.day1 || null,
+        day2: params.dayPattern.day2 || null,
+        day3: params.dayPattern.day3 || null
+      }),
+      totalSessions: scheduledDates.length,
+      updatedAt: new Date()
+    }).where(eq(customerDB.id, params.customerId));
+    
+    // Create all visit records
+    const visitRecords = scheduledDates.map((date, index) => ({
+      customerId: params.customerId,
+      mitraId: params.mitraId,
+      visitNumber: index + 1,
+      scheduledDate: date.toISOString().split('T')[0],
+      scheduledDay: date.toLocaleDateString('en-US', { weekday: 'long' }),
+      status: "Scheduled",
+      durationHours: 3,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }));
+    
+    await tx.insert(visitDB).values(visitRecords);
+    
+    // Update mitraDB
+    await tx.update(mitraDB).set({
+      totalVisits: sql`${mitraDB.totalVisits} + ${scheduledDates.length}`,
+      updatedAt: new Date()
+    }).where(eq(mitraDB.id, params.mitraId));
+    
+    // Return summary
+    return {
+      subscriptionId: params.customerId,
+      packageName: pkg.subscriptionPackage,
+      totalVisits: scheduledDates.length,
+      visitsPerWeek: visitsPerWeek,
+      dayPattern: selectedDays,
+      scheduledDates: scheduledDates.map(d => d.toISOString().split('T')[0]),
+      subscriptionPeriod: {
+        start: params.subscriptionStartDate.toISOString().split('T')[0],
+        end: endDate.toISOString().split('T')[0]
+      },
+      assignedMitra: {
+        mitraId: params.mitraId
+      }
+    };
+  });
+}

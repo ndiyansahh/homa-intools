@@ -22,6 +22,8 @@ interface CreateCustomerRequest {
   residentialType: 'House' | 'Office Space' | 'Apartment';
   qtyPackage: number;
   subscriptionPackage: string;
+  subscriptionPackageId: string;
+  selectedDays: { day1?: string; day2?: string; day3?: string };
   ltv: number;
   firstDateSubscription: string;
   status: string;
@@ -37,14 +39,20 @@ interface RegionOption {
 
 interface SubscriptionPackage {
   id: string;
+  subscriptionPackage: string;
   packageName: string;
-  packageType: string;
+  pricePerQty: string;
+  priceNumeric: number;
   visitsPerWeek: number;
-  pricePerVisit: string;
-  totalPrice: string;
-  duration: number;
   description: string;
-  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface VisitPreview {
+  visitNumber: number;
+  scheduledDate: string;
+  dayOfWeek: string;
 }
 
 // Helper functions untuk konversi format tanggal
@@ -74,6 +82,8 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
     residentialType: 'House',
     qtyPackage: 1,
     subscriptionPackage: '',
+    subscriptionPackageId: '',
+    selectedDays: { day1: '', day2: '', day3: '' },
     ltv: 0,
     firstDateSubscription: '',
     status: 'Active',
@@ -91,6 +101,25 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
   // Subscription packages state
   const [subscriptionPackages, setSubscriptionPackages] = useState<SubscriptionPackage[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
+  
+  // Visit preview state
+  const [previewVisits, setPreviewVisits] = useState<VisitPreview[]>([]);
+  
+  // Mitra availability state
+  const [availableMitras, setAvailableMitras] = useState<any[]>([]);
+  const [loadingMitras, setLoadingMitras] = useState(false);
+  const [mitraAvailabilityMessage, setMitraAvailabilityMessage] = useState('');
+  
+  // Day options
+  const dayOptions = [
+    { value: 'Monday', label: 'Monday' },
+    { value: 'Tuesday', label: 'Tuesday' },
+    { value: 'Wednesday', label: 'Wednesday' },
+    { value: 'Thursday', label: 'Thursday' },
+    { value: 'Friday', label: 'Friday' },
+    { value: 'Saturday', label: 'Saturday' },
+    { value: 'Sunday', label: 'Sunday' }
+  ];
 
   // Available cleaners (from PRD sample data)
   const availableCleaners = ['Handi', 'Syeila', 'Imam'];
@@ -103,10 +132,16 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
 
   // Load districts when city changes
   useEffect(() => {
-    if (formData.city) {
+    console.log('City changed to:', formData.city);
+    if (formData.city && formData.city.trim() !== '') {
+      console.log('Triggering fetchDistricts for:', formData.city);
       fetchDistricts(formData.city);
       // Reset dependent fields
       setFormData(prev => ({ ...prev, district: '', village: '', postalCode: '' }));
+      setVillages([]);
+    } else {
+      console.log('City is empty, clearing districts');
+      setDistricts([]);
       setVillages([]);
     }
   }, [formData.city]);
@@ -120,13 +155,23 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
     }
   }, [formData.city, formData.district]);
 
+  // Check mitra availability when visit preview changes
+  useEffect(() => {
+    if (previewVisits.length > 0) {
+      checkMitraAvailability();
+    }
+  }, [previewVisits]);
+
   const fetchCities = async () => {
     try {
       setLoadingRegions(true);
       const response = await fetch('/api/regions/cities');
       if (response.ok) {
         const data = await response.json();
-        setCities(data.data.map((city: string) => ({ value: city, label: city })));
+        setCities(data.data.map((city: any) => ({ 
+          value: typeof city === 'string' ? city : city.name || city.id, 
+          label: typeof city === 'string' ? city : city.name || city.id 
+        })));
       }
     } catch (error) {
       console.error('Error fetching cities:', error);
@@ -137,11 +182,28 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
 
   const fetchDistricts = async (city: string) => {
     try {
+      console.log('Fetching districts for city:', city);
       setLoadingRegions(true);
-      const response = await fetch(`/api/regions/districts?city=${encodeURIComponent(city)}`);
+      const response = await fetch(`/api/regions/districts?city_id=${encodeURIComponent(city)}`);
+      
       if (response.ok) {
         const data = await response.json();
-        setDistricts(data.data.map((district: string) => ({ value: district, label: district })));
+        console.log('Districts API response:', data);
+        
+        if (data.success && data.data) {
+          const mappedDistricts = data.data.map((district: any) => ({ 
+            value: typeof district === 'string' ? district : district.name || district.id, 
+            label: typeof district === 'string' ? district : district.name || district.id 
+          }));
+          console.log('Mapped districts:', mappedDistricts);
+          setDistricts(mappedDistricts);
+        } else {
+          console.error('Invalid districts response structure:', data);
+          setDistricts([]);
+        }
+      } else {
+        console.error('Districts API failed:', response.status, response.statusText);
+        setDistricts([]);
       }
     } catch (error) {
       console.error('Error fetching districts:', error);
@@ -154,14 +216,18 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
   const fetchVillages = async (city: string, district: string) => {
     try {
       setLoadingRegions(true);
-      const response = await fetch(`/api/regions/villages?city=${encodeURIComponent(city)}&district=${encodeURIComponent(district)}`);
+      const response = await fetch(`/api/regions/villages?district_id=${encodeURIComponent(district)}`);
       if (response.ok) {
         const data = await response.json();
-        setVillages(data.data.map((item: { village: string, postal_code: string }) => ({
-          value: item.village,
-          label: item.village,
-          postalCode: item.postal_code
-        })));
+        if (data.success && data.data) {
+          setVillages(data.data.map((item: any) => ({
+            value: typeof item === 'string' ? item : (item.village || item.name || item.id),
+            label: typeof item === 'string' ? item : (item.village || item.name || item.id),
+            postalCode: item.postal_code || item.postalCode || ''
+          })));
+        } else {
+          setVillages([]);
+        }
       }
     } catch (error) {
       console.error('Error fetching villages:', error);
@@ -174,10 +240,14 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
   const fetchSubscriptionPackages = async () => {
     try {
       setLoadingPackages(true);
-      const response = await fetch('/api/subscription-packages?active=true');
+      const response = await fetch('/api/packages');
       if (response.ok) {
         const data = await response.json();
-        setSubscriptionPackages(data.data || []);
+        // Handle both array response and object with data property
+        const packagesArray = Array.isArray(data) ? data : (data.success ? data.data : []);
+        setSubscriptionPackages(packagesArray);
+      } else {
+        console.error('Failed to fetch subscription packages:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error fetching subscription packages:', error);
@@ -186,14 +256,240 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
     }
   };
 
+  // Handle city change
+  const handleCityChange = (city: string) => {
+    console.log('City selection changed to:', city);
+    setFormData(prev => ({ ...prev, city }));
+  };
+
+  // Handle district change  
+  const handleDistrictChange = (district: string) => {
+    console.log('District selection changed to:', district);
+    setFormData(prev => ({ ...prev, district }));
+  };
+
   const handleVillageChange = (village: string) => {
     const selectedVillage = villages.find(v => v.value === village);
     setFormData(prev => ({
       ...prev,
       village,
-      postalCode: selectedVillage?.postalCode || ''
+      postalCode: (selectedVillage as any)?.postalCode || ''
     }));
   };
+
+  // Generate visit preview based on selected days, date, and quantity
+  const generateVisitPreview = (startDate: string, selectedDays: { day1?: string; day2?: string; day3?: string }) => {
+    if (!startDate || (!selectedDays.day1 && !selectedDays.day2 && !selectedDays.day3) || !formData.qtyPackage) {
+      setPreviewVisits([]);
+      return;
+    }
+
+    const visits: VisitPreview[] = [];
+    const start = new Date(startDate);
+    const selectedDaysList = [selectedDays.day1, selectedDays.day2, selectedDays.day3].filter(Boolean);
+    
+    // Calculate total weeks based on quantity (1 qty = 1 month = ~4 weeks)
+    const totalWeeks = formData.qtyPackage * 4;
+    
+    // Generate visits for the entire subscription period
+    let visitNumber = 1;
+    for (let week = 0; week < totalWeeks; week++) {
+      for (const dayName of selectedDaysList) {
+        if (dayName) {
+          const dayIndex = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].indexOf(dayName);
+          const visitDate = new Date(start);
+          visitDate.setDate(start.getDate() + (week * 7) + ((dayIndex - start.getDay() + 7) % 7));
+          
+          // Only include future dates
+          if (visitDate >= start) {
+            visits.push({
+              visitNumber,
+              scheduledDate: visitDate.toLocaleDateString('id-ID'),
+              dayOfWeek: dayName
+            });
+            visitNumber++;
+          }
+        }
+      }
+    }
+    
+    setPreviewVisits(visits); // Show all visits for the subscription period
+  };
+
+  // Handle package selection
+  const handlePackageChange = (packageId: string) => {
+    const selectedPackage = subscriptionPackages.find(pkg => pkg.id === packageId);
+    if (selectedPackage) {
+      setFormData(prev => ({
+        ...prev,
+        subscriptionPackageId: packageId,
+        subscriptionPackage: selectedPackage.packageName,
+        selectedDays: { day1: '', day2: '', day3: '' } // Reset days when package changes
+      }));
+      setPreviewVisits([]); // Clear preview
+    }
+  };
+
+  // Handle day selection
+  const handleDayChange = (dayKey: 'day1' | 'day2' | 'day3', value: string) => {
+    const newSelectedDays = { ...formData.selectedDays, [dayKey]: value };
+    setFormData(prev => ({ ...prev, selectedDays: newSelectedDays }));
+    
+    // Regenerate preview if we have a start date
+    if (formData.firstDateSubscription) {
+      generateVisitPreview(formData.firstDateSubscription, newSelectedDays);
+    }
+  };
+
+  // Calculate LTV using same formula as trial page
+  const calculateLTV = (startDate: string, quantity: number): number => {
+    if (!startDate || !quantity) return 0;
+    
+    try {
+      const start = new Date(startDate);
+      const end = new Date(start);
+      
+      // Calculate end date based on quantity (1 qty = 1 month)
+      end.setMonth(start.getMonth() + quantity);
+      
+      // Add 1 day for inclusive calculation (like Excel DATEDIF)
+      end.setDate(end.getDate() + 1);
+      
+      const yearDiff = end.getFullYear() - start.getFullYear();
+      const monthDiff = end.getMonth() - start.getMonth();
+      const dayDiff = end.getDate() - start.getDate();
+      
+      let months = yearDiff * 12 + monthDiff;
+      
+      // If day difference is negative, subtract a month
+      if (dayDiff < 0) {
+        months -= 1;
+      }
+      
+      return Math.max(0, months);
+    } catch (error) {
+      console.error('Error calculating LTV:', error);
+      return 0;
+    }
+  };
+
+  // Handle date change
+  const handleDateChange = (date: string) => {
+    const newLTV = calculateLTV(date, formData.qtyPackage || 1);
+    setFormData(prev => ({ 
+      ...prev, 
+      firstDateSubscription: date,
+      ltv: newLTV
+    }));
+    
+    // Regenerate preview if we have selected days
+    if (formData.selectedDays.day1 || formData.selectedDays.day2 || formData.selectedDays.day3) {
+      generateVisitPreview(date, formData.selectedDays);
+    }
+  };
+
+  // Handle quantity change
+  const handleQuantityChange = (quantity: number) => {
+    const newLTV = calculateLTV(formData.firstDateSubscription || '', quantity);
+    setFormData(prev => ({ 
+      ...prev, 
+      qtyPackage: quantity,
+      ltv: newLTV
+    }));
+    
+    // Regenerate preview if we have selected days and date
+    if ((formData.selectedDays.day1 || formData.selectedDays.day2 || formData.selectedDays.day3) && formData.firstDateSubscription) {
+      generateVisitPreview(formData.firstDateSubscription, formData.selectedDays);
+    }
+  };
+
+  // Check mitra availability for scheduled visits
+  const checkMitraAvailability = async () => {
+    if (previewVisits.length === 0 || !formData.firstDateSubscription || !formData.selectedDays) {
+      setAvailableMitras([]);
+      setMitraAvailabilityMessage('');
+      return;
+    }
+
+    try {
+      setLoadingMitras(true);
+      setMitraAvailabilityMessage('Checking mitra availability...');
+      
+      // Get the selected days pattern
+      const selectedDaysList = [formData.selectedDays.day1, formData.selectedDays.day2, formData.selectedDays.day3]
+        .filter(Boolean) as string[];
+
+      if (selectedDaysList.length === 0) {
+        setAvailableMitras([]);
+        setMitraAvailabilityMessage('No days selected');
+        return;
+      }
+      
+      // Calculate end date based on quantity (months)
+      const startDate = new Date(formData.firstDateSubscription);
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + formData.qtyPackage);
+      endDate.setDate(endDate.getDate() - 1); // Last day of subscription period
+
+      // Call the correct API endpoint with proper format
+      const response = await fetch('/api/mitras/check-availability', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dayPattern: selectedDaysList,
+          startDate: startDate.toISOString().split('T')[0], // 'yyyy-mm-dd'
+          endDate: endDate.toISOString().split('T')[0] // 'yyyy-mm-dd'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API returned ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.message || 'API returned unsuccessful response');
+      }
+
+      const availableMitras = data.data?.availableMitras || [];
+      const unavailableMitras = data.data?.unavailableMitras || [];
+      
+      setAvailableMitras(availableMitras.map((result: any) => ({
+        id: result.mitraId,
+        name: result.mitraName
+      })));
+      
+      if (availableMitras.length === 0) {
+        const reasons = unavailableMitras.length > 0 
+          ? `Issues: ${unavailableMitras.map((m: any) => `${m.mitraName} (${m.reason})`).join(', ')}`
+          : '';
+        setMitraAvailabilityMessage(`No mitras available for all ${previewVisits.length} scheduled visits over ${formData.qtyPackage} month(s). ${reasons} Please select different days or date.`);
+      } else {
+        setMitraAvailabilityMessage(`${availableMitras.length} mitra(s) available for all ${previewVisits.length} scheduled visits over ${formData.qtyPackage} month(s).`);
+      }
+      
+    } catch (error) {
+      console.error('Error checking mitra availability:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setMitraAvailabilityMessage(`Error checking mitra availability: ${errorMessage}. Please try again.`);
+      setAvailableMitras([]);
+    } finally {
+      setLoadingMitras(false);
+    }
+  };
+
+  // Get required visits per week for selected package
+  const getSelectedPackage = () => {
+    return subscriptionPackages.find(pkg => pkg.id === formData.subscriptionPackageId);
+  };
+
+  const selectedPackage = getSelectedPackage();
+  const requiredVisitsPerWeek = selectedPackage?.visitsPerWeek || 0;
+  const selectedDaysCount = [formData.selectedDays.day1, formData.selectedDays.day2, formData.selectedDays.day3]
+    .filter(Boolean).length;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -213,8 +509,13 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
       return;
     }
 
-    if (!formData.subscriptionPackage) {
+    if (!formData.subscriptionPackageId) {
       alert('Please select a subscription package');
+      return;
+    }
+
+    if (selectedDaysCount !== requiredVisitsPerWeek) {
+      alert(`Please select exactly ${requiredVisitsPerWeek} day(s) for this package`);
       return;
     }
 
@@ -223,13 +524,25 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
       return;
     }
 
+    if (!formData.cleaner1) {
+      alert('Please select a primary mitra');
+      return;
+    }
+
     try {
       setLoading(true);
+      
+      // Calculate monthly fee based on selected package and quantity
+      const selectedPackage = subscriptionPackages.find(pkg => pkg.id === formData.subscriptionPackageId);
+      const monthlyFee = selectedPackage ? selectedPackage.priceNumeric * formData.qtyPackage : 0;
       
       // Convert date format untuk API
       const requestData = {
         ...formData,
         firstDateSubscription: convertFromDateInputFormat(formData.firstDateSubscription),
+        subscriptionStart: convertFromDateInputFormat(formData.firstDateSubscription),
+        subscriptionPackageId: formData.subscriptionPackageId,
+        monthlyFee: monthlyFee,
       };
 
       const response = await fetch('/api/customers', {
@@ -269,6 +582,8 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
       residentialType: 'House',
       qtyPackage: 1,
       subscriptionPackage: '',
+      subscriptionPackageId: '',
+      selectedDays: { day1: '', day2: '', day3: '' },
       ltv: 0,
       firstDateSubscription: '',
       status: 'Active',
@@ -278,6 +593,9 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
     });
     setDistricts([]);
     setVillages([]);
+    setPreviewVisits([]);
+    setAvailableMitras([]);
+    setMitraAvailabilityMessage('');
   };
 
   return (
@@ -366,17 +684,21 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Package Quantity *
+                  Package Quantity * <span className="text-xs text-gray-500">(1 qty = 1 month)</span>
                 </label>
                 <input
                   type="number"
                   min="1"
+                  max="12"
                   required
                   value={formData.qtyPackage}
-                  onChange={(e) => setFormData(prev => ({ ...prev, qtyPackage: parseInt(e.target.value) || 1 }))}
+                  onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
                   className="input-field"
                   placeholder="1"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Duration: {formData.qtyPackage} month(s) = {formData.qtyPackage * 4} weeks
+                </p>
               </div>
             </div>
           </div>
@@ -394,14 +716,14 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                 </label>
                 <select
                   value={formData.city}
-                  onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                  onChange={(e) => handleCityChange(e.target.value)}
                   className="input-field"
                   required
                   disabled={loadingRegions || cities.length === 0}
                 >
                   <option value="">Select city...</option>
-                  {cities.map((city) => (
-                    <option key={city.value} value={city.value}>
+                  {cities.map((city, index) => (
+                    <option key={`city-${city.value}-${index}`} value={city.value}>
                       {city.label}
                     </option>
                   ))}
@@ -415,14 +737,14 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                 </label>
                 <select
                   value={formData.district}
-                  onChange={(e) => setFormData(prev => ({ ...prev, district: e.target.value }))}
+                  onChange={(e) => handleDistrictChange(e.target.value)}
                   className="input-field"
                   required
                   disabled={loadingRegions || !formData.city || districts.length === 0}
                 >
                   <option value="">Select district...</option>
-                  {districts.map((district) => (
-                    <option key={district.value} value={district.value}>
+                  {districts.map((district, index) => (
+                    <option key={`district-${district.value}-${index}`} value={district.value}>
                       {district.label}
                     </option>
                   ))}
@@ -441,8 +763,8 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                   disabled={loadingRegions || !formData.district || villages.length === 0}
                 >
                   <option value="">Select village...</option>
-                  {villages.map((village) => (
-                    <option key={village.value} value={village.value}>
+                  {villages.map((village, index) => (
+                    <option key={`${village.value}-${index}`} value={village.value}>
                       {village.label}
                     </option>
                   ))}
@@ -481,59 +803,157 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
           </div>
 
           {/* Subscription Information */}
-          <div className="space-y-4">
+          <div className="space-y-6">
             <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2">
               Subscription Details
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
+            {/* Step 1: Select Subscription Package */}
+            <div className="space-y-4">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Subscription Package *
+                  1. Select Subscription Package *
                 </label>
                 <select
-                  value={formData.subscriptionPackage}
-                  onChange={(e) => setFormData(prev => ({ ...prev, subscriptionPackage: e.target.value }))}
+                  value={formData.subscriptionPackageId}
+                  onChange={(e) => handlePackageChange(e.target.value)}
                   className="input-field"
                   required
                   disabled={loadingPackages || subscriptionPackages.length === 0}
                 >
                   <option value="">Select subscription package...</option>
-                  {subscriptionPackages.map((pkg) => (
-                    <option key={pkg.id} value={pkg.packageName}>
-                      {pkg.packageName} - {pkg.visitsPerWeek}x/week - Rp {parseInt(pkg.totalPrice).toLocaleString()}
-                    </option>
-                  ))}
+                  {subscriptionPackages
+                    .filter(pkg => !pkg.packageName.toLowerCase().includes('trial'))
+                    .map((pkg, index) => (
+                      <option key={`pkg-${pkg.id}-${index}`} value={pkg.id}>
+                        {String(pkg.packageName)} - {String(pkg.visitsPerWeek)}x/week - Rp {parseInt(String(pkg.priceNumeric) || '0').toLocaleString()}
+                      </option>
+                    ))}
                 </select>
                 {loadingPackages && <p className="text-xs text-gray-500 mt-1">Loading packages...</p>}
               </div>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  First Subscription Date *
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={formData.firstDateSubscription}
-                  onChange={(e) => setFormData(prev => ({ ...prev, firstDateSubscription: e.target.value }))}
-                  className="input-field"
-                />
+            {/* Step 2: Select Days (only show if package is selected) */}
+            {formData.subscriptionPackageId && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    2. Select Visit Days ({selectedDaysCount}/{requiredVisitsPerWeek} selected) *
+                  </label>
+                  <div className="grid grid-cols-3 gap-4">
+                    {[1, 2, 3].slice(0, requiredVisitsPerWeek).map((dayNum) => {
+                      const dayKey = `day${dayNum}` as 'day1' | 'day2' | 'day3';
+                      const currentValue = formData.selectedDays[dayKey] || '';
+                      const isDisabled = dayNum > requiredVisitsPerWeek;
+                      
+                      return (
+                        <div key={dayKey}>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Day {dayNum} {dayNum <= requiredVisitsPerWeek ? '*' : ''}
+                          </label>
+                          <select
+                            value={currentValue}
+                            onChange={(e) => handleDayChange(dayKey, e.target.value)}
+                            className="input-field"
+                            required={dayNum <= requiredVisitsPerWeek}
+                            disabled={isDisabled}
+                          >
+                            <option value="">Select day...</option>
+                            {dayOptions
+                              .filter(day => 
+                                day.value === currentValue || 
+                                !Object.values(formData.selectedDays).includes(day.value)
+                              )
+                              .map((day) => (
+                                <option key={day.value} value={day.value}>
+                                  {day.label}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {selectedDaysCount !== requiredVisitsPerWeek && (
+                    <p className="text-xs text-red-500 mt-1">
+                      Please select exactly {requiredVisitsPerWeek} day(s) for this package
+                    </p>
+                  )}
+                </div>
               </div>
+            )}
 
+            {/* Step 3: Select Start Date */}
+            {formData.subscriptionPackageId && selectedDaysCount === requiredVisitsPerWeek && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    3. First Subscription Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.firstDateSubscription}
+                    onChange={(e) => handleDateChange(e.target.value)}
+                    className="input-field"
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Visit Preview */}
+            {previewVisits.length > 0 && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    4. Visit Schedule Preview ({formData.qtyPackage} month{formData.qtyPackage > 1 ? 's' : ''} - {previewVisits.length} total visits)
+                  </label>
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-3 text-sm">
+                      <span className="font-medium text-purple-900">
+                        Subscription Duration: {formData.qtyPackage} month(s) = {formData.qtyPackage * 4} weeks
+                      </span>
+                      <span className="text-purple-700">
+                        Total Visits: {previewVisits.length}
+                      </span>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto">
+                      <div className="grid grid-cols-1 gap-2">
+                        {previewVisits.map((visit) => (
+                          <div key={visit.visitNumber} className="flex justify-between items-center text-sm">
+                            <span className="font-medium text-purple-800">Visit #{visit.visitNumber}</span>
+                            <span className="text-purple-600">{visit.dayOfWeek}</span>
+                            <span className="text-purple-700">{visit.scheduledDate}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {previewVisits.length > 10 && (
+                      <div className="mt-2 text-xs text-purple-600 text-center">
+                        Showing all {previewVisits.length} visits for {formData.qtyPackage} month(s)
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Additional subscription details */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   LTV (Lifetime Value)
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1000"
-                  value={formData.ltv}
-                  onChange={(e) => setFormData(prev => ({ ...prev, ltv: parseInt(e.target.value) || 0 }))}
-                  className="input-field"
-                  placeholder="0"
-                />
+                <div className="mt-1">
+                  <span className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium bg-green-100 text-green-800 border border-green-200">
+                    {formData.ltv} months
+                  </span>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Automatically calculated based on subscription date and quantity
+                  </p>
+                </div>
               </div>
 
               <div>
@@ -557,47 +977,142 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
           {/* Cleaner Assignment */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2">
-              Cleaner Assignment
+              Mitra (Cleaner) Assignment
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Mitra Availability Status */}
+            {previewVisits.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    {loadingMitras ? (
+                      <Icons.spinner className="w-5 h-5 text-blue-600 animate-spin" />
+                    ) : availableMitras.length > 0 ? (
+                      <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    ) : (
+                      <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-900">
+                      Mitra Availability Status
+                    </p>
+                    <p className="text-sm text-blue-700 mt-1">
+                      {mitraAvailabilityMessage}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Primary Cleaner
+                  Primary Mitra * <span className="text-xs text-gray-500">(Required - Main service provider)</span>
                 </label>
                 <select
                   value={formData.cleaner1}
                   onChange={(e) => setFormData(prev => ({ ...prev, cleaner1: e.target.value }))}
                   className="input-field"
+                  required
+                  disabled={loadingMitras || availableMitras.length === 0}
                 >
-                  <option value="">Select primary cleaner...</option>
-                  {availableCleaners.map((cleaner) => (
-                    <option key={cleaner} value={cleaner}>
-                      {cleaner}
+                  <option value="">
+                    {loadingMitras ? 'Checking availability...' : 
+                     availableMitras.length === 0 ? 'No mitras available' : 
+                     'Select primary mitra...'}
+                  </option>
+                  {availableMitras.map((mitra, index) => (
+                    <option key={`mitra1-${mitra.id}-${index}`} value={mitra.name}>
+                      {mitra.name}
                     </option>
                   ))}
                 </select>
+                {!loadingMitras && availableMitras.length === 0 && previewVisits.length > 0 && (
+                  <p className="text-xs text-red-500 mt-1">
+                    No mitras available for selected schedule. Please choose different days or date.
+                  </p>
+                )}
+                {formData.cleaner1 && (
+                  <p className="text-xs text-green-600 mt-1">
+                    ✓ Primary mitra selected: {formData.cleaner1}
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Secondary Cleaner
+                  Secondary Mitra <span className="text-xs text-gray-500">(Optional - Backup if primary can't come)</span>
                 </label>
                 <select
                   value={formData.cleaner2}
                   onChange={(e) => setFormData(prev => ({ ...prev, cleaner2: e.target.value }))}
                   className="input-field"
+                  disabled={loadingMitras || availableMitras.length === 0 || !formData.cleaner1}
                 >
-                  <option value="">Select secondary cleaner...</option>
-                  {availableCleaners
-                    .filter(cleaner => cleaner !== formData.cleaner1)
-                    .map((cleaner) => (
-                      <option key={cleaner} value={cleaner}>
-                        {cleaner}
+                  <option value="">
+                    {!formData.cleaner1 ? 'Select primary mitra first...' :
+                     loadingMitras ? 'Checking availability...' : 
+                     availableMitras.length === 0 ? 'No mitras available' : 
+                     'Select secondary mitra (optional)...'}
+                  </option>
+                  {availableMitras
+                    .filter(mitra => mitra.name !== formData.cleaner1)
+                    .map((mitra, index) => (
+                      <option key={`mitra2-${mitra.id}-${index}`} value={mitra.name}>
+                        {mitra.name}
                       </option>
                     ))}
                 </select>
+                {formData.cleaner2 && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    ✓ Secondary mitra selected: {formData.cleaner2}
+                  </p>
+                )}
+                {!formData.cleaner2 && formData.cleaner1 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    💡 Tip: Adding a secondary mitra provides backup coverage
+                  </p>
+                )}
               </div>
+              
+              {/* Mitra Assignment Summary */}
+              {formData.cleaner1 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <h4 className="text-sm font-medium text-green-900 mb-2">Mitra Assignment Summary</h4>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex items-center space-x-2">
+                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                      <span className="text-green-800">
+                        <strong>Primary:</strong> {formData.cleaner1} (Main service provider)
+                      </span>
+                    </div>
+                    {formData.cleaner2 ? (
+                      <div className="flex items-center space-x-2">
+                        <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                        <span className="text-blue-800">
+                          <strong>Secondary:</strong> {formData.cleaner2} (Backup coverage)
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-2">
+                        <span className="w-2 h-2 bg-gray-300 rounded-full"></span>
+                        <span className="text-gray-600">
+                          <strong>Secondary:</strong> Not assigned (optional)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

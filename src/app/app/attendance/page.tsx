@@ -11,7 +11,7 @@ export default async function AttendancePage() {
 
   // Check RBAC - ADMIN/OWNER/STAFF can access
   if (!['ADMIN', 'OWNER', 'STAFF'].includes(session.role)) {
-    redirect('/app');
+    redirect('/app/dashboard');
   }
 
   return (

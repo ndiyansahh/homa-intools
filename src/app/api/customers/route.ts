@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { customerDB } from '@/lib/schema';
+import { customerDB, mitraDB } from '@/lib/schema';
 import { sql, and, or, ilike, eq, desc, count } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/logger';
@@ -142,6 +142,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
           subscriptionStatus: customerDB.subscriptionStatus,
           monthlyFee: customerDB.monthlyFee,
           city: customerDB.city,
+          ltv: customerDB.ltv,
           createdAt: customerDB.createdAt,
           updatedAt: customerDB.updatedAt,
         })
@@ -155,9 +156,10 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
         id: customer.id,
         customerName: customer.customerName,
         subscriptionPackage: customer.subscriptionPackage || '',
-        subscriptionStatus: customer.subscriptionStatus,
+        subscriptionStatus: customer.subscriptionStatus as any || 'Active',
         monthlyFee: Number(customer.monthlyFee) || 0,
         city: customer.city,
+        ltv: customer.ltv || 0,
         createdAt: customer.createdAt?.toISOString() || new Date().toISOString(),
         updatedAt: customer.updatedAt?.toISOString() || new Date().toISOString(),
       }));
@@ -260,6 +262,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     try {
+      // Find mitra IDs for the selected cleaners
+      let assignedMitraId = null;
+      let backupMitraId = null;
+
+      if ((body as any).cleaner1) {
+        const primaryMitra = await db
+          .select({ id: mitraDB.id })
+          .from(mitraDB)
+          .where(eq(mitraDB.mitraName, (body as any).cleaner1))
+          .limit(1);
+        
+        if (primaryMitra.length > 0) {
+          assignedMitraId = primaryMitra[0].id;
+        }
+      }
+
+      if ((body as any).cleaner2) {
+        const backupMitra = await db
+          .select({ id: mitraDB.id })
+          .from(mitraDB)
+          .where(eq(mitraDB.mitraName, (body as any).cleaner2))
+          .limit(1);
+        
+        if (backupMitra.length > 0) {
+          backupMitraId = backupMitra[0].id;
+        }
+      }
+
       // Create customer in database
       const customerData = {
         customerName: body.customerName,
@@ -270,16 +300,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         village: body.village || null,
         postalCode: body.postalCode || null,
         subscriptionPackage: body.subscriptionPackage || null,
-        subscriptionStart: body.subscriptionStart ? new Date(body.subscriptionStart) : null,
-        subscriptionEnd: body.subscriptionEnd ? new Date(body.subscriptionEnd) : null,
-        subscriptionStatus: body.subscriptionStatus || 'Active',
-        monthlyFee: body.monthlyFee ? body.monthlyFee.toString() : '0',
+        subscriptionPackageId: (body as any).subscriptionPackageId || null,
+        assignedMitraId: assignedMitraId,
+        backupMitraId: backupMitraId,
+        subscriptionStart: (body as any).subscriptionStart || null,
+        subscriptionEnd: (body as any).subscriptionEnd || null,
+        subscriptionStatus: (body as any).subscriptionStatus || 'Active',
+        monthlyFee: (body as any).monthlyFee ? (body as any).monthlyFee.toString() : '0',
         totalPaid: '0',
-        outstandingBalance: body.monthlyFee ? body.monthlyFee.toString() : '0',
-        customerNotes: body.customerNotes || null,
+        outstandingBalance: (body as any).monthlyFee ? (body as any).monthlyFee.toString() : '0',
+        customerNotes: (body as any).customerNotes || null,
+        chosenDays: (body as any).selectedDays ? JSON.stringify((body as any).selectedDays) : null,
+        dayPattern: (body as any).selectedDays ? JSON.stringify((body as any).selectedDays) : null,
+        ltv: (body as any).ltv || 0,
         isActive: true,
         isDeleted: false,
       };
+
+      console.log('Creating customer with mitra assignments:', {
+        cleaner1: (body as any).cleaner1,
+        cleaner2: (body as any).cleaner2,
+        assignedMitraId,
+        backupMitraId
+      });
 
       const result = await db
         .insert(customerDB)
@@ -290,7 +333,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       // Log audit event
       if (session) {
-        await logAuditEvent(session.userId, 'CUSTOMER_CREATED', { customerId: newCustomerId });
+        await logAuditEvent({
+          action: 'CUSTOMER_CREATED',
+          userId: session.userId,
+          email: session.email,
+          details: { customerId: newCustomerId }
+        });
       }
 
       return NextResponse.json({

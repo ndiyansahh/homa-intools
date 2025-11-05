@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { customerDB } from '@/lib/schema';
+import { customerDB, mitraDB } from '@/lib/schema';
 import { eq, and, or, sql } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/logger';
@@ -111,7 +111,7 @@ const mockCustomersData: { [key: string]: CustomerData } = {
 };
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function GET(
@@ -135,7 +135,7 @@ export async function GET(
       );
     }
 
-    const customerId = params.id;
+    const { id: customerId } = await params;
     
     if (!customerId) {
       return NextResponse.json(
@@ -145,10 +145,17 @@ export async function GET(
     }
 
     try {
-      // Get customer with full details from database
+      // Get customer with full details from database, including mitra information
       const result = await db
-        .select()
+        .select({
+          customer: customerDB,
+          primaryMitra: {
+            id: mitraDB.id,
+            mitraName: mitraDB.mitraName,
+          },
+        })
         .from(customerDB)
+        .leftJoin(mitraDB, eq(customerDB.assignedMitraId, mitraDB.id))
         .where(
           and(
             eq(customerDB.id, customerId),
@@ -156,6 +163,23 @@ export async function GET(
           )
         )
         .limit(1);
+
+      // Get backup mitra separately if exists
+      let backupMitra = null;
+      if (result.length > 0 && result[0].customer.backupMitraId) {
+        const backupResult = await db
+          .select({
+            id: mitraDB.id,
+            mitraName: mitraDB.mitraName,
+          })
+          .from(mitraDB)
+          .where(eq(mitraDB.id, result[0].customer.backupMitraId))
+          .limit(1);
+        
+        if (backupResult.length > 0) {
+          backupMitra = backupResult[0];
+        }
+      }
 
       if (result.length === 0) {
         // Try mock data if customer not found in database
@@ -174,33 +198,50 @@ export async function GET(
         });
       }
 
-      const customer = result[0];
+      const customerRecord = result[0].customer;
+      const primaryMitra = result[0].primaryMitra;
+      
+      // Parse chosenDays to get qtyPackage if available
+      let qtyPackage = 1; // Default
+      try {
+        if (customerRecord.chosenDays) {
+          const chosenDays = JSON.parse(customerRecord.chosenDays);
+          // Count non-empty days
+          const activeDays = Object.values(chosenDays).filter(day => day && day !== '').length;
+          if (activeDays > 0) {
+            qtyPackage = activeDays;
+          }
+        }
+      } catch (e) {
+        console.log('Error parsing chosenDays:', e);
+      }
       
       // Format customer data from database
-      const customerData: CustomerData = {
-        id: customer.id,
+      const customerData: CustomerData & { monthlyFee: number } = {
+        id: customerRecord.id,
         no: 1, // Default value since not in current schema
-        customerName: customer.customerName,
+        customerName: customerRecord.customerName,
         acquisition: 'HOMA', // Default value since not in current schema
-        contact: customer.contact,
-        address: customer.address,
-        village: customer.village || '',
-        district: customer.district || '',
-        city: customer.city,
-        postalCode: customer.postalCode || '',
+        contact: customerRecord.contact,
+        address: customerRecord.address,
+        village: customerRecord.village || '',
+        district: customerRecord.district || '',
+        city: customerRecord.city,
+        postalCode: customerRecord.postalCode || '',
         residentialType: 'House', // Default value since not in current schema
-        subscriptionPackage: customer.subscriptionPackage || '',
-        qtyPackage: 1, // Default value
-        ltv: Number(customer.totalPaid) || 0,
-        firstDateSubscription: customer.subscriptionStart ? new Date(customer.subscriptionStart).toLocaleDateString('en-GB') : '',
-        status: customer.subscriptionStatus || 'Active',
-        cleaner1: '', // Not in current schema
-        cleaner2: '', // Not in current schema
-        churnTag: customer.subscriptionStatus === 'Inactive' ? 'External' : 'N/A',
-        churnReason: customer.customerNotes || '',
-        createdAt: customer.createdAt?.toISOString() || new Date().toISOString(),
-        updatedAt: customer.updatedAt?.toISOString() || new Date().toISOString(),
-        isDeleted: customer.isDeleted || false,
+        subscriptionPackage: (customerRecord.subscriptionPackage || 'Monthly Subscription of Regular Cleaning (3 hours per visit; 2 visits per week)') as any,
+        qtyPackage: qtyPackage,
+        ltv: customerRecord.ltv || 0,
+        monthlyFee: Number(customerRecord.monthlyFee) || 0,
+        firstDateSubscription: customerRecord.subscriptionStart ? new Date(customerRecord.subscriptionStart).toLocaleDateString('en-GB') : '',
+        status: customerRecord.subscriptionStatus || 'Active',
+        cleaner1: primaryMitra?.mitraName || '',
+        cleaner2: backupMitra?.mitraName || '',
+        churnTag: customerRecord.subscriptionStatus === 'Inactive' ? 'External' : 'N/A',
+        churnReason: customerRecord.customerNotes || '',
+        createdAt: customerRecord.createdAt?.toISOString() || new Date().toISOString(),
+        updatedAt: customerRecord.updatedAt?.toISOString() || new Date().toISOString(),
+        isDeleted: customerRecord.isDeleted || false,
       };
 
       return NextResponse.json({
@@ -262,7 +303,7 @@ export async function PATCH(
       );
     }
 
-    const customerId = params.id;
+    const { id: customerId } = await params;
     if (!customerId) {
       return NextResponse.json(
         { success: false, message: 'Customer ID is required' },
@@ -305,9 +346,12 @@ export async function PATCH(
       if (body.village) updateData.village = body.village;
       if (body.postalCode) updateData.postalCode = body.postalCode;
       if (body.subscriptionPackage) updateData.subscriptionPackage = body.subscriptionPackage;
-      if (body.subscriptionStatus) updateData.subscriptionStatus = body.subscriptionStatus;
-      if (body.monthlyFee !== undefined) updateData.monthlyFee = body.monthlyFee.toString();
-      if (body.customerNotes) updateData.customerNotes = body.customerNotes;
+      if ((body as any).subscriptionStatus) updateData.subscriptionStatus = (body as any).subscriptionStatus;
+      if ((body as any).subscriptionStart) updateData.subscriptionStart = (body as any).subscriptionStart;
+      if ((body as any).monthlyFee !== undefined) updateData.monthlyFee = (body as any).monthlyFee.toString();
+      if ((body as any).chosenDays) updateData.chosenDays = (body as any).chosenDays;
+      if ((body as any).ltv !== undefined) updateData.ltv = Number((body as any).ltv);
+      if ((body as any).customerNotes) updateData.customerNotes = (body as any).customerNotes;
 
       // Update customer
       await db
@@ -317,7 +361,12 @@ export async function PATCH(
 
       // Log audit event
       if (session) {
-        await logAuditEvent(session.userId, 'CUSTOMER_UPDATED', { customerId });
+        logAuditEvent({ 
+          action: 'CUSTOMER_UPDATED',
+          userId: session.userId,
+          email: session.email,
+          details: { customerId }
+        });
       }
 
       return NextResponse.json({
@@ -363,7 +412,7 @@ export async function DELETE(
       );
     }
 
-    const customerId = params.id;
+    const { id: customerId } = await params;
     if (!customerId) {
       return NextResponse.json(
         { success: false, message: 'Customer ID is required' },
@@ -397,7 +446,12 @@ export async function DELETE(
 
         // Log audit event
         if (session) {
-          await logAuditEvent(session.userId, 'CUSTOMER_HARD_DELETED', { customerId });
+          logAuditEvent({ 
+            action: 'CUSTOMER_HARD_DELETED',
+            userId: session.userId,
+            email: session.email,
+            details: { customerId }
+          });
         }
 
         return NextResponse.json({
@@ -416,7 +470,12 @@ export async function DELETE(
 
         // Log audit event
         if (session) {
-          await logAuditEvent(session.userId, 'CUSTOMER_SOFT_DELETED', { customerId });
+          logAuditEvent({ 
+            action: 'CUSTOMER_SOFT_DELETED',
+            userId: session.userId,
+            email: session.email,
+            details: { customerId }
+          });
         }
 
         return NextResponse.json({

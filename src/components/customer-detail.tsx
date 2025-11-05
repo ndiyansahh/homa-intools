@@ -293,8 +293,14 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                 <div className="mt-1 text-sm text-gray-900">{customer.qtyPackage}</div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">LTV</label>
+                <label className="block text-sm font-medium text-gray-700">LTV (months)</label>
                 <div className="mt-1 text-sm text-gray-900">{customer.ltv}</div>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Monthly Fee</label>
+              <div className="mt-1 text-sm text-gray-900">
+                Rp {((customer as any).monthlyFee || 0).toLocaleString('id-ID')}
               </div>
             </div>
             <div>
