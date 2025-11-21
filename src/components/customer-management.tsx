@@ -23,7 +23,9 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
   const router = useRouter();
   const [customers, setCustomers] = useState<CustomerListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // Filter state
   const [filters, setFilters] = useState<CustomerFilters>({
@@ -41,9 +43,14 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
     totalPages: 0,
   });
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
       const params = new URLSearchParams();
       if (filters.q) params.append('q', filters.q);
       if (filters.status) params.append('status', filters.status);
@@ -51,6 +58,9 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
       if (filters.subscriptionPackage) params.append('subscriptionPackage', filters.subscriptionPackage);
       params.append('page', filters.page?.toString() || '1');
       params.append('limit', filters.limit?.toString() || '10');
+
+      // Add cache-busting parameter for real-time updates
+      params.append('_t', Date.now().toString());
 
       const response = await fetch(`/api/customers?${params}`);
       if (response.ok) {
@@ -61,17 +71,30 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
           total: data.total,
           totalPages: data.totalPages,
         });
+        setLastUpdated(new Date());
       }
     } catch (error) {
       console.error('Error fetching customers:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
     fetchCustomers();
   }, [filters]);
+
+  // Auto-refresh every 30 seconds for real-time updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!loading && !refreshing) {
+        fetchCustomers(true);
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [filters, loading, refreshing]);
 
   const handleViewDetails = (customerId: string) => {
     router.push(`/app/customers/${customerId}`);
@@ -161,10 +184,35 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
       <div className="card">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">Customer Dashboard</h2>
-            <span className="text-sm text-gray-500">
-              {pagination.total} total customers
-            </span>
+            <div className="flex items-center space-x-3">
+              <h2 className="text-xl font-semibold text-gray-900">Customer Dashboard</h2>
+              {refreshing && (
+                <div className="flex items-center text-blue-600">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                  <span className="text-sm">Updating...</span>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => fetchCustomers(true)}
+                disabled={refreshing}
+                className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                title="Refresh data"
+              >
+                🔄 Refresh
+              </button>
+              <div className="text-right">
+                <span className="text-sm text-gray-500">
+                  {pagination.total} total customers
+                </span>
+                {lastUpdated && (
+                  <div className="text-xs text-gray-400">
+                    Last updated: {lastUpdated.toLocaleTimeString()}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
           <p className="mt-1 text-sm text-gray-600">
             Customer overview with subscription details and location

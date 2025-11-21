@@ -10,7 +10,6 @@ export type ChurnTag = 'Internal' | 'External' | 'N/A';
 
 export interface CustomerData {
   id: string;
-  no: number;
   customerName: string;
   acquisition: AcquisitionType;
   contact: string;
@@ -24,6 +23,7 @@ export interface CustomerData {
   qtyPackage: number;
   ltv: number;
   firstDateSubscription: string; // dd/MM/yyyy format
+  subscriptionEnd?: string; // dd/MM/yyyy format
   status: string; // freetext like "Churn", "Active", etc.
   cleaner1: string;
   cleaner2: string;
@@ -116,13 +116,13 @@ export interface AssigneeCleanerRequest {
   cleaner2?: string;
 }
 
-// AttendanceRecordDB types
+// AttendanceRecordDB types - Enhanced with new schema fields
 export interface AttendanceRecord {
   id: string;
   no: number;
   clientName: string;
   address: string; // Note: PRD shows enum but sample shows address
-  package: string;
+  package: string; // Maps to subscriptionPackage in DB
   startDate: string; // dd/MM/yyyy format
   endDate: string; // dd/MM/yyyy format
   newEndDate?: string; // dd/MM/yyyy format
@@ -131,6 +131,24 @@ export interface AttendanceRecord {
   createdAt: string;
   updatedAt: string;
   isDeleted?: boolean;
+
+  // New fields from enhanced schema
+  visitNumber?: number; // Sequential visit number
+  visitDate?: string; // YYYY-MM-DD format
+  visitDay?: string; // Day of week
+  attendanceMitraCode?: string; // Dynamic mitra code
+  attendanceMitraName?: string; // Dynamic mitra name
+  status?: string; // Scheduled, In-Progress, Completed, Cancelled
+
+  // New fields from visit-based data (from API update)
+  invoiceId?: string; // Visit ID used as invoice ID
+  customerName?: string; // Customer name from customerDB
+  mitraName?: string; // Mitra name from mitraDB
+  subscriptionPackage?: string; // Subscription package from customerDB
+  visitStatus?: string; // Visit status: Done, Scheduled, Cancelled
+  scheduledDate?: string; // Scheduled visit date
+  actualDate?: string | null; // Actual visit date
+  completedAt?: string | null; // Completion timestamp
 }
 
 export interface CreateAttendanceRequest {

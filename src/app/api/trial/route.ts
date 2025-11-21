@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { customerDB, attendanceScheduleDB, attendanceRecordDB, mitraDB, subscriptionPackageDB } from '@/lib/schema';
-import { eq, desc, like } from 'drizzle-orm';
+import { customerDB, attendanceScheduleDB, attendanceRecordDB, mitraDB, subscriptionPackageDB, visitDB } from '@/lib/schema';
+import { eq, desc, like, and, or } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/logger';
-
-interface TrialAssignment {
-  date: string;
-  selected_mitra: string;
-  status: string;
-}
 
 interface CreateTrialRequest {
   customer_name: string;
@@ -20,7 +14,11 @@ interface CreateTrialRequest {
   village_id: string;
   postal_code: string;
   residential_type?: 'House' | 'Apartment' | 'Office Space';
-  assignments?: TrialAssignment[];
+  // Trial Schedule fields
+  start_date?: string;
+  end_date?: string;
+  selected_day?: string;
+  selected_mitra?: string;
 }
 
 /**
@@ -97,26 +95,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
       // Generate trial ID (random UUID)
       const trialId = generateTrialID();
-      
-      // Validate assignments if provided
-      if (body.assignments && body.assignments.length > 0) {
-        for (let i = 0; i < body.assignments.length; i++) {
-          const assignment = body.assignments[i];
-          if (!assignment.date || !assignment.selected_mitra) {
-            return NextResponse.json(
-              { success: false, message: `Assignment ${i + 1}: Date and mitra are required` },
-              { status: 400 }
-            );
-          }
-          
-          // Validate date format (YYYY-MM-DD)
-          const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-          if (!dateRegex.test(assignment.date)) {
-            return NextResponse.json(
-              { success: false, message: `Assignment ${i + 1}: Invalid date format. Use YYYY-MM-DD` },
-              { status: 400 }
-            );
-          }
+
+      // Validate trial schedule if provided
+      if (body.start_date && body.selected_day && body.selected_mitra) {
+        // Validate date format (YYYY-MM-DD)
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(body.start_date)) {
+          return NextResponse.json(
+            { success: false, message: 'Invalid start date format. Use YYYY-MM-DD' },
+            { status: 400 }
+          );
+        }
+        if (body.end_date && !dateRegex.test(body.end_date)) {
+          return NextResponse.json(
+            { success: false, message: 'Invalid end date format. Use YYYY-MM-DD' },
+            { status: 400 }
+          );
         }
       }
       
@@ -154,35 +148,31 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           priceNumeric: trialPackage.priceNumeric
         });
 
-        // 2. Get assigned mitra info from first assignment
+        // 2. Get assigned mitra info from trial schedule
         let assignedMitraId = null;
-        if (body.assignments && body.assignments.length > 0) {
-          const firstAssignment = body.assignments[0];
-          if (firstAssignment.selected_mitra) {
-            // Verify mitra exists and is active
-            const mitraResult = await tx
-              .select({
-                id: mitraDB.id,
-                mitraName: mitraDB.mitraName,
-                status: mitraDB.status
-              })
-              .from(mitraDB)
-              .where(eq(mitraDB.id, firstAssignment.selected_mitra))
-              .limit(1);
-            
-            if (mitraResult.length > 0 && mitraResult[0].status === 'Active') {
-              assignedMitraId = firstAssignment.selected_mitra;
-            }
+        if (body.selected_mitra) {
+          // Verify mitra exists and is active
+          const mitraResult = await tx
+            .select({
+              id: mitraDB.id,
+              mitraName: mitraDB.mitraName,
+              status: mitraDB.status
+            })
+            .from(mitraDB)
+            .where(eq(mitraDB.id, body.selected_mitra))
+            .limit(1);
+
+          if (mitraResult.length > 0 && mitraResult[0].status === 'Active') {
+            assignedMitraId = body.selected_mitra;
+          } else {
+            throw new Error('Selected mitra is not active or does not exist');
           }
         }
 
-        // 3. Get trial date from first assignment
+        // 3. Get trial start date from schedule
         let subscriptionStart = null;
-        if (body.assignments && body.assignments.length > 0) {
-          const firstAssignment = body.assignments[0];
-          if (firstAssignment.date) {
-            subscriptionStart = firstAssignment.date; // YYYY-MM-DD format from form
-          }
+        if (body.start_date) {
+          subscriptionStart = body.start_date; // YYYY-MM-DD format from form
         }
 
         // 4. Create trial customer in customer_db with Trial package
@@ -203,6 +193,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           totalPaid: '0',
           outstandingBalance: '0',
           customerNotes: `Trial customer created via API - Trial ID: ${trialId}${body.residential_type ? ` - Residential Type: ${body.residential_type}` : ''}`,
+          chosenDays: body.selected_day ? JSON.stringify([body.selected_day]) : null, // Save selected day as array
+          dayPattern: body.selected_day ? JSON.stringify([body.selected_day]) : null, // Save to both fields for compatibility
           isActive: true,
           isDeleted: false,
           // createdAt and updatedAt are automatically set by database defaultNow()
@@ -226,6 +218,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             totalPaid: customerData.totalPaid,
             outstandingBalance: customerData.outstandingBalance,
             customerNotes: customerData.customerNotes,
+            chosenDays: customerData.chosenDays, // Save selected day
+            dayPattern: customerData.dayPattern, // Save to both fields for compatibility
             isActive: customerData.isActive,
             isDeleted: customerData.isDeleted,
             // createdAt and updatedAt are automatically set by database defaultNow()
@@ -233,25 +227,48 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           .returning();
 
         const newCustomer = customerResult[0];
-        
-        // 2. Create trial assignments if provided - simplified for now
-        const assignmentResults = [];
-        if (body.assignments && body.assignments.length > 0) {
-          // For now, just track assignments without creating attendance records
-          // TODO: Implement attendance creation after fixing transaction issues
-          for (const assignment of body.assignments) {
-            assignmentResults.push({
-              mitraId: assignment.selected_mitra,
-              date: assignment.date,
-              status: assignment.status,
-              isMockData: true, // Treat all as mock for now
-            });
+
+        // 5. Generate visit schedule if trial schedule is provided
+        let visitsCreated = 0;
+        if (body.start_date && body.selected_day && assignedMitraId) {
+          // Generate visit dates based on selected day (e.g., every Monday)
+          const visits: Date[] = [];
+          const start = new Date(body.start_date);
+          const end = body.end_date ? new Date(body.end_date) : new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000); // Default 30 days
+
+          const currentDate = new Date(start);
+          while (currentDate <= end) {
+            const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
+            if (dayName === body.selected_day) {
+              visits.push(new Date(currentDate));
+            }
+            currentDate.setDate(currentDate.getDate() + 1);
+          }
+
+          // Create visit records
+          if (visits.length > 0) {
+            const visitRecords = visits.map((visitDate, index) => ({
+              customerId: newCustomer.id,
+              mitraId: assignedMitraId, // Kept for backward compatibility
+              originalMitraId: assignedMitraId, // Track original assignment
+              actualMitraId: assignedMitraId, // Initially same as original, can be changed later
+              visitNumber: index + 1,
+              scheduledDate: visitDate.toISOString().split('T')[0],
+              scheduledDay: body.selected_day || 'Monday',
+              status: 'Scheduled',
+              durationHours: 3, // Default 3 hours for trial
+            }));
+
+            await tx.insert(visitDB).values(visitRecords);
+            visitsCreated = visitRecords.length;
+
+            console.log(`✅ Created ${visitsCreated} visit records for trial ${newCustomer.id}`);
           }
         }
 
         return {
           customer: newCustomer,
-          assignments: assignmentResults,
+          visitsCreated,
         };
       });
 
@@ -267,7 +284,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             customerId: newCustomer.id,
             trialId: trialId,
             customerName: body.customer_name,
-            assignmentsCount: body.assignments?.length || 0,
+            visitsCreated: result.visitsCreated || 0,
             method: 'trial_api',
           }
         });
@@ -287,11 +304,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             village_id: newCustomer.village,
             postal_code: newCustomer.postalCode,
             status: newCustomer.subscriptionStatus,
-            assignments_created: result.assignments.length,
+            visitsCreated: result.visitsCreated || 0,
             created_at: newCustomer.createdAt,
             updated_at: newCustomer.updatedAt,
           },
-          message: `Trial customer created successfully${result.assignments.length > 0 ? ` with ${result.assignments.length} assignment(s)` : ''}`,
+          message: `Trial customer created successfully${result.visitsCreated > 0 ? ` with ${result.visitsCreated} visit(s) scheduled` : ''}`,
         },
         { status: 201 }
       );
@@ -405,7 +422,9 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     let body: UpdateTrialRequest;
     try {
       body = await request.json();
+      console.log('PUT /api/trial - Request body:', JSON.stringify(body, null, 2));
     } catch (parseError) {
+      console.error('PUT /api/trial - JSON parse error:', parseError);
       return NextResponse.json(
         { success: false, message: 'Invalid JSON in request body' },
         { status: 400 }
@@ -414,6 +433,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
     // Validate required ID
     if (!body.id) {
+      console.error('PUT /api/trial - Missing customer ID');
       return NextResponse.json(
         { success: false, message: 'Customer ID is required' },
         { status: 400 }
@@ -593,77 +613,88 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
         // 4. Update customer if there are changes
         if (Object.keys(updateData).length > 0) {
-          updateData.updatedAt = new Date().toISOString();
-          
+          updateData.updatedAt = new Date();
+
+          console.log('About to update customer with data:', JSON.stringify(updateData, null, 2));
+
           const updatedCustomer = await tx
             .update(customerDB)
             .set(updateData)
             .where(eq(customerDB.id, body.id))
             .returning();
 
-          // 5. Create attendance schedule entries if converting to customer
-          if (body.convert_to_customer && body.subscription_package && assignedMitraId) {
-            console.log('Creating attendance schedule entries...');
-            
-            // Parse visits per week from package name
-            let visitsPerWeek = 1; // default
-            const packageMatch = body.subscription_package.match(/(\d+)\s*visits?\s*per\s*week/i);
-            if (packageMatch) {
-              visitsPerWeek = parseInt(packageMatch[1]);
+          // 5. Generate new visit schedule when converting trial to customer
+          if (body.convert_to_customer && body.start_date && body.chosen_days && assignedMitraId) {
+            console.log('🔄 Converting trial to customer - generating new visit schedule');
+
+            // Step 1: Delete all Scheduled AND Cancelled visits (keep ONLY Done as history)
+            await tx
+              .delete(visitDB)
+              .where(
+                and(
+                  eq(visitDB.customerId, body.id),
+                  or(
+                    eq(visitDB.status, 'Scheduled'),
+                    eq(visitDB.status, 'Cancelled')
+                  )
+                )
+              );
+            console.log('✅ Deleted old Scheduled and Cancelled visits (keeping Done only)');
+
+            // Step 2: Count existing Done visits to continue numbering
+            const doneVisits = await tx
+              .select({ visitNumber: visitDB.visitNumber })
+              .from(visitDB)
+              .where(
+                and(
+                  eq(visitDB.customerId, body.id),
+                  eq(visitDB.status, 'Done')
+                )
+              );
+            const maxVisitNumber = doneVisits.length > 0
+              ? Math.max(...doneVisits.map(v => v.visitNumber))
+              : 0;
+            console.log('📊 Continuing from visit number:', maxVisitNumber);
+
+            // Step 3: Generate visit dates based on chosen days and subscription dates
+            const startDate = new Date(body.start_date);
+            const endDate = new Date(updateData.subscriptionEnd || body.start_date);
+            const visitDates: { date: Date; day: string }[] = [];
+
+            // Parse chosen days (array of day names)
+            const chosenDayNames = body.chosen_days;
+            console.log('📅 Chosen days:', chosenDayNames);
+
+            const currentDate = new Date(startDate);
+            while (currentDate <= endDate) {
+              const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
+              if (chosenDayNames.includes(dayName)) {
+                visitDates.push({
+                  date: new Date(currentDate),
+                  day: dayName
+                });
+              }
+              currentDate.setDate(currentDate.getDate() + 1);
             }
 
-            console.log('Visits per week:', visitsPerWeek);
+            console.log(`📆 Generated ${visitDates.length} visit dates for customer schedule`);
 
-            // Create schedule entries for the next month
-            if (body.start_date && body.chosen_days && body.chosen_days.length > 0) {
-              const startDate = new Date(body.start_date);
-              const endDate = new Date(startDate);
-              endDate.setMonth(endDate.getMonth() + 1);
+            // Step 4: Create visit records
+            if (visitDates.length > 0) {
+              const visitRecords = visitDates.map((visit, index) => ({
+                customerId: body.id,
+                mitraId: assignedMitraId,
+                originalMitraId: assignedMitraId,
+                actualMitraId: assignedMitraId,
+                visitNumber: maxVisitNumber + index + 1,
+                scheduledDate: visit.date.toISOString().split('T')[0],
+                scheduledDay: visit.day,
+                status: 'Scheduled',
+                durationHours: 3, // Default 3 hours
+              }));
 
-              const scheduleEntries = [];
-              const currentDate = new Date(startDate);
-
-              // Map day names to numbers
-              const dayMap = {
-                'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3,
-                'Thursday': 4, 'Friday': 5, 'Saturday': 6
-              };
-
-              let weekVisitCount = 0;
-              const chosenDayNumbers = body.chosen_days.map(day => (dayMap as any)[day]).filter(d => d !== undefined);
-
-              while (currentDate < endDate) {
-                const currentDayNumber = currentDate.getDay();
-                
-                if (chosenDayNumbers.includes(currentDayNumber) && weekVisitCount < visitsPerWeek) {
-                  scheduleEntries.push({
-                    customerId: body.id,
-                    mitraId: assignedMitraId,
-                    scheduledDate: new Date(currentDate),
-                    scheduledTime: '09:00', // Default time
-                    duration: 180, // 3 hours in minutes
-                    status: 'Scheduled',
-                    notes: `Auto-generated from ${body.subscription_package}`,
-                  });
-                  weekVisitCount++;
-                }
-
-                currentDate.setDate(currentDate.getDate() + 1);
-                
-                // Reset weekly count on Sunday
-                if (currentDate.getDay() === 0) {
-                  weekVisitCount = 0;
-                }
-              }
-
-              console.log('Creating', scheduleEntries.length, 'schedule entries');
-
-              // Insert attendance schedule entries
-              if (scheduleEntries.length > 0) {
-                await tx
-                  .insert(attendanceScheduleDB)
-                  .values(scheduleEntries);
-              }
+              await tx.insert(visitDB).values(visitRecords);
+              console.log(`✅ Created ${visitRecords.length} new visit records for converted customer`);
             }
           }
 

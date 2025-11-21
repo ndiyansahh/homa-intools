@@ -12,12 +12,14 @@ interface AttendanceManagementProps {
 export default function AttendanceManagement({ session }: AttendanceManagementProps) {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
-  const [updating, setUpdating] = useState(false);
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterCustomerName, setFilterCustomerName] = useState('');
+  const [filterPackage, setFilterPackage] = useState('');
+  const [filterMitraName, setFilterMitraName] = useState('');
+  const [filterFromDate, setFilterFromDate] = useState('');
+  const [filterToDate, setFilterToDate] = useState('');
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [pagination, setPagination] = useState({
@@ -26,23 +28,15 @@ export default function AttendanceManagement({ session }: AttendanceManagementPr
     totalPages: 0,
   });
 
-  // Update form state
-  const [updateForm, setUpdateForm] = useState({
-    clientName: '',
-    address: '',
-    package: '',
-    startDate: '',
-    endDate: '',
-    newEndDate: '',
-    cleaner1: '',
-    cleaner2: '',
-  });
-
   const fetchAttendanceRecords = async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      if (searchTerm) params.append('q', searchTerm);
+      if (filterCustomerName) params.append('customerName', filterCustomerName);
+      if (filterPackage) params.append('package', filterPackage);
+      if (filterMitraName) params.append('mitraName', filterMitraName);
+      if (filterFromDate) params.append('fromDate', filterFromDate);
+      if (filterToDate) params.append('toDate', filterToDate);
       params.append('page', page.toString());
       params.append('limit', limit.toString());
 
@@ -65,63 +59,86 @@ export default function AttendanceManagement({ session }: AttendanceManagementPr
 
   useEffect(() => {
     fetchAttendanceRecords();
-  }, [searchTerm, page]);
-
-  const handleUpdateClick = (record: AttendanceRecord) => {
-    setSelectedRecord(record);
-    setUpdateForm({
-      clientName: record.clientName,
-      address: record.address,
-      package: record.package,
-      startDate: record.startDate,
-      endDate: record.endDate,
-      newEndDate: record.newEndDate || '',
-      cleaner1: record.cleaner1,
-      cleaner2: record.cleaner2,
-    });
-    setShowUpdateModal(true);
-  };
-
-  const handleUpdate = async () => {
-    if (!selectedRecord) return;
-
-    try {
-      setUpdating(true);
-      const response = await fetch(`/api/attendance/${selectedRecord.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateForm),
-      });
-
-      if (response.ok) {
-        alert('Attendance record updated successfully');
-        setShowUpdateModal(false);
-        setSelectedRecord(null);
-        fetchAttendanceRecords();
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to update attendance record');
-      }
-    } catch (error) {
-      console.error('Error updating attendance record:', error);
-      alert('Failed to update attendance record');
-    } finally {
-      setUpdating(false);
-    }
-  };
+  }, [filterCustomerName, filterPackage, filterMitraName, filterFromDate, filterToDate, page]);
 
   return (
     <div className="space-y-6">
-      {/* Search Filter */}
+      {/* Search Filters */}
       <div className="card p-4">
-        <div className="flex items-center space-x-4">
-          <div className="flex-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Customer Name
+            </label>
             <input
               type="text"
-              placeholder="Search by client name, address, or cleaner..."
-              value={searchTerm}
+              placeholder="Search by customer name..."
+              value={filterCustomerName}
               onChange={(e) => {
-                setSearchTerm(e.target.value);
+                setFilterCustomerName(e.target.value);
+                setPage(1);
+              }}
+              className="input-field"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Subscription Package
+            </label>
+            <select
+              value={filterPackage}
+              onChange={(e) => {
+                setFilterPackage(e.target.value);
+                setPage(1);
+              }}
+              className="input-field"
+            >
+              <option value="">All Packages</option>
+              <option value="Monthly Subscription of Special Partnership">Special Partnership (1x/week)</option>
+              <option value="Monthly Subscription of Basic Cleaning">Basic Cleaning (1x/week)</option>
+              <option value="Monthly Subscription of Regular Cleaning">Regular Cleaning (2x/week)</option>
+              <option value="Monthly Subscription of Frequent Cleaning">Frequent Cleaning (3x/week)</option>
+              <option value="Trial">Trial</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Mitra Name
+            </label>
+            <input
+              type="text"
+              placeholder="Search by mitra name..."
+              value={filterMitraName}
+              onChange={(e) => {
+                setFilterMitraName(e.target.value);
+                setPage(1);
+              }}
+              className="input-field"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              From Date
+            </label>
+            <input
+              type="date"
+              value={filterFromDate}
+              onChange={(e) => {
+                setFilterFromDate(e.target.value);
+                setPage(1);
+              }}
+              className="input-field"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              To Date
+            </label>
+            <input
+              type="date"
+              value={filterToDate}
+              onChange={(e) => {
+                setFilterToDate(e.target.value);
                 setPage(1);
               }}
               className="input-field"
@@ -134,14 +151,18 @@ export default function AttendanceManagement({ session }: AttendanceManagementPr
       <div className="card">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">Attendance Records</h2>
-            <span className="text-sm text-gray-500">
-              {pagination.total} total records
-            </span>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Attendance Records</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Showing visit records with customer and mitra information
+              </p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-gray-500">
+                {pagination.total} total records
+              </span>
+            </div>
           </div>
-          <p className="mt-1 text-sm text-gray-600">
-            Showing data from AttendanceRecordDB with update functionality
-          </p>
         </div>
 
         {loading ? (
@@ -154,9 +175,9 @@ export default function AttendanceManagement({ session }: AttendanceManagementPr
             <Icons.clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Attendance Records Found</h3>
             <p className="text-gray-600">
-              {searchTerm
-                ? 'Try adjusting your search to see more results.'
-                : 'No attendance records have been created yet.'}
+              {filterCustomerName || filterPackage || filterMitraName || filterFromDate || filterToDate
+                ? 'Try adjusting your filters to see more results.'
+                : 'No visit records have been created yet.'}
             </p>
           </div>
         ) : (
@@ -169,22 +190,22 @@ export default function AttendanceManagement({ session }: AttendanceManagementPr
                       No
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Client Name
+                      Invoice ID
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Address
+                      Customer Name
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Package
+                      Mitra Name
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Dates
+                      Subscription Package
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Cleaners
+                      Visit Status
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Visit Date
                     </th>
                   </tr>
                 </thead>
@@ -193,54 +214,43 @@ export default function AttendanceManagement({ session }: AttendanceManagementPr
                     <tr key={record.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {index + 1}
+                          {record.no || (index + 1)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-xs text-gray-900 font-mono">
+                          {(record as any).invoiceId || 'N/A'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {record.clientName}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 max-w-xs truncate" title={record.address}>
-                          {record.address}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 max-w-xs truncate" title={record.package}>
-                          {record.package}
+                          {(record as any).customerName || record.clientName || 'N/A'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          <div>Start: {record.startDate}</div>
-                          <div>End: {record.endDate}</div>
-                          {record.newEndDate && (
-                            <div className="text-blue-600">New: {record.newEndDate}</div>
-                          )}
+                          {(record as any).mitraName || 'Not assigned'}
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="space-y-1">
-                          <div className="flex flex-wrap gap-1">
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {record.cleaner1}
-                            </span>
-                            {record.cleaner2 && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                {record.cleaner2}
-                              </span>
-                            )}
-                          </div>
+                        <div className="text-sm text-gray-900 max-w-xs truncate" title={(record as any).subscriptionPackage || record.package}>
+                          {(record as any).subscriptionPackage || record.package || 'N/A'}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => handleUpdateClick(record)}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          Update
-                        </button>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          (record as any).visitStatus === 'Done' ? 'bg-green-100 text-green-800' :
+                          (record as any).visitStatus === 'Scheduled' ? 'bg-blue-100 text-blue-800' :
+                          (record as any).visitStatus === 'Cancelled' ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {(record as any).visitStatus || record.status || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {(record as any).scheduledDate || (record as any).actualDate || 'N/A'}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -280,140 +290,6 @@ export default function AttendanceManagement({ session }: AttendanceManagementPr
           </>
         )}
       </div>
-
-      {/* Update Modal */}
-      {showUpdateModal && selectedRecord && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Update Attendance Record</h3>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Client Name
-                  </label>
-                  <input
-                    type="text"
-                    value={updateForm.clientName}
-                    onChange={(e) => setUpdateForm(prev => ({ ...prev, clientName: e.target.value }))}
-                    className="input-field"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Package
-                  </label>
-                  <input
-                    type="text"
-                    value={updateForm.package}
-                    onChange={(e) => setUpdateForm(prev => ({ ...prev, package: e.target.value }))}
-                    className="input-field"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Address
-                </label>
-                <input
-                  type="text"
-                  value={updateForm.address}
-                  onChange={(e) => setUpdateForm(prev => ({ ...prev, address: e.target.value }))}
-                  className="input-field"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Start Date (dd/MM/yyyy)
-                  </label>
-                  <input
-                    type="text"
-                    value={updateForm.startDate}
-                    onChange={(e) => setUpdateForm(prev => ({ ...prev, startDate: e.target.value }))}
-                    placeholder="25/12/2025"
-                    pattern="\d{2}/\d{2}/\d{4}"
-                    className="input-field"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    End Date (dd/MM/yyyy)
-                  </label>
-                  <input
-                    type="text"
-                    value={updateForm.endDate}
-                    onChange={(e) => setUpdateForm(prev => ({ ...prev, endDate: e.target.value }))}
-                    placeholder="25/12/2025"
-                    pattern="\d{2}/\d{2}/\d{4}"
-                    className="input-field"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    New End Date (dd/MM/yyyy)
-                  </label>
-                  <input
-                    type="text"
-                    value={updateForm.newEndDate}
-                    onChange={(e) => setUpdateForm(prev => ({ ...prev, newEndDate: e.target.value }))}
-                    placeholder="30/12/2025"
-                    pattern="\d{2}/\d{2}/\d{4}"
-                    className="input-field"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cleaner 1
-                  </label>
-                  <input
-                    type="text"
-                    value={updateForm.cleaner1}
-                    onChange={(e) => setUpdateForm(prev => ({ ...prev, cleaner1: e.target.value }))}
-                    className="input-field"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cleaner 2
-                  </label>
-                  <input
-                    type="text"
-                    value={updateForm.cleaner2}
-                    onChange={(e) => setUpdateForm(prev => ({ ...prev, cleaner2: e.target.value }))}
-                    className="input-field"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowUpdateModal(false);
-                  setSelectedRecord(null);
-                }}
-                className="btn-secondary"
-                disabled={updating}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdate}
-                className="btn-primary"
-                disabled={updating}
-              >
-                {updating ? 'Updating...' : 'Update Record'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

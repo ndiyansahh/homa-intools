@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { subscriptionPackageDB } from '@/lib/schema';
 import type { SubscriptionPackagesResponse, SubscriptionApiError } from '@/types/subscription';
+import { extractVisitsPerWeek } from '@/lib/utils/subscriptionUtils';
 
 export async function GET(request: NextRequest): Promise<NextResponse<SubscriptionPackagesResponse | SubscriptionApiError>> {
   try {
@@ -31,16 +32,39 @@ export async function GET(request: NextRequest): Promise<NextResponse<Subscripti
     }
 
     // Convert decimal fields to numbers for TypeScript compatibility
+    // Also calculate visitsPerWeek from package name
     const formattedResult = result.map(pkg => ({
       ...pkg,
       priceNumeric: parseFloat(pkg.priceNumeric.toString()),
+      visitsPerWeek: extractVisitsPerWeek(pkg.subscriptionPackage),
       createdAt: pkg.createdAt || new Date(),
       updatedAt: pkg.updatedAt || new Date(),
     }));
 
+    // Remove duplicates based on subscriptionPackage name
+    const uniquePackages = formattedResult.reduce((acc: typeof formattedResult, current) => {
+      const exists = acc.find(pkg => pkg.subscriptionPackage === current.subscriptionPackage);
+      if (!exists) {
+        acc.push(current);
+      }
+      return acc;
+    }, []);
+
+    // Filter out Trial packages (for customer conversion, we don't want trial packages)
+    const customerPackages = uniquePackages.filter(pkg =>
+      !pkg.subscriptionPackage.toLowerCase().includes('trial')
+    );
+
+    console.log(`Returning ${customerPackages.length} customer packages (removed ${formattedResult.length - customerPackages.length} including duplicates and trials)`);
+
+    // Log each package with its visitsPerWeek for debugging
+    customerPackages.forEach(pkg => {
+      console.log(`  - ${pkg.subscriptionPackage}: ${pkg.visitsPerWeek} visits/week`);
+    });
+
     return NextResponse.json({
       success: true,
-      data: formattedResult,
+      data: customerPackages,
     });
 
   } catch (error) {

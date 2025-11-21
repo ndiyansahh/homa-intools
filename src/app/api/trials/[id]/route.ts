@@ -79,6 +79,7 @@ export async function GET(
         .select({
           id: customerDB.id,
           customerName: customerDB.customerName,
+          contact: customerDB.contact,
           address: customerDB.address,
           city: customerDB.city,
           district: customerDB.district,
@@ -88,6 +89,7 @@ export async function GET(
           subscriptionStart: customerDB.subscriptionStart,
           subscriptionEnd: customerDB.subscriptionEnd,
           subscriptionStatus: customerDB.subscriptionStatus,
+          monthlyFee: customerDB.monthlyFee,
           customerNotes: customerDB.customerNotes,
           assignedMitraId: customerDB.assignedMitraId,
           // totalSessions: customerDB.totalSessions, // Comment out until DB migration
@@ -183,6 +185,7 @@ export async function GET(
       const trialData: TrialData = {
         id: customer.id,
         customerName: customer.customerName,
+        contact: customer.contact || '',
         acquisition,
         address: customer.address,
         district: customer.district || '',
@@ -195,8 +198,12 @@ export async function GET(
         assignments,
         notes: customer.customerNotes || '',
         subscriptionPackage: customer.subscriptionPackage || '',
+        subscriptionStartDate: trialStartFormatted || undefined, // dd/mm/yyyy format
+        subscriptionEndDate: trialEndFormatted || undefined, // dd/mm/yyyy format
+        monthlyFee: customer.monthlyFee ? parseFloat(customer.monthlyFee.toString()) : 0,
         totalSessions: 0, // customer.totalSessions || 0, // Default to 0 until DB migration
         chosenDays: chosenDays,
+        overallStatus: assignments[0]?.status || 'Not Converted', // Extract status from assignments
         createdAt: customer.createdAt?.toISOString() || new Date().toISOString(),
         updatedAt: customer.updatedAt?.toISOString() || new Date().toISOString(),
         isDeleted: customer.isDeleted || false,

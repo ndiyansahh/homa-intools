@@ -4,106 +4,10 @@ import { mitraDB } from '@/lib/schema';
 import { eq, and, or, sql } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { UpdateMitraRequest, MitraData } from '@/types/mitra';
-import { logAuditEvent } from '@/lib/logger';
+import { logDetailedAudit, getChangedFields } from '@/lib/audit-logger.server';
 
-// Mock data storage (replace with real database)
-// Import from parent route to maintain data consistency
-let mitraData: MitraData[] = [
-  {
-    id: '1',
-    joinDate: '15/10/2022',
-    mitraCode: 'MITRA-202210-000001',
-    nik: '3171081506950002',
-    name: 'Syeila Nurhasanah',
-    gender: 'Wanita',
-    bornDate: '15/06/1995',
-    address: 'Jl. Kebon Jeruk No. 123, Jakarta Barat',
-    phone: '6281291662589',
-    bankAccount: 'BCA',
-    bankAccountNumber: '5271236489',
-    bankHoldersName: 'Syeila Nurhasanah',
-    cityAssignment: 'Jakarta',
-    locationAssignment: 'Jakarta Barat',
-    partnershipTypes: 'Fulltime',
-    status: 'ACTIVE',
-    tenure: '12',
-    bonus: 'Eligible',
-    createdAt: '2022-10-15T10:00:00Z',
-    updatedAt: '2022-10-15T10:00:00Z',
-    isDeleted: false,
-  },
-  {
-    id: '2',
-    joinDate: '20/10/2022',
-    mitraCode: 'MITRA-202210-000002',
-    nik: '3172082107880003',
-    name: 'Ahmad Rizki',
-    gender: 'Pria',
-    bornDate: '21/07/1988',
-    address: 'Jl. Sudirman No. 456, Jakarta Pusat',
-    phone: '6281234567890',
-    bankAccount: 'Mandiri',
-    bankAccountNumber: '1234567890',
-    bankHoldersName: 'Ahmad Rizki',
-    cityAssignment: 'Jakarta',
-    locationAssignment: 'Jakarta Pusat',
-    partnershipTypes: 'Partime',
-    status: 'ACTIVE',
-    tenure: '6',
-    bonus: 'Eligible',
-    createdAt: '2022-10-20T14:30:00Z',
-    updatedAt: '2022-10-20T14:30:00Z',
-    isDeleted: false,
-  },
-  {
-    id: '3',
-    joinDate: '25/11/2022',
-    mitraCode: 'MITRA-202211-000001',
-    nik: '3173081203920001',
-    name: 'Sari Indah',
-    gender: 'Wanita',
-    bornDate: '12/03/1992',
-    address: 'Jl. Gatot Subroto No. 789, Jakarta Selatan',
-    phone: '6281987654321',
-    bankAccount: 'BNI',
-    bankAccountNumber: '9876543210',
-    bankHoldersName: 'Sari Indah',
-    cityAssignment: 'Jakarta',
-    locationAssignment: 'Jakarta Selatan',
-    partnershipTypes: 'Fulltime',
-    status: 'ACTIVE-FLAG',
-    tenure: '3',
-    exitDate: '25/11/2025',
-    bonus: 'Not Eligible',
-    createdAt: '2022-11-25T09:15:00Z',
-    updatedAt: '2025-10-01T10:00:00Z',
-    isDeleted: false,
-  },
-  {
-    id: '4',
-    joinDate: '01/12/2022',
-    mitraCode: 'MITRA-202212-000001',
-    nik: '3174081809850004',
-    name: 'Budi Santoso',
-    gender: 'Pria',
-    bornDate: '18/09/1985',
-    address: 'Jl. Thamrin No. 321, Jakarta Utara',
-    phone: '6281555666777',
-    bankAccount: 'BCA',
-    bankAccountNumber: '7777666555',
-    bankHoldersName: 'Budi Santoso',
-    cityAssignment: 'Jakarta',
-    locationAssignment: 'Jakarta Utara',
-    partnershipTypes: 'Partime',
-    status: 'EXIT',
-    tenure: '6',
-    exitDate: '01/06/2025',
-    bonus: 'Not Eligible',
-    createdAt: '2022-12-01T11:20:00Z',
-    updatedAt: '2025-06-01T16:00:00Z',
-    isDeleted: false,
-  }
-];
+// ⚠️ DEPRECATED: Mock data is NO LONGER USED - All data comes from database
+// This is kept only for reference and will be removed in future versions
 
 // GET /api/mitra/[id] - Get individual mitra details
 export async function GET(
@@ -205,18 +109,15 @@ export async function GET(
         return NextResponse.json(mitraData);
       }
     } catch (dbError) {
-      console.error('Database error, falling back to mock data:', dbError);
-    }
-    
-    // Fallback to mock data if database lookup fails
-    const mitra = mitraData.find(m => m.id === id && !m.isDeleted);
-
-    if (!mitra) {
-      return NextResponse.json({ error: 'Mitra not found' }, { status: 404 });
+      console.error('❌ CRITICAL: Database error while fetching mitra details:', dbError);
+      return NextResponse.json({
+        error: 'Database error: Failed to fetch mitra details',
+        details: process.env.NODE_ENV === 'development' ? String(dbError) : undefined
+      }, { status: 500 });
     }
 
-    console.log(`🔄 Found mitra in mock data: ${mitra.name} (${mitra.mitraCode})`);
-    return NextResponse.json(mitra);
+    // If we reach here, mitra was not found in database
+    return NextResponse.json({ error: 'Mitra not found' }, { status: 404 });
   } catch (error) {
     console.error('Get mitra details error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -242,14 +143,38 @@ export async function PUT(
     const { id } = await params;
     const body: Partial<UpdateMitraRequest> = await request.json();
 
-    const mitraIndex = mitraData.findIndex(m => m.id === id && !m.isDeleted);
-    if (mitraIndex === -1) {
+    // Check if mitra exists in database - fetch full record for audit logging
+    const existingMitra = await db
+      .select()
+      .from(mitraDB)
+      .where(
+        and(
+          eq(mitraDB.id, id),
+          or(eq(mitraDB.isDeleted, false), sql`${mitraDB.isDeleted} IS NULL`)
+        )
+      )
+      .limit(1);
+
+    if (existingMitra.length === 0) {
       return NextResponse.json({ error: 'Mitra not found' }, { status: 404 });
     }
 
+    const oldMitraData = existingMitra[0];
+
     // Check NIK uniqueness if NIK is being updated
-    if (body.mitraNIK && body.mitraNIK !== mitraData[mitraIndex].nik) {
-      if (mitraData.some(m => m.nik === body.mitraNIK && m.id !== id && !m.isDeleted)) {
+    if (body.mitraNIK && body.mitraNIK !== existingMitra[0].mitraNIK) {
+      const nikCheck = await db
+        .select({ id: mitraDB.id })
+        .from(mitraDB)
+        .where(
+          and(
+            eq(mitraDB.mitraNIK, body.mitraNIK),
+            or(eq(mitraDB.isDeleted, false), sql`${mitraDB.isDeleted} IS NULL`)
+          )
+        )
+        .limit(1);
+
+      if (nikCheck.length > 0 && nikCheck[0].id !== id) {
         return NextResponse.json({ error: 'NIK already exists' }, { status: 400 });
       }
     }
@@ -257,45 +182,72 @@ export async function PUT(
     // Validate date format if dates are being updated
     const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
     if (body.mitraDOB && !dateRegex.test(body.mitraDOB)) {
-      return NextResponse.json({ 
-        error: 'Invalid born date format. Use dd/MM/yyyy format' 
+      return NextResponse.json({
+        error: 'Invalid born date format. Use dd/MM/yyyy format'
       }, { status: 400 });
     }
 
     if (body.mitraExitDate && !dateRegex.test(body.mitraExitDate)) {
-      return NextResponse.json({ 
-        error: 'Invalid exit date format. Use dd/MM/yyyy format' 
+      return NextResponse.json({
+        error: 'Invalid exit date format. Use dd/MM/yyyy format'
       }, { status: 400 });
     }
 
-    // Update the mitra
-    const updatedMitra = {
-      ...mitraData[mitraIndex],
-      ...body,
-      updatedAt: new Date().toISOString(),
+    // Build update object (only include provided fields)
+    const updateData: any = {
+      updatedAt: new Date()
     };
 
-    mitraData[mitraIndex] = updatedMitra;
+    if (body.mitraName) updateData.mitraName = body.mitraName;
+    if (body.mitraNIK) updateData.mitraNIK = body.mitraNIK;
+    if (body.mitraGender) updateData.mitraGender = body.mitraGender;
+    if (body.mitraDOB) updateData.mitraDOB = body.mitraDOB;
+    if (body.mitraPhone) updateData.mitraPhone = body.mitraPhone;
+    if (body.mitraBankAccount) updateData.mitraBankAccount = body.mitraBankAccount;
+    if (body.mitraBankHolderName) updateData.mitraBankHolderName = body.mitraBankHolderName;
+    if (body.mitraBankAccountNumber) updateData.mitraBankAccountNumber = body.mitraBankAccountNumber;
+    if (body.mitraCityAssignment) updateData.mitraCityAssignment = body.mitraCityAssignment;
+    if (body.mitraLocationAssignment) {
+      updateData.mitraLocationAssignment = Array.isArray(body.mitraLocationAssignment)
+        ? JSON.stringify(body.mitraLocationAssignment)
+        : body.mitraLocationAssignment;
+    }
+    if (body.mitraPartnership) updateData.mitraPartnership = body.mitraPartnership;
+    if (body.mitraTenure !== undefined) updateData.mitraTenure = body.mitraTenure;
+    if (body.mitraExitDate) updateData.mitraExitDate = body.mitraExitDate;
+    if (body.mitraBonusCommission) updateData.mitraBonusCommission = body.mitraBonusCommission;
+    if (body.status) updateData.status = body.status;
+    if (body.address) updateData.address = body.address;
 
-    // Log audit event
+    // Update the mitra in database
+    await db
+      .update(mitraDB)
+      .set(updateData)
+      .where(eq(mitraDB.id, id));
+
+    // Create new data object for audit comparison
+    const newMitraData = { ...oldMitraData, ...updateData };
+
+    // Log detailed audit event with changed fields only
     if (session) {
-      await logAuditEvent({
-        action: 'MITRA_UPDATED',
+      const changes = getChangedFields(oldMitraData, newMitraData);
+
+      await logDetailedAudit({
         userId: session.userId,
-        email: session.email,
-        details: {
-          mitraId: updatedMitra.id,
-          mitraCode: updatedMitra.mitraCode,
-          name: updatedMitra.name,
-          nik: updatedMitra.nik,
-          updatedFields: Object.keys(body),
-        }
+        userEmail: session.email,
+        action: 'UPDATE_MITRA',
+        entityType: 'mitra',
+        entityId: id,
+        oldValue: changes.old,
+        newValue: changes.new,
+        ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+        userAgent: request.headers.get('user-agent') || undefined,
       });
     }
 
-    return NextResponse.json({ 
-      id: updatedMitra.id,
-      message: 'Mitra updated successfully' 
+    return NextResponse.json({
+      id: existingMitra[0].id,
+      message: 'Mitra updated successfully'
     });
   } catch (error) {
     console.error('Update mitra error:', error);
@@ -320,31 +272,58 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const mitraIndex = mitraData.findIndex(m => m.id === id && !m.isDeleted);
 
-    if (mitraIndex === -1) {
+    // Check if mitra exists in database
+    const existingMitra = await db
+      .select({
+        id: mitraDB.id,
+        mitraCode: mitraDB.mitraCode,
+        mitraName: mitraDB.mitraName,
+        mitraNIK: mitraDB.mitraNIK,
+        status: mitraDB.status
+      })
+      .from(mitraDB)
+      .where(
+        and(
+          eq(mitraDB.id, id),
+          or(eq(mitraDB.isDeleted, false), sql`${mitraDB.isDeleted} IS NULL`)
+        )
+      )
+      .limit(1);
+
+    if (existingMitra.length === 0) {
       return NextResponse.json({ error: 'Mitra not found' }, { status: 404 });
     }
 
-    // Soft delete
-    mitraData[mitraIndex] = {
-      ...mitraData[mitraIndex],
-      isDeleted: true,
-      updatedAt: new Date().toISOString(),
-    };
+    // Soft delete in database
+    await db
+      .update(mitraDB)
+      .set({
+        isDeleted: true,
+        updatedAt: new Date()
+      })
+      .where(eq(mitraDB.id, id));
 
-    // Log audit event
+    // Log detailed audit event for deletion
     if (session) {
-      await logAuditEvent({
-        action: 'MITRA_DELETED',
+      await logDetailedAudit({
         userId: session.userId,
-        email: session.email,
-        details: {
-          mitraId: mitraData[mitraIndex].id,
-          mitraCode: mitraData[mitraIndex].mitraCode,
-          name: mitraData[mitraIndex].name,
-          nik: mitraData[mitraIndex].nik,
-        }
+        userEmail: session.email,
+        action: 'DELETE_MITRA',
+        entityType: 'mitra',
+        entityId: id,
+        oldValue: {
+          mitraCode: existingMitra[0].mitraCode,
+          mitraName: existingMitra[0].mitraName,
+          mitraNIK: existingMitra[0].mitraNIK,
+          status: existingMitra[0].status,
+          isDeleted: false,
+        },
+        newValue: {
+          isDeleted: true,
+        },
+        ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+        userAgent: request.headers.get('user-agent') || undefined,
       });
     }
 

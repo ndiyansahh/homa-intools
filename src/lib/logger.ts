@@ -1,4 +1,4 @@
-// Simple logger utility for audit events
+// Simple logger utility for audit events (client-safe)
 
 export interface AuditEvent {
   action: string;
@@ -16,7 +16,7 @@ export function logAuditEvent(event: AuditEvent): void {
       timestamp: new Date().toISOString(),
     });
   }
-  
+
   // In production, you would send this to your logging service
   // e.g., DataDog, CloudWatch, Sentry, etc.
 }

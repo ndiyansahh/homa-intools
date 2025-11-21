@@ -1,0 +1,2243 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { SessionData } from '@/types/auth';
+import { TrialListItem, TrialStatus } from '@/types/trial';
+import { Icons } from './icons';
+
+interface TrialDetailPageProps {
+  trialId: string;
+  session: SessionData;
+}
+
+interface UpdateTrialData {
+  id: string;
+  start_date?: string;
+  end_date?: string;
+  assigned_mitra?: string;
+  subscription_status?: TrialStatus;
+  notes?: string;
+  subscription_package?: string;
+  total_sessions?: number;
+  chosen_days?: string[];
+  qty_package?: number;
+  // Customer info
+  customer_name?: string;
+  contact?: string;
+  acquisition?: string;
+  address?: string;
+  city?: string;
+  district?: string;
+  village?: string;
+  postal_code?: string;
+  residential_type?: string;
+}
+
+const statusColors = {
+  'Converted': 'bg-green-100 text-green-800',
+  'Not Converted': 'bg-red-100 text-red-800',
+  'Stalling/Postpone': 'bg-yellow-100 text-yellow-800',
+  'Cancelled': 'bg-gray-100 text-gray-800',
+};
+
+const acquisitionColors = {
+  'HOMA': 'bg-blue-100 text-blue-800',
+  'Altrix': 'bg-purple-100 text-purple-800',
+};
+
+const residentialColors = {
+  'House': 'bg-green-100 text-green-800',
+  'Apartment': 'bg-blue-100 text-blue-800',
+  'Office Space': 'bg-purple-100 text-purple-800',
+};
+
+export default function TrialDetailPage({ trialId, session }: TrialDetailPageProps) {
+  const router = useRouter();
+  const [trial, setTrial] = useState<TrialListItem | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState<string | null>(null);
+  const [updateLoading, setUpdateLoading] = useState<string | null>(null);
+
+  // Mitra state
+  const [mitras, setMitras] = useState<Array<{ id: string; name: string; phone: string }>>([]);
+  const [loadingMitras, setLoadingMitras] = useState(false);
+  const [allMitras, setAllMitras] = useState<Array<{ id: string; name: string; phone: string }>>([]);
+
+  // Subscription packages
+  const [subscriptionPackages, setSubscriptionPackages] = useState<any[]>([]);
+  const [loadingPackages, setLoadingPackages] = useState(false);
+
+  // Region state
+  const [cities, setCities] = useState<Array<{ value: string; label: string }>>([]);
+  const [districts, setDistricts] = useState<Array<{ value: string; label: string }>>([]);
+  const [villages, setVillages] = useState<Array<{ value: string; label: string; postalCode?: string }>>([]);
+  const [loadingCities, setLoadingCities] = useState(false);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [loadingVillages, setLoadingVillages] = useState(false);
+
+  // Track if regions have been loaded to prevent re-fetching
+  const regionsLoadedRef = useRef<{ city?: string; district?: string }>({});
+
+  // Debounce timer for auto-save
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Trial schedule state
+  const [trialVisits, setTrialVisits] = useState<any[]>([]);
+  const [loadingVisits, setLoadingVisits] = useState(false);
+  const [selectedTrialDay, setSelectedTrialDay] = useState('');
+  const [trialStartDate, setTrialStartDate] = useState('');
+  const [trialEndDate, setTrialEndDate] = useState('');
+  const [selectedTrialMitra, setSelectedTrialMitra] = useState('');
+
+  // Mitra change modal state
+  const [showChangeMitraModal, setShowChangeMitraModal] = useState(false);
+  const [selectedVisitForChange, setSelectedVisitForChange] = useState<any>(null);
+  const [availableMitrasForChange, setAvailableMitrasForChange] = useState<any[]>([]);
+  const [loadingAvailableMitras, setLoadingAvailableMitras] = useState(false);
+  const [newMitraId, setNewMitraId] = useState('');
+  const [changeReason, setChangeReason] = useState('');
+  const [changingMitra, setChangingMitra] = useState(false);
+
+  // History viewer modal state
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [selectedVisitForHistory, setSelectedVisitForHistory] = useState<any>(null);
+  const [mitraChangeHistory, setMitraChangeHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Date editing state (maps visitId -> newDate)
+  const [editingDateVisitId, setEditingDateVisitId] = useState<string | null>(null);
+  const [editingDateValue, setEditingDateValue] = useState<string>('');
+  const [editingDateMitraId, setEditingDateMitraId] = useState<string | null>(null);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
+  const [availabilityWarningMessage, setAvailabilityWarningMessage] = useState('');
+
+  // Conversion form state
+  const [showConversionForm, setShowConversionForm] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState('');
+  const [selectedPackageId, setSelectedPackageId] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [selectedDays, setSelectedDays] = useState<{ day1?: string; day2?: string; day3?: string }>({ day1: '', day2: '', day3: '' });
+  const [startDate, setStartDate] = useState('');
+  const [selectedMitra, setSelectedMitra] = useState('');
+
+  // Fetch trial data
+  const fetchTrial = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/trials/${trialId}?_t=${Date.now()}`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          setTrial(result.data);
+        } else {
+          console.error('Failed to fetch trial');
+          router.push('/app/trial');
+        }
+      } else {
+        console.error('Trial not found');
+        router.push('/app/trial');
+      }
+    } catch (error) {
+      console.error('Error fetching trial:', error);
+      router.push('/app/trial');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Check mitra availability based on selected days and date
+  const checkMitraAvailability = async () => {
+    const selectedDaysArray = [selectedDays.day1, selectedDays.day2, selectedDays.day3].filter((day): day is string => Boolean(day));
+
+    console.log('=== Mitra Availability Check ===');
+    console.log('Start Date:', startDate);
+    console.log('Selected Days:', selectedDays);
+    console.log('Selected Days Array:', selectedDaysArray);
+    console.log('Quantity:', quantity);
+    console.log('Selected Package ID:', selectedPackageId);
+    console.log('Required Visits Per Week:', requiredVisitsPerWeek);
+
+    // Don't check if package is not selected yet
+    if (!selectedPackageId) {
+      console.log('❌ No package selected yet, skipping mitra check');
+      setMitras([]);
+      return;
+    }
+
+    // Only check if we have all required data
+    if (!startDate || selectedDaysArray.length === 0 || !quantity) {
+      console.log('❌ Missing required data, skipping mitra check');
+      setMitras([]);
+      return;
+    }
+
+    // Check if all required days are selected
+    if (selectedDaysArray.length !== requiredVisitsPerWeek) {
+      console.log(`❌ Not all days selected: ${selectedDaysArray.length}/${requiredVisitsPerWeek}`);
+      setMitras([]);
+      return;
+    }
+
+    console.log('✅ All conditions met, checking mitra availability...');
+
+    try {
+      setLoadingMitras(true);
+      console.log('Checking mitra availability for:', { startDate, selectedDaysArray, quantity, city: trial?.city, district: trial?.district });
+
+      // Calculate end date
+      const start = new Date(startDate);
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + quantity);
+
+      const response = await fetch('/api/mitras/check-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startDate: start.toISOString().split('T')[0],
+          endDate: end.toISOString().split('T')[0],
+          dayPattern: selectedDaysArray,
+          quantity: quantity,
+          city: trial?.city,
+          district: trial?.district,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Mitra availability response:', data);
+
+        if (data.success && data.data) {
+          const availableMitras = data.data.availableMitras || [];
+          console.log('Available mitras count:', availableMitras.length);
+          console.log('Available mitras details:', availableMitras);
+
+          setMitras(availableMitras.map((m: any) => ({
+            id: m.mitraId,
+            name: m.mitraName,
+            phone: m.mitraPhone || m.contact || '',
+          })));
+
+          // Also log unavailable mitras for debugging
+          if (data.data.unavailableMitras && data.data.unavailableMitras.length > 0) {
+            console.log('Unavailable mitras:', data.data.unavailableMitras);
+          }
+        } else {
+          setMitras([]);
+        }
+      } else {
+        console.error('Failed to check mitra availability:', response.status);
+        setMitras([]);
+      }
+    } catch (error) {
+      console.error('Error checking mitra availability:', error);
+      setMitras([]);
+    } finally {
+      setLoadingMitras(false);
+    }
+  };
+
+  // Fetch cities
+  const fetchCities = async () => {
+    try {
+      setLoadingCities(true);
+      console.log('Fetching cities...');
+      const response = await fetch('/api/regions/cities');
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          const cityOptions = result.data.map((city: any) => ({
+            value: city.name,
+            label: city.name
+          }));
+          console.log('Cities loaded:', cityOptions.length);
+          setCities(cityOptions);
+        } else {
+          console.error('Failed to load cities:', result.message);
+          setCities([]);
+        }
+      } else {
+        console.error('Failed to fetch cities:', response.status);
+        setCities([]);
+      }
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+      setCities([]);
+    } finally {
+      setLoadingCities(false);
+      console.log('loadingCities set to false');
+    }
+  };
+
+  // Fetch districts based on city
+  const fetchDistricts = async (city: string) => {
+    if (!city) {
+      setDistricts([]);
+      setVillages([]);
+      return;
+    }
+
+    try {
+      setLoadingDistricts(true);
+      const response = await fetch(`/api/regions/districts?city_id=${encodeURIComponent(city)}`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          setDistricts(result.data.map((district: any) => ({
+            value: district.name,
+            label: district.name
+          })));
+        } else {
+          console.error('Failed to load districts:', result.message);
+          setDistricts([]);
+        }
+      } else {
+        console.error('Failed to fetch districts:', response.status);
+        setDistricts([]);
+      }
+    } catch (error) {
+      console.error('Error fetching districts:', error);
+      setDistricts([]);
+    } finally {
+      setLoadingDistricts(false);
+    }
+  };
+
+  // Fetch villages based on city and district
+  const fetchVillages = async (city: string, district: string) => {
+    if (!city || !district) {
+      setVillages([]);
+      return;
+    }
+
+    try {
+      setLoadingVillages(true);
+      const response = await fetch(`/api/regions/villages?district_id=${encodeURIComponent(district)}`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          setVillages(result.data.map((village: any) => ({
+            value: village.name,
+            label: village.name,
+            postalCode: village.postal_code
+          })));
+        } else {
+          console.error('Failed to load villages:', result.message);
+          setVillages([]);
+        }
+      } else {
+        console.error('Failed to fetch villages:', response.status);
+        setVillages([]);
+      }
+    } catch (error) {
+      console.error('Error fetching villages:', error);
+      setVillages([]);
+    } finally {
+      setLoadingVillages(false);
+    }
+  };
+
+  // Fetch all active mitras (for trial assignment - no availability check needed)
+  const fetchAllMitras = async () => {
+    try {
+      const response = await fetch('/api/mitra?status=Active');
+      if (response.ok) {
+        const result = await response.json();
+        // API returns { items: [...], page, total, totalPages }
+        if (result.items && Array.isArray(result.items)) {
+          const mitraList = result.items.map((m: any) => ({
+            id: m.id,
+            name: m.name || m.mitraName,
+            phone: m.phone || m.contact || '',
+          }));
+          setAllMitras(mitraList);
+          console.log('All mitras loaded:', mitraList.length);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching all mitras:', error);
+    }
+  };
+
+  // Fetch trial visits
+  const fetchTrialVisits = async () => {
+    if (!trial) return;
+
+    try {
+      setLoadingVisits(true);
+      // Add timestamp to prevent caching
+      const response = await fetch(`/api/trial/${trial.id}/visits?_t=${Date.now()}`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          setTrialVisits(result.data);
+          console.log('Trial visits loaded:', result.data.length);
+          // Log mitra names for debugging
+          result.data.forEach((v: any) => {
+            console.log(`Visit #${v.visitNumber}: ${v.mitraName || 'NO NAME'} (actualMitraId: ${v.actualMitraId})`);
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching trial visits:', error);
+    } finally {
+      setLoadingVisits(false);
+    }
+  };
+
+  // Save trial schedule and create visits
+  const saveTrialSchedule = async () => {
+    if (!trial || !trialStartDate || !selectedTrialDay || !selectedTrialMitra) {
+      alert('Please fill in start date, select a day, and assign a mitra');
+      return;
+    }
+
+    try {
+      setLoadingVisits(true);
+      const response = await fetch(`/api/trial/${trial.id}/visits`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startDate: trialStartDate,
+          endDate: trialEndDate || null,
+          selectedDay: selectedTrialDay,
+          mitraId: selectedTrialMitra,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(result.message || 'Trial schedule saved successfully');
+        await fetchTrialVisits(); // Refresh visits
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to save trial schedule');
+      }
+    } catch (error) {
+      console.error('Error saving trial schedule:', error);
+      alert('Failed to save trial schedule');
+    } finally {
+      setLoadingVisits(false);
+    }
+  };
+
+  // Update visit attendance
+  const updateVisitAttendance = async (visitId: string, attended: boolean) => {
+    try {
+      const response = await fetch(`/api/trial/${trial?.id}/visits`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          visitId,
+          status: attended ? 'Done' : 'Cancelled',
+          actualDate: attended ? new Date().toISOString().split('T')[0] : null,
+        }),
+      });
+
+      if (response.ok) {
+        await fetchTrialVisits(); // Refresh visits
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to update attendance');
+      }
+    } catch (error) {
+      console.error('Error updating attendance:', error);
+      alert('Failed to update attendance');
+    }
+  };
+
+  // Handle date edit actions
+  const startEditingDate = (visit: any) => {
+    setEditingDateVisitId(visit.id);
+    setEditingDateValue(visit.scheduledDate);
+    setEditingDateMitraId(visit.actualMitraId || visit.mitraId);
+  };
+
+  const cancelEditingDate = () => {
+    setEditingDateVisitId(null);
+    setEditingDateValue('');
+    setEditingDateMitraId(null);
+    setShowAvailabilityWarning(false);
+  };
+
+  // Check mitra availability for editing visit date
+  const checkMitraAvailabilityForDate = async (mitraId: string, date: string, visitId: string) => {
+    if (!mitraId || !date || !trial) return true;
+
+    try {
+      setCheckingAvailability(true);
+
+      const dateObj = new Date(date);
+      const response = await fetch('/api/mitras/check-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dayPattern: [date],
+          startDate: date,
+          endDate: date,
+          city: trial.city,
+          district: trial.district,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+
+        if (result.success && result.data) {
+          const availableMitras = result.data.availableMitras || [];
+          const isAvailable = availableMitras.some((m: any) =>
+            m.mitraId === mitraId || m.id === mitraId
+          );
+
+          if (!isAvailable) {
+            const mitraName = trialVisits.find(v => v.id === visitId)?.mitraName || 'Assigned mitra';
+            setAvailabilityWarningMessage(
+              `⚠️ ${mitraName} is NOT available on ${dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.\n\n` +
+              `This mitra may already have 2 customers scheduled for that day (maximum capacity reached).\n\n` +
+              `Do you want to continue anyway?`
+            );
+            setShowAvailabilityWarning(true);
+            return false;
+          }
+
+          return true;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error checking availability:', error);
+      return true;
+    } finally {
+      setCheckingAvailability(false);
+    }
+  };
+
+  const saveEditedDate = async (visitId: string, forceUpdate: boolean = false) => {
+    if (!trial) return;
+
+    // Check mitra availability before saving (unless forced)
+    if (!forceUpdate && editingDateMitraId) {
+      const isAvailable = await checkMitraAvailabilityForDate(editingDateMitraId, editingDateValue, visitId);
+      if (!isAvailable) {
+        return;
+      }
+    }
+
+    try {
+      const response = await fetch(`/api/trial/${trial.id}/visits`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          visitId,
+          scheduledDate: editingDateValue,
+        }),
+      });
+
+      if (response.ok) {
+        setEditingDateVisitId(null);
+        setEditingDateValue('');
+        setEditingDateMitraId(null);
+        setShowAvailabilityWarning(false);
+        await fetchTrialVisits();
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to update date');
+      }
+    } catch (error) {
+      console.error('Error updating date:', error);
+      alert('Failed to update date');
+    }
+  };
+
+  // Open change mitra modal
+  const openChangeMitraModal = async (visit: any) => {
+    setSelectedVisitForChange(visit);
+    setNewMitraId('');
+    setChangeReason('');
+    setShowChangeMitraModal(true);
+
+    // Fetch available mitras for this visit
+    try {
+      setLoadingAvailableMitras(true);
+      const response = await fetch(`/api/trial/${trial?.id}/visits/${visit.id}/available-mitras`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          setAvailableMitrasForChange(result.data.availableMitras || []);
+          console.log('Available mitras for change:', result.data.availableMitras.length);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching available mitras:', error);
+    } finally {
+      setLoadingAvailableMitras(false);
+    }
+  };
+
+  // Handle mitra change submission
+  const handleChangeMitra = async () => {
+    if (!selectedVisitForChange || !newMitraId || !changeReason.trim()) {
+      alert('Please select a mitra and provide a reason for the change');
+      return;
+    }
+
+    try {
+      setChangingMitra(true);
+      const response = await fetch(
+        `/api/trial/${trial?.id}/visits/${selectedVisitForChange.id}/change-mitra`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            newMitraId,
+            reason: changeReason,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Mitra change response:', result);
+
+        // Clear modal state
+        setShowChangeMitraModal(false);
+        setNewMitraId('');
+        setChangeReason('');
+        setSelectedVisitForChange(null);
+
+        // Refresh both trial data and visits to get updated mitra name
+        await Promise.all([
+          fetchTrial(),
+          fetchTrialVisits()
+        ]);
+
+        alert(result.message || 'Mitra changed successfully.');
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to change mitra');
+      }
+    } catch (error) {
+      console.error('Error changing mitra:', error);
+      alert('Failed to change mitra');
+    } finally {
+      setChangingMitra(false);
+    }
+  };
+
+  // Open history modal
+  const openHistoryModal = async (visit: any) => {
+    setSelectedVisitForHistory(visit);
+    setShowHistoryModal(true);
+
+    try {
+      setLoadingHistory(true);
+      const response = await fetch(`/api/trial/${trial?.id}/visits/${visit.id}/change-mitra`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          setMitraChangeHistory(result.data);
+          console.log('Mitra change history:', result.data.length, 'records');
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // Fetch subscription packages
+  const fetchSubscriptionPackages = async () => {
+    try {
+      setLoadingPackages(true);
+      const response = await fetch('/api/subscription-packages?_t=' + Date.now());
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Subscription packages response:', result);
+        if (result.success && result.data) {
+          // API already returns unique packages
+          setSubscriptionPackages(result.data);
+          console.log('Set subscription packages:', result.data.length, 'packages');
+        } else {
+          console.error('No subscription packages data:', result);
+          setSubscriptionPackages([]);
+        }
+      } else {
+        console.error('Failed to fetch subscription packages:', response.status);
+        setSubscriptionPackages([]);
+      }
+    } catch (error) {
+      console.error('Error fetching subscription packages:', error);
+      setSubscriptionPackages([]);
+    } finally {
+      setLoadingPackages(false);
+    }
+  };
+
+  // Handle update trial (immediate - for dropdowns, dates, etc)
+  const handleUpdateTrial = async (updateData: UpdateTrialData) => {
+    setUpdateLoading(updateData.id);
+    try {
+      const response = await fetch('/api/trial', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (!result.success) {
+          alert(result.message || 'Failed to update trial');
+        }
+        // DON'T refresh trial data - it causes unnecessary re-render/reload
+        // await fetchTrial(); // ← REMOVED THIS LINE
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to update trial');
+      }
+    } catch (error) {
+      console.error('Error updating trial:', error);
+      alert('Network error: Failed to update trial');
+    } finally {
+      setUpdateLoading(null);
+    }
+  };
+
+  // Debounced update for text inputs (wait 800ms after user stops typing)
+  const handleDebouncedUpdate = (updateData: UpdateTrialData) => {
+    // Clear existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Set new timer
+    debounceTimerRef.current = setTimeout(() => {
+      console.log('Auto-saving:', updateData);
+      handleUpdateTrial(updateData);
+    }, 800); // 800ms delay
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Convert to customer - full conversion with all form data
+  const convertToCustomer = async (trialId: string, conversionData: {
+    subscription_package: string;
+    chosen_days: string[];
+    total_sessions: number;
+    qty_package: number;
+    start_date: string;
+    assigned_mitra?: string;
+  }) => {
+    if (!confirm('Are you sure you want to convert this trial to a customer?')) return;
+
+    try {
+      const response = await fetch('/api/trial', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: trialId,
+          subscription_status: 'Active',
+          convert_to_customer: true,
+          subscription_package: conversionData.subscription_package,
+          chosen_days: conversionData.chosen_days,
+          total_sessions: conversionData.total_sessions,
+          qty_package: conversionData.qty_package,
+          start_date: conversionData.start_date,
+          assigned_mitra: conversionData.assigned_mitra,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          alert('Trial successfully converted to customer! Redirecting to customer page...');
+          // Redirect to customer page instead of refreshing trial data
+          router.push(`/app/customers/${trialId}`);
+        } else {
+          alert(result.message || 'Failed to convert trial');
+        }
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to convert trial');
+      }
+    } catch (error) {
+      console.error('Error converting trial:', error);
+      alert('Network error: Failed to convert trial');
+    }
+  };
+
+  useEffect(() => {
+    const loadInitialData = async () => {
+      await fetchTrial();
+      await fetchSubscriptionPackages();
+      await fetchCities(); // Load cities for edit mode
+      await fetchAllMitras(); // Load all mitras for trial assignment
+    };
+    loadInitialData();
+  }, [trialId]);
+
+  // Load trial visits when trial data is loaded (both view and edit mode)
+  useEffect(() => {
+    if (trial) {
+      fetchTrialVisits();
+    }
+  }, [trial]);
+
+  // Initialize trial schedule fields when entering edit mode
+  useEffect(() => {
+    if (trial && editMode === trial.id) {
+      // Initialize trial schedule fields from existing data
+      // Use subscriptionStartDate (the actual subscription start) instead of nextTrialStartDate
+      if ((trial as any).subscriptionStartDate) {
+        const parts = (trial as any).subscriptionStartDate.split('/');
+        if (parts.length === 3) {
+          setTrialStartDate(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
+        }
+      }
+      if ((trial as any).subscriptionEndDate) {
+        const parts = (trial as any).subscriptionEndDate.split('/');
+        if (parts.length === 3) {
+          setTrialEndDate(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
+        }
+      }
+      if (trial.assignedMitraId) {
+        setSelectedTrialMitra(trial.assignedMitraId);
+      }
+    }
+  }, [trial, editMode]);
+
+  // Load districts and villages when trial data is first loaded (only once per city/district)
+  useEffect(() => {
+    const loadRegionsForTrial = async () => {
+      if (!trial || !trial.city) return;
+
+      // Check if we already loaded districts for this city
+      if (regionsLoadedRef.current.city !== trial.city) {
+        console.log('Loading districts for city:', trial.city);
+        await fetchDistricts(trial.city);
+        regionsLoadedRef.current.city = trial.city;
+      }
+
+      // Check if we already loaded villages for this city+district
+      if (trial.district && regionsLoadedRef.current.district !== trial.district) {
+        console.log('Loading villages for district:', trial.district);
+        await fetchVillages(trial.city, trial.district);
+        regionsLoadedRef.current.district = trial.district;
+      }
+    };
+
+    loadRegionsForTrial();
+  }, [trial?.city, trial?.district]); // Only re-run if city or district changes
+
+  // Check mitra availability when package, days, start date, or quantity changes
+  useEffect(() => {
+    if (showConversionForm) {
+      checkMitraAvailability();
+    }
+  }, [selectedPackageId, selectedDays, startDate, quantity, showConversionForm]);
+
+  // Reset conversion form when opened/closed
+  useEffect(() => {
+    if (showConversionForm) {
+      // Reset form state when opening conversion form
+      setSelectedPackage('');
+      setSelectedPackageId('');
+      setQuantity(1);
+      setSelectedDays({ day1: '', day2: '', day3: '' });
+      setStartDate('');
+      setSelectedMitra(trial?.assignedMitraId || '');
+      setMitras([]); // Clear mitras
+      // Refresh subscription packages
+      fetchSubscriptionPackages();
+    }
+  }, [showConversionForm]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading trial details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!trial) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-600">Trial not found</p>
+          <button
+            onClick={() => router.push('/app/trial')}
+            className="mt-4 btn-primary"
+          >
+            Back to Trials
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const isEditMode = editMode === trial.id;
+
+  // Handle day selection change (dropdown)
+  const handleDayChange = (dayKey: 'day1' | 'day2' | 'day3', value: string) => {
+    setSelectedDays(prev => ({
+      ...prev,
+      [dayKey]: value
+    }));
+  };
+
+  const handleSaveChanges = () => {
+    setEditMode(null);
+    setShowConversionForm(false);
+  };
+
+  const handleConvert = async () => {
+    // Validate required fields
+    const selectedDaysArray = [selectedDays.day1, selectedDays.day2, selectedDays.day3].filter((day): day is string => Boolean(day));
+    const selectedPackageObj = subscriptionPackages.find(pkg => pkg.id === selectedPackageId);
+    const requiredDays = selectedPackageObj?.visitsPerWeek || 0;
+
+    if (!selectedPackage || !startDate) {
+      alert('Please fill in all required fields for conversion (Package, Start Date)');
+      return;
+    }
+
+    if (selectedDaysArray.length !== requiredDays) {
+      alert(`Please select exactly ${requiredDays} service days for this package`);
+      return;
+    }
+
+    // Calculate total sessions
+    const weeksInMonth = 4;
+    const totalSessions = selectedDaysArray.length * weeksInMonth * quantity;
+
+    // Prepare conversion data
+    const conversionData = {
+      subscription_package: selectedPackage,
+      chosen_days: selectedDaysArray, // Properly typed string[]
+      total_sessions: totalSessions,
+      qty_package: quantity,
+      start_date: startDate,
+      assigned_mitra: selectedMitra || trial.assignedMitraId || undefined,
+    };
+
+    await convertToCustomer(trial.id, conversionData);
+  };
+
+  // Calculate visit preview
+  const calculateVisitPreview = () => {
+    const selectedDaysArray = [selectedDays.day1, selectedDays.day2, selectedDays.day3].filter((day): day is string => Boolean(day));
+
+    if (!selectedPackage || selectedDaysArray.length === 0) {
+      return { totalSessions: 0, schedule: '', duration: '' };
+    }
+
+    const weeksInMonth = 4;
+    const totalSessions = selectedDaysArray.length * weeksInMonth * quantity;
+    const schedule = `${selectedDaysArray.join(', ')} (${selectedDaysArray.length}x/week)`;
+    const duration = `${quantity} month${quantity > 1 ? 's' : ''}`;
+
+    return { totalSessions, schedule, duration };
+  };
+
+  const visitPreview = calculateVisitPreview();
+
+  // Day options for dropdown
+  const dayOptions = [
+    { value: 'Monday', label: 'Monday' },
+    { value: 'Tuesday', label: 'Tuesday' },
+    { value: 'Wednesday', label: 'Wednesday' },
+    { value: 'Thursday', label: 'Thursday' },
+    { value: 'Friday', label: 'Friday' },
+    { value: 'Saturday', label: 'Saturday' },
+    { value: 'Sunday', label: 'Sunday' },
+  ];
+
+  // Get selected package details
+  const selectedPackageObj = subscriptionPackages.find(pkg => pkg.id === selectedPackageId);
+  const requiredVisitsPerWeek = selectedPackageObj?.visitsPerWeek || 0;
+  const selectedDaysCount = [selectedDays.day1, selectedDays.day2, selectedDays.day3].filter((day): day is string => Boolean(day)).length;
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header */}
+      <div className="mb-6">
+        <button
+          onClick={() => router.push('/app/trial')}
+          className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4"
+        >
+          <Icons.chevronLeft className="w-4 h-4 mr-1" />
+          Back to Trials
+        </button>
+        <h1 className="text-2xl font-semibold text-gray-900">Trial Details</h1>
+        <p className="mt-2 text-sm text-gray-700">
+          View and manage trial information for {trial.customerName}
+        </p>
+      </div>
+
+      {/* Main Content Card */}
+      <div className="bg-white shadow rounded-lg">
+        <div className="space-y-6 p-6">
+          {/* Header with Edit and Convert Buttons */}
+          <div className="flex items-center justify-between border-b border-gray-300 pb-4">
+            <h3 className="text-lg font-medium text-gray-900">
+              {showConversionForm
+                ? 'Convert Trial to Customer'
+                : (isEditMode ? 'Edit Trial Details' : trial.customerName)}
+            </h3>
+            <div className="flex items-center space-x-3">
+              {showConversionForm ? (
+                <>
+                  <button
+                    onClick={handleConvert}
+                    disabled={updateLoading === trial.id}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                  >
+                    <Icons.check className="w-4 h-4 mr-2" />
+                    Confirm Conversion
+                  </button>
+                  <button
+                    onClick={() => setShowConversionForm(false)}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : isEditMode ? (
+                <>
+                  <button
+                    onClick={handleSaveChanges}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Icons.check className="w-4 h-4 mr-2" />
+                    Save Changes
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditMode(null);
+                      setShowConversionForm(false);
+                    }}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setEditMode(trial.id)}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    <Icons.edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </button>
+                  {trial.overallStatus !== 'Converted' && (
+                    <button
+                      onClick={() => {
+                        setShowConversionForm(true);
+                      }}
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                    >
+                      <Icons.check className="w-4 h-4 mr-2" />
+                      Convert to Customer
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Content - Copy from TrialDetailView component */}
+          {showConversionForm ? (
+            /* Conversion Form - Same as TrialDetailView */
+              <div className="space-y-6">
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <Icons.check className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-blue-700">
+                        Converting <strong>{trial.customerName}</strong> from trial to active customer
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Subscription Package *
+                    </label>
+                    <select
+                      value={selectedPackageId}
+                      onChange={(e) => {
+                        const pkgId = e.target.value;
+                        const pkg = subscriptionPackages.find(p => p.id === pkgId);
+                        setSelectedPackageId(pkgId);
+                        setSelectedPackage(pkg?.subscriptionPackage || '');
+                        // Reset days when package changes
+                        setSelectedDays({ day1: '', day2: '', day3: '' });
+                      }}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                      disabled={loadingPackages}
+                    >
+                      <option value="">
+                        {loadingPackages ? 'Loading packages...' : 'Select Package'}
+                      </option>
+                      {subscriptionPackages && subscriptionPackages.length > 0 ? (
+                        subscriptionPackages.map((pkg) => (
+                          <option key={pkg.id} value={pkg.id}>
+                            {pkg.subscriptionPackage} - Rp {parseInt(pkg.priceNumeric || 0).toLocaleString('id-ID')}
+                          </option>
+                        ))
+                      ) : (
+                        !loadingPackages && <option disabled>No packages available</option>
+                      )}
+                    </select>
+                    {loadingPackages && (
+                      <div className="text-xs text-blue-500 mt-1">Loading subscription packages...</div>
+                    )}
+                    {!loadingPackages && subscriptionPackages.length === 0 && (
+                      <div className="text-xs text-red-500 mt-1">No subscription packages found</div>
+                    )}
+                    {!loadingPackages && subscriptionPackages.length > 0 && (
+                      <div className="text-xs text-green-500 mt-1">{subscriptionPackages.length} packages available</div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Duration (Months) *
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={quantity}
+                      onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                      disabled={!selectedPackageId}
+                    />
+                    {!selectedPackageId && (
+                      <p className="text-xs text-gray-500 mt-1">Please select a package first</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Start Date *
+                    </label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                      disabled={!selectedPackageId}
+                    />
+                    {!selectedPackageId && (
+                      <p className="text-xs text-gray-500 mt-1">Please select a package first</p>
+                    )}
+                  </div>
+
+                  {/* Service Days Selection - Only show if package is selected */}
+                  {selectedPackageId && requiredVisitsPerWeek > 0 && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Select Service Days ({selectedDaysCount}/{requiredVisitsPerWeek} selected) *
+                      </label>
+                      <div className="grid grid-cols-3 gap-4">
+                        {[1, 2, 3].slice(0, requiredVisitsPerWeek).map((dayNum) => {
+                          const dayKey = `day${dayNum}` as 'day1' | 'day2' | 'day3';
+                          const currentValue = selectedDays[dayKey] || '';
+                          const isDisabled = dayNum > requiredVisitsPerWeek;
+
+                          return (
+                            <div key={dayKey}>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Day {dayNum} {dayNum <= requiredVisitsPerWeek ? '*' : ''}
+                              </label>
+                              <select
+                                value={currentValue}
+                                onChange={(e) => handleDayChange(dayKey, e.target.value)}
+                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                                required={dayNum <= requiredVisitsPerWeek}
+                                disabled={isDisabled}
+                              >
+                                <option value="">Select day...</option>
+                                {dayOptions
+                                  .filter(day =>
+                                    day.value === currentValue ||
+                                    !Object.values(selectedDays).includes(day.value)
+                                  )
+                                  .map((day) => (
+                                    <option key={day.value} value={day.value}>
+                                      {day.label}
+                                    </option>
+                                  ))}
+                              </select>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {selectedDaysCount !== requiredVisitsPerWeek && (
+                        <p className="text-xs text-red-500 mt-1">
+                          Please select exactly {requiredVisitsPerWeek} days for this package
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Status message - show when days/date selected but mitra not checked yet */}
+                  {selectedPackageId && requiredVisitsPerWeek > 0 && (
+                    <div className="md:col-span-2">
+                      {selectedDaysCount < requiredVisitsPerWeek && startDate && (
+                        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
+                          <p className="text-sm text-yellow-700">
+                            ⚠️ Please select all {requiredVisitsPerWeek} service days to check mitra availability.
+                            Currently selected: {selectedDaysCount}/{requiredVisitsPerWeek}
+                          </p>
+                        </div>
+                      )}
+
+                      {selectedDaysCount === requiredVisitsPerWeek && !startDate && (
+                        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
+                          <p className="text-sm text-yellow-700">
+                            ⚠️ Please select start date to check mitra availability
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Mitra selection - Only show after days are selected */}
+                  {selectedPackageId && selectedDaysCount === requiredVisitsPerWeek && startDate && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Assigned Mitra (Optional)
+                      </label>
+                      <select
+                        value={selectedMitra || trial.assignedMitraId || ''}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                        disabled={loadingMitras || mitras.length === 0}
+                        onChange={(e) => setSelectedMitra(e.target.value)}
+                      >
+                        <option value="">
+                          {loadingMitras ? 'Checking availability...' : mitras.length === 0 ? 'No mitras available' : 'Select Mitra (Optional)'}
+                        </option>
+                        {mitras.map((mitra) => (
+                          <option key={mitra.id} value={mitra.id}>
+                            {mitra.name}
+                          </option>
+                        ))}
+                      </select>
+                      {loadingMitras && (
+                        <div className="text-xs text-blue-500 mt-1">
+                          <Icons.spinner className="inline w-3 h-3 mr-1 animate-spin" />
+                          Checking mitra availability for selected days and dates...
+                        </div>
+                      )}
+                      {!loadingMitras && mitras.length === 0 && (
+                        <div className="text-xs text-red-500 mt-1">
+                          No mitra available for all scheduled visits. You can assign a mitra later.
+                        </div>
+                      )}
+                      {!loadingMitras && mitras.length > 0 && (
+                        <div className="text-xs text-green-500 mt-1">
+                          ✅ {mitras.length} mitra(s) available for all scheduled visits
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedPackage && selectedDaysCount > 0 && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        📅 Visit Preview
+                      </label>
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-indigo-500 rounded-md p-4">
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <p className="text-gray-600 font-medium">Total Sessions</p>
+                            <p className="text-2xl font-bold text-indigo-600">{visitPreview.totalSessions} visits</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600 font-medium">Schedule</p>
+                            <p className="text-sm text-gray-900">{visitPreview.schedule}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600 font-medium">Duration</p>
+                            <p className="text-sm text-gray-900">{visitPreview.duration}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              isEditMode ? (
+              /* Edit Form */
+              <div className="space-y-6">
+                {/* Customer Information */}
+                <div>
+                  <h4 className="text-md font-medium text-gray-900 mb-4">Customer Information</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Customer Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={trial.customerName || ''}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        onChange={(e) => {
+                          setTrial(prev => prev ? { ...prev, customerName: e.target.value } : null);
+                          handleDebouncedUpdate({ id: trial.id, customer_name: e.target.value });
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Contact *
+                      </label>
+                      <input
+                        type="text"
+                        value={trial.contact || ''}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        onChange={(e) => {
+                          setTrial(prev => prev ? { ...prev, contact: e.target.value } : null);
+                          handleDebouncedUpdate({ id: trial.id, contact: e.target.value });
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Acquisition Channel *
+                      </label>
+                      <select
+                        value={trial.acquisition}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        onChange={(e) => {
+                          setTrial(prev => prev ? { ...prev, acquisition: e.target.value as any } : null);
+                          handleUpdateTrial({ id: trial.id, acquisition: e.target.value as any });
+                        }}
+                      >
+                        <option value="HOMA">HOMA</option>
+                        <option value="Altrix">Altrix</option>
+                      </select>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Address *
+                      </label>
+                      <textarea
+                        value={trial.address || ''}
+                        rows={2}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        onChange={(e) => {
+                          setTrial(prev => prev ? { ...prev, address: e.target.value } : null);
+                          handleDebouncedUpdate({ id: trial.id, address: e.target.value });
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        City *
+                      </label>
+                      <select
+                        value={trial.city || ''}
+                        onChange={(e) => {
+                          const newCity = e.target.value;
+                          setTrial(prev => prev ? { ...prev, city: newCity, district: '', village: '', postalCode: '' } : null);
+                          setDistricts([]);
+                          setVillages([]);
+                          // Reset ref to allow fetching for new city
+                          regionsLoadedRef.current = {};
+                          handleUpdateTrial({ id: trial.id, city: newCity, district: '', village: '', postal_code: '' });
+                          if (newCity) {
+                            fetchDistricts(newCity);
+                            regionsLoadedRef.current.city = newCity;
+                          }
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        disabled={loadingCities}
+                      >
+                        <option value="">Select City...</option>
+                        {cities.map((city) => (
+                          <option key={city.value} value={city.value}>
+                            {city.label}
+                          </option>
+                        ))}
+                      </select>
+                      {loadingCities && <p className="text-xs text-gray-500 mt-1">Loading cities...</p>}
+                      {!loadingCities && cities.length > 0 && <p className="text-xs text-gray-500 mt-1">{cities.length} cities available</p>}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        District *
+                      </label>
+                      <select
+                        value={trial.district || ''}
+                        onChange={(e) => {
+                          const newDistrict = e.target.value;
+                          setTrial(prev => prev ? { ...prev, district: newDistrict, village: '', postalCode: '' } : null);
+                          setVillages([]);
+                          handleUpdateTrial({ id: trial.id, district: newDistrict, village: '', postal_code: '' });
+                          if (trial.city && newDistrict) {
+                            fetchVillages(trial.city, newDistrict);
+                            regionsLoadedRef.current.district = newDistrict;
+                          }
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        disabled={loadingDistricts || !trial.city}
+                      >
+                        <option value="">Select District...</option>
+                        {districts.map((district) => (
+                          <option key={district.value} value={district.value}>
+                            {district.label}
+                          </option>
+                        ))}
+                      </select>
+                      {!trial.city && <p className="text-xs text-gray-500 mt-1">Please select city first</p>}
+                      {loadingDistricts && <p className="text-xs text-gray-500 mt-1">Loading districts...</p>}
+                      {!loadingDistricts && districts.length > 0 && <p className="text-xs text-gray-500 mt-1">{districts.length} districts available</p>}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Village *
+                      </label>
+                      <select
+                        value={trial.village || ''}
+                        onChange={(e) => {
+                          const selectedVillage = villages.find(v => v.value === e.target.value);
+                          const newPostalCode = selectedVillage?.postalCode || '';
+                          setTrial(prev => prev ? { ...prev, village: e.target.value, postalCode: newPostalCode } : null);
+                          handleUpdateTrial({
+                            id: trial.id,
+                            village: e.target.value,
+                            postal_code: newPostalCode
+                          });
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        disabled={loadingVillages || !trial.district}
+                      >
+                        <option value="">Select Village...</option>
+                        {villages.map((village) => (
+                          <option key={village.value} value={village.value}>
+                            {village.label}
+                          </option>
+                        ))}
+                      </select>
+                      {!trial.district && <p className="text-xs text-gray-500 mt-1">Please select district first</p>}
+                      {loadingVillages && <p className="text-xs text-gray-500 mt-1">Loading villages...</p>}
+                      {!loadingVillages && villages.length > 0 && <p className="text-xs text-gray-500 mt-1">{villages.length} villages available</p>}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Postal Code
+                      </label>
+                      <input
+                        type="text"
+                        value={trial.postalCode || ''}
+                        readOnly
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Auto-filled from village selection</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Residential Type *
+                      </label>
+                      <select
+                        value={trial.residentialType}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        onChange={(e) => {
+                          setTrial(prev => prev ? { ...prev, residentialType: e.target.value as any } : null);
+                          handleUpdateTrial({ id: trial.id, residential_type: e.target.value });
+                        }}
+                      >
+                        <option value="House">House</option>
+                        <option value="Apartment">Apartment</option>
+                        <option value="Office Space">Office Space</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Subscription Information - Read Only */}
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <h4 className="text-md font-medium text-gray-900 mb-4">Subscription Information</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600">Subscription Package</label>
+                      <div className="mt-1 text-sm text-gray-900">
+                        {trial.subscriptionPackage || '-'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600">Subscription Start Date</label>
+                      <div className="mt-1 text-sm text-gray-900">
+                        {(trial as any).subscriptionStartDate || '-'}
+                      </div>
+                    </div>
+
+                    {(trial as any).subscriptionEndDate && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600">Subscription End Date</label>
+                        <div className="mt-1 text-sm text-gray-900">
+                          {(trial as any).subscriptionEndDate}
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600">Status Customer</label>
+                      <div className="mt-1">
+                        {trial.overallStatus ? (
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColors[trial.overallStatus]}`}>
+                            {trial.overallStatus}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-500">-</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Trial Schedule */}
+                <div>
+                  <h4 className="text-md font-medium text-gray-900 mb-4">Trial Schedule</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Start Date *
+                      </label>
+                      <input
+                        type="date"
+                        value={trialStartDate}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        onChange={(e) => setTrialStartDate(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        End Date (Optional)
+                      </label>
+                      <input
+                        type="date"
+                        value={trialEndDate}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        onChange={(e) => setTrialEndDate(e.target.value)}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Leave empty for 30 days default</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Trial Day (1x per week) *
+                      </label>
+                      <select
+                        value={selectedTrialDay}
+                        onChange={(e) => setSelectedTrialDay(e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      >
+                        <option value="">Select day...</option>
+                        {dayOptions.map((day) => (
+                          <option key={day.value} value={day.value}>
+                            {day.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="md:col-span-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Assigned Mitra *
+                      </label>
+                      <select
+                        value={selectedTrialMitra}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        onChange={(e) => setSelectedTrialMitra(e.target.value)}
+                      >
+                        <option value="">Select Mitra...</option>
+                        {allMitras.map((mitra) => (
+                          <option key={mitra.id} value={mitra.id}>
+                            {mitra.name} - {mitra.phone || 'No phone'}
+                          </option>
+                        ))}
+                      </select>
+                      {allMitras.length === 0 && (
+                        <div className="text-xs text-red-500 mt-1">No mitra available. Please add mitras first.</div>
+                      )}
+                      {allMitras.length > 0 && (
+                        <div className="text-xs text-gray-500 mt-1">{allMitras.length} mitras available</div>
+                      )}
+                    </div>
+
+                    <div className="md:col-span-3">
+                      <button
+                        onClick={saveTrialSchedule}
+                        disabled={loadingVisits || !trialStartDate || !selectedTrialDay || !selectedTrialMitra}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {loadingVisits ? (
+                          <>
+                            <Icons.spinner className="w-4 h-4 mr-2 animate-spin" />
+                            Generating Schedule...
+                          </>
+                        ) : (
+                          <>
+                            <Icons.check className="w-4 h-4 mr-2" />
+                            Generate Visit Schedule
+                          </>
+                        )}
+                      </button>
+                      <p className="text-xs text-gray-500 mt-2">
+                        This will create visit records for every {selectedTrialDay || '[selected day]'} between the start and end dates.
+                        {trialVisits.length > 0 && ` Current schedule has ${trialVisits.length} visit(s).`}
+                      </p>
+                    </div>
+
+                    <div className="md:col-span-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Status
+                      </label>
+                      <select
+                        defaultValue={trial.overallStatus || 'Not Converted'}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        onChange={(e) => {
+                          handleUpdateTrial({
+                            id: trial.id,
+                            subscription_status: e.target.value as TrialStatus
+                          });
+                        }}
+                      >
+                        <option value="Not Converted">Not Converted</option>
+                        <option value="Stalling/Postpone">Stalling/Postpone</option>
+                        <option value="Cancelled">Cancelled</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Attendance Tracking */}
+                {trialVisits.length > 0 && (
+                  <div>
+                    <h4 className="text-md font-medium text-gray-900 mb-4">Attendance Record</h4>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="space-y-3">
+                        {trialVisits.map((visit, index) => {
+                          const mitraChanged = visit.originalMitraId && visit.actualMitraId && visit.originalMitraId !== visit.actualMitraId;
+                          const isLocked = visit.status === 'Done';
+                          const isEditingThisDate = editingDateVisitId === visit.id;
+
+                          return (
+                            <div key={visit.id} className="bg-white p-4 rounded border border-gray-200">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center space-x-3 mb-2">
+                                    <span className="text-sm font-medium text-gray-900">
+                                      Visit #{visit.visitNumber}
+                                    </span>
+                                    {!isLocked && isEditingThisDate ? (
+                                      <div className="flex items-center space-x-2">
+                                        <input
+                                          type="date"
+                                          value={editingDateValue}
+                                          onChange={(e) => setEditingDateValue(e.target.value)}
+                                          className="text-sm border border-gray-300 rounded px-2 py-1"
+                                        />
+                                        <button
+                                          onClick={() => saveEditedDate(visit.id)}
+                                          className="text-xs text-green-600 hover:text-green-800"
+                                        >
+                                          ✓ Save
+                                        </button>
+                                        <button
+                                          onClick={cancelEditingDate}
+                                          className="text-xs text-red-600 hover:text-red-800"
+                                        >
+                                          ✗ Cancel
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <span className="text-sm text-gray-600">
+                                          {visit.scheduledDate} ({visit.scheduledDay})
+                                        </span>
+                                        {!isLocked && (
+                                          <button
+                                            onClick={() => startEditingDate(visit)}
+                                            className="text-xs text-indigo-600 hover:text-indigo-800"
+                                          >
+                                            ✏️ Edit
+                                          </button>
+                                        )}
+                                      </>
+                                    )}
+                                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                      visit.status === 'Done'
+                                        ? 'bg-green-100 text-green-800'
+                                        : visit.status === 'Cancelled'
+                                        ? 'bg-red-100 text-red-800'
+                                        : 'bg-yellow-100 text-yellow-800'
+                                    }`}>
+                                      {visit.status}
+                                    </span>
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <div className="flex items-center space-x-2 text-sm">
+                                      <span className="text-gray-600">👤 Mitra:</span>
+                                      <span className="font-medium text-gray-900">
+                                        {visit.mitraName || 'Not assigned'}
+                                      </span>
+                                      {mitraChanged && (
+                                        <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                                          Changed
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {visit.actualDate && (
+                                      <div className="text-xs text-gray-500 space-y-0.5">
+                                        <div>✓ Completed on: {visit.actualDate}</div>
+                                        {visit.updatedBy && (
+                                          <div className="text-gray-400">
+                                            Updated by: {visit.updatedBy}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-col items-end space-y-2 ml-4">
+                                  {!isLocked && (
+                                    <div className="flex items-center space-x-2">
+                                      <button
+                                        onClick={() => openChangeMitraModal(visit)}
+                                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                                      >
+                                        Change Mitra
+                                      </button>
+                                      {mitraChanged && (
+                                        <button
+                                          onClick={() => openHistoryModal(visit)}
+                                          className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                        >
+                                          View History
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  <label className="flex items-center space-x-2 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={visit.status === 'Done'}
+                                      onChange={(e) => updateVisitAttendance(visit.id, e.target.checked)}
+                                      disabled={isLocked}
+                                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-50"
+                                    />
+                                    <span className="text-sm text-gray-700">Attended</span>
+                                  </label>
+
+                                  {isLocked && mitraChanged && (
+                                    <button
+                                      onClick={() => openHistoryModal(visit)}
+                                      className="text-xs text-gray-600 hover:text-gray-800"
+                                    >
+                                      📋 View Change History
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {trialVisits.length === 0 && (
+                        <div className="text-center text-gray-500 py-4">
+                          No visits scheduled yet. Generate a visit schedule above.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {updateLoading === trial.id && (
+                  <div className="flex items-center justify-center text-sm text-gray-600 py-2">
+                    <Icons.spinner className="w-4 h-4 mr-2 animate-spin" />
+                    Updating...
+                  </div>
+                )}
+              </div>
+            ) : (
+            /* View Mode - Read Only */
+            <>
+            {/* Basic Information */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                Basic Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Customer Name</label>
+                  <div className="mt-1 text-sm text-gray-900">{trial.customerName}</div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Acquisition</label>
+                  <div className="mt-1">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${acquisitionColors[trial.acquisition]}`}>
+                      {trial.acquisition}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Contact</label>
+                  <div className="mt-1 text-sm text-gray-900">{trial.contact || '-'}</div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Residential Type</label>
+                  <div className="mt-1">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${residentialColors[trial.residentialType]}`}>
+                      {trial.residentialType}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Location Information */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                Location Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700">Address</label>
+                  <div className="mt-1 text-sm text-gray-900">{trial.address || '-'}</div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Village</label>
+                  <div className="mt-1 text-sm text-gray-900">{trial.village || '-'}</div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">District</label>
+                  <div className="mt-1 text-sm text-gray-900">{trial.district || '-'}</div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">City</label>
+                  <div className="mt-1 text-sm text-gray-900">{trial.city || '-'}</div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Postal Code</label>
+                  <div className="mt-1 text-sm text-gray-900">{trial.postalCode || '-'}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Subscription Information */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                Subscription Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {trial.ltv !== undefined && trial.ltv > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">LTV (months)</label>
+                    <div className="mt-1 text-sm font-medium text-blue-600">{trial.ltv} months</div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Status Customer</label>
+                  <div className="mt-1">
+                    {trial.overallStatus ? (
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColors[trial.overallStatus]}`}>
+                        {trial.overallStatus}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-gray-500">-</span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Subscription Package</label>
+                  <div className="mt-1 text-sm text-gray-900">
+                    {trial.subscriptionPackage || '-'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Subscription Start Date</label>
+                  <div className="mt-1 text-sm text-gray-900">
+                    {(trial as any).subscriptionStartDate || '-'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Monthly Fee</label>
+                  <div className="mt-1 text-sm text-gray-900">
+                    Rp {(trial as any).monthlyFee?.toLocaleString('id-ID') || '0'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Mitra Information */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                Mitra Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Default Assigned Mitra</label>
+                  <div className="mt-1 text-sm text-gray-900">
+                    {trial.assignedCleaner || 'No mitra assigned'}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Initial mitra for visit schedule. Can be changed per visit.</p>
+                </div>
+              </div>
+
+              {/* Attendance Record - View Mode (Read Only) */}
+              {trialVisits.length > 0 && (
+                <div className="pt-6 border-t border-gray-200">
+                  <h4 className="text-md font-medium text-gray-900 mb-4">Attendance Record</h4>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="space-y-3">
+                  {trialVisits.map((visit) => {
+                    const mitraChanged = visit.originalMitraId && visit.actualMitraId && visit.originalMitraId !== visit.actualMitraId;
+
+                    return (
+                      <div key={visit.id} className="bg-white p-4 rounded border border-gray-200">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <span className="text-sm font-medium text-gray-900">
+                                Visit #{visit.visitNumber}
+                              </span>
+                              <span className="text-sm text-gray-600">
+                                {visit.scheduledDate} ({visit.scheduledDay})
+                              </span>
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                visit.status === 'Done'
+                                  ? 'bg-green-100 text-green-800'
+                                  : visit.status === 'Cancelled'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {visit.status}
+                              </span>
+                            </div>
+
+                            <div className="space-y-1">
+                              <div className="flex items-center space-x-2 text-sm">
+                                <span className="text-gray-600">👤 Mitra:</span>
+                                <span className="font-medium text-gray-900">
+                                  {visit.mitraName || 'Not assigned'}
+                                </span>
+                                {mitraChanged && (
+                                  <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                                    Changed
+                                  </span>
+                                )}
+                              </div>
+
+                              {visit.actualDate && (
+                                <div className="text-xs text-gray-500 space-y-0.5">
+                                  <div>✓ Completed on: {visit.actualDate}</div>
+                                  {visit.updatedBy && (
+                                    <div className="text-gray-400">
+                                      Updated by: {visit.updatedBy}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {visit.visitNotes && (
+                                <div className="text-xs text-gray-600 mt-2">
+                                  <span className="font-medium">Notes:</span> {visit.visitNotes}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col items-end space-y-2 ml-4">
+                            {mitraChanged && (
+                              <button
+                                onClick={() => openHistoryModal(visit)}
+                                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                              >
+                                📋 View Change History
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+                </div>
+              )}
+            </div>
+          </>
+          )
+        )}
+        </div>
+      </div>
+
+      {/* Change Mitra Modal */}
+      {showChangeMitraModal && selectedVisitForChange && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Change Mitra</h3>
+                <button
+                  onClick={() => setShowChangeMitraModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <span className="text-2xl">&times;</span>
+                </button>
+              </div>
+
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600">Visit #{selectedVisitForChange.visitNumber}</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {selectedVisitForChange.scheduledDate} ({selectedVisitForChange.scheduledDay})
+                </p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Current Mitra: <span className="font-medium">{selectedVisitForChange.mitraName}</span>
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select New Mitra <span className="text-red-500">*</span>
+                  </label>
+                  {loadingAvailableMitras ? (
+                    <div className="text-sm text-gray-500">Loading available mitras...</div>
+                  ) : (
+                    <select
+                      value={newMitraId}
+                      onChange={(e) => setNewMitraId(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">-- Select Mitra --</option>
+                      {availableMitrasForChange.map((mitra) => (
+                        <option key={mitra.id} value={mitra.id}>
+                          {mitra.mitraName} ({mitra.mitraCode}) - {mitra.availableHours}h available
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {!loadingAvailableMitras && availableMitrasForChange.length === 0 && (
+                    <p className="text-sm text-red-600 mt-1">
+                      No available mitras found for this date and region
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Reason for Change <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={changeReason}
+                    onChange={(e) => setChangeReason(e.target.value)}
+                    placeholder="e.g., Mitra sakit, Mitra ada keperluan mendadak, dll."
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 mt-6 pt-4 border-t">
+                <button
+                  onClick={() => setShowChangeMitraModal(false)}
+                  disabled={changingMitra}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleChangeMitra}
+                  disabled={changingMitra || !newMitraId || !changeReason.trim()}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {changingMitra ? 'Changing...' : 'Change Mitra'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Viewer Modal */}
+      {showHistoryModal && selectedVisitForHistory && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Mitra Change History</h3>
+                <button
+                  onClick={() => setShowHistoryModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <span className="text-2xl">&times;</span>
+                </button>
+              </div>
+
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600">Visit #{selectedVisitForHistory.visitNumber}</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {selectedVisitForHistory.scheduledDate} ({selectedVisitForHistory.scheduledDay})
+                </p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Current Mitra: <span className="font-medium">{selectedVisitForHistory.mitraName}</span>
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {loadingHistory ? (
+                  <div className="text-sm text-gray-500 text-center py-8">Loading history...</div>
+                ) : mitraChangeHistory.length === 0 ? (
+                  <div className="text-sm text-gray-500 text-center py-8">No change history found</div>
+                ) : (
+                  <>
+                    <div className="text-sm font-medium text-gray-700 mb-2">
+                      Total Changes: {mitraChangeHistory.length}
+                    </div>
+                    {mitraChangeHistory.map((change, index) => (
+                      <div key={change.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
+                                {change.sequenceNumber}
+                              </span>
+                              <span className="text-sm font-medium text-gray-900">
+                                Change #{change.sequenceNumber}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center space-x-2 mb-2">
+                              <span className="text-sm text-gray-700">{change.fromMitraName}</span>
+                              <span className="text-gray-400">→</span>
+                              <span className="text-sm font-medium text-gray-900">{change.toMitraName}</span>
+                            </div>
+
+                            <div className="mb-2">
+                              <p className="text-xs text-gray-500 mb-1">Reason:</p>
+                              <p className="text-sm text-gray-700">{change.changeReason}</p>
+                            </div>
+
+                            <div className="text-xs text-gray-500">
+                              Changed on {new Date(change.changedAt).toLocaleString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end mt-6 pt-4 border-t">
+                <button
+                  onClick={() => setShowHistoryModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Availability Warning Modal */}
+      {showAvailabilityWarning && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-yellow-900 mb-4 flex items-center">
+              <span className="text-2xl mr-2">⚠️</span>
+              Mitra Availability Warning
+            </h3>
+            <div className="mb-6">
+              <p className="text-sm text-gray-700 whitespace-pre-line">
+                {availabilityWarningMessage}
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowAvailabilityWarning(false);
+                  cancelEditingDate();
+                }}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (editingDateVisitId) {
+                    saveEditedDate(editingDateVisitId, true);
+                  }
+                }}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded transition-colors"
+              >
+                Continue Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

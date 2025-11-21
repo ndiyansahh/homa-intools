@@ -3,112 +3,8 @@ import { db } from '@/lib/db';
 import { customerDB, mitraDB } from '@/lib/schema';
 import { eq, and, or, sql } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
-import { logAuditEvent } from '@/lib/logger';
+import { logDetailedAudit, getChangedFields } from '@/lib/audit-logger.server';
 import type { CustomerData, CustomerApiError, UpdateCustomerRequest } from '@/types/customer';
-
-// Mock customer data for development
-const mockCustomersData: { [key: string]: CustomerData } = {
-  '1': {
-    id: '1',
-    no: 1,
-    customerName: 'Handi Sulyansah',
-    acquisition: 'HOMA',
-    contact: '62812916625948',
-    address: '1 Park Residences',
-    village: 'Gandaria',
-    district: 'Kebayoran Baru',
-    city: 'Jakarta Selatan',
-    postalCode: '15148',
-    residentialType: 'House',
-    subscriptionPackage: 'Monthly Subscription of Regular Cleaning (3 hours per visit; 2 visits per week)',
-    qtyPackage: 1,
-    ltv: 4,
-    firstDateSubscription: '25/11/2022',
-    status: 'Active',
-    cleaner1: 'Ardi',
-    cleaner2: 'Inem',
-    churnTag: 'N/A',
-    churnReason: '',
-    createdAt: '2022-11-25T10:00:00Z',
-    updatedAt: '2023-01-15T14:30:00Z',
-    isDeleted: false,
-  },
-  '2': {
-    id: '2',
-    no: 2,
-    customerName: 'Sarah Williams',
-    acquisition: 'Altrix',
-    contact: '628123456789',
-    address: 'Jl. Sudirman No. 45',
-    village: 'Karet',
-    district: 'Setiabudi',
-    city: 'Jakarta Selatan',
-    postalCode: '12920',
-    residentialType: 'Apartment',
-    subscriptionPackage: 'Monthly Subscription of Frequent Cleaning (3 hours per visit; 3 visits per week)',
-    qtyPackage: 2,
-    ltv: 12,
-    firstDateSubscription: '15/12/2022',
-    status: 'Active',
-    cleaner1: 'Siti',
-    cleaner2: 'Budi',
-    churnTag: 'N/A',
-    churnReason: '',
-    createdAt: '2022-12-15T10:30:00Z',
-    updatedAt: '2022-12-15T10:30:00Z',
-    isDeleted: false,
-  },
-  '3': {
-    id: '3',
-    no: 3,
-    customerName: 'Michael Chen',
-    acquisition: 'HOMA',
-    contact: '628234567890',
-    address: 'Komplek Villa Melati Mas',
-    village: 'Serpong',
-    district: 'Serpong Utara',
-    city: 'Tangerang Selatan',
-    postalCode: '15310',
-    residentialType: 'House',
-    subscriptionPackage: 'Monthly Subscription of Basic Cleaning (3 hours per visit; 1 visit per week)',
-    qtyPackage: 1,
-    ltv: 6,
-    firstDateSubscription: '20/12/2022',
-    status: 'Active',
-    cleaner1: 'Ani',
-    cleaner2: 'Dewi',
-    churnTag: 'N/A',
-    churnReason: '',
-    createdAt: '2022-12-20T14:30:00Z',
-    updatedAt: '2022-12-20T14:30:00Z',
-    isDeleted: false,
-  },
-  '4': {
-    id: '4',
-    no: 4,
-    customerName: 'Diana Rodriguez',
-    acquisition: 'Altrix',
-    contact: '628345678901',
-    address: 'Gedung Perkantoran Thamrin',
-    village: 'Menteng',
-    district: 'Menteng',
-    city: 'Jakarta Pusat',
-    postalCode: '10310',
-    residentialType: 'Office Space',
-    subscriptionPackage: 'Monthly Subscription of Special Partnership (3 hours per visit; 1 visit per week)',
-    qtyPackage: 1,
-    ltv: 3,
-    firstDateSubscription: '10/01/2023',
-    status: 'Inactive',
-    cleaner1: 'Rina',
-    cleaner2: 'Tono',
-    churnTag: 'External',
-    churnReason: 'Pindah kantor',
-    createdAt: '2023-01-10T11:20:00Z',
-    updatedAt: '2023-06-15T16:00:00Z',
-    isDeleted: false,
-  },
-};
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -144,130 +40,128 @@ export async function GET(
       );
     }
 
-    try {
-      // Get customer with full details from database, including mitra information
-      const result = await db
-        .select({
-          customer: customerDB,
-          primaryMitra: {
-            id: mitraDB.id,
-            mitraName: mitraDB.mitraName,
-          },
-        })
-        .from(customerDB)
-        .leftJoin(mitraDB, eq(customerDB.assignedMitraId, mitraDB.id))
-        .where(
-          and(
-            eq(customerDB.id, customerId),
-            or(eq(customerDB.isDeleted, false), sql`${customerDB.isDeleted} IS NULL`)
-          )
+    // Get customer with specific fields from database, including mitra information
+    const result = await db
+      .select({
+        customer: {
+          id: customerDB.id,
+          customerName: customerDB.customerName,
+          contact: customerDB.contact,
+          address: customerDB.address,
+          city: customerDB.city,
+          district: customerDB.district,
+          village: customerDB.village,
+          postalCode: customerDB.postalCode,
+          assignedMitraId: customerDB.assignedMitraId,
+          backupMitraId: customerDB.backupMitraId,
+          subscriptionPackage: customerDB.subscriptionPackage,
+          subscriptionStart: customerDB.subscriptionStart,
+          subscriptionEnd: customerDB.subscriptionEnd,
+          subscriptionStatus: customerDB.subscriptionStatus,
+          // subscriptionQTY: customerDB.subscriptionQTY, // Column might not exist
+          // subscriptionPerQTY: customerDB.subscriptionPerQTY, // Column might not exist
+          monthlyFee: customerDB.monthlyFee,
+          totalPaid: customerDB.totalPaid,
+          outstandingBalance: customerDB.outstandingBalance,
+          customerNotes: customerDB.customerNotes,
+          chosenDays: customerDB.chosenDays,
+          dayPattern: customerDB.dayPattern,
+          ltv: customerDB.ltv,
+          isActive: customerDB.isActive,
+          isDeleted: customerDB.isDeleted,
+          createdAt: customerDB.createdAt,
+          updatedAt: customerDB.updatedAt,
+        },
+        primaryMitra: {
+          id: mitraDB.id,
+          mitraName: mitraDB.mitraName,
+        },
+      })
+      .from(customerDB)
+      .leftJoin(mitraDB, eq(customerDB.assignedMitraId, mitraDB.id))
+      .where(
+        and(
+          eq(customerDB.id, customerId),
+          or(eq(customerDB.isDeleted, false), sql`${customerDB.isDeleted} IS NULL`)
         )
-        .limit(1);
+      )
+      .limit(1);
 
-      // Get backup mitra separately if exists
-      let backupMitra = null;
-      if (result.length > 0 && result[0].customer.backupMitraId) {
-        const backupResult = await db
-          .select({
-            id: mitraDB.id,
-            mitraName: mitraDB.mitraName,
-          })
-          .from(mitraDB)
-          .where(eq(mitraDB.id, result[0].customer.backupMitraId))
-          .limit(1);
-        
-        if (backupResult.length > 0) {
-          backupMitra = backupResult[0];
-        }
-      }
-
-      if (result.length === 0) {
-        // Try mock data if customer not found in database
-        const customerData = mockCustomersData[customerId];
-        
-        if (!customerData) {
-          return NextResponse.json(
-            { success: false, message: 'Customer not found' },
-            { status: 404 }
-          );
-        }
-
-        return NextResponse.json({
-          success: true,
-          data: customerData,
-        });
-      }
-
-      const customerRecord = result[0].customer;
-      const primaryMitra = result[0].primaryMitra;
-      
-      // Parse chosenDays to get qtyPackage if available
-      let qtyPackage = 1; // Default
-      try {
-        if (customerRecord.chosenDays) {
-          const chosenDays = JSON.parse(customerRecord.chosenDays);
-          // Count non-empty days
-          const activeDays = Object.values(chosenDays).filter(day => day && day !== '').length;
-          if (activeDays > 0) {
-            qtyPackage = activeDays;
-          }
-        }
-      } catch (e) {
-        console.log('Error parsing chosenDays:', e);
-      }
-      
-      // Format customer data from database
-      const customerData: CustomerData & { monthlyFee: number } = {
-        id: customerRecord.id,
-        no: 1, // Default value since not in current schema
-        customerName: customerRecord.customerName,
-        acquisition: 'HOMA', // Default value since not in current schema
-        contact: customerRecord.contact,
-        address: customerRecord.address,
-        village: customerRecord.village || '',
-        district: customerRecord.district || '',
-        city: customerRecord.city,
-        postalCode: customerRecord.postalCode || '',
-        residentialType: 'House', // Default value since not in current schema
-        subscriptionPackage: (customerRecord.subscriptionPackage || 'Monthly Subscription of Regular Cleaning (3 hours per visit; 2 visits per week)') as any,
-        qtyPackage: qtyPackage,
-        ltv: customerRecord.ltv || 0,
-        monthlyFee: Number(customerRecord.monthlyFee) || 0,
-        firstDateSubscription: customerRecord.subscriptionStart ? new Date(customerRecord.subscriptionStart).toLocaleDateString('en-GB') : '',
-        status: customerRecord.subscriptionStatus || 'Active',
-        cleaner1: primaryMitra?.mitraName || '',
-        cleaner2: backupMitra?.mitraName || '',
-        churnTag: customerRecord.subscriptionStatus === 'Inactive' ? 'External' : 'N/A',
-        churnReason: customerRecord.customerNotes || '',
-        createdAt: customerRecord.createdAt?.toISOString() || new Date().toISOString(),
-        updatedAt: customerRecord.updatedAt?.toISOString() || new Date().toISOString(),
-        isDeleted: customerRecord.isDeleted || false,
-      };
-
-      return NextResponse.json({
-        success: true,
-        data: customerData,
-      });
-
-    } catch (dbError) {
-      console.error('Database error, using mock data:', dbError);
-      
-      // Get customer from mock data as fallback
-      const customerData = mockCustomersData[customerId];
-      
-      if (!customerData) {
-        return NextResponse.json(
-          { success: false, message: 'Customer not found' },
-          { status: 404 }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        data: customerData,
-        message: 'Using mock data - database error',
-      });
+    // Check if customer exists in database
+    if (result.length === 0) {
+      return NextResponse.json(
+        { success: false, message: 'Customer not found' },
+        { status: 404 }
+      );
     }
+
+    // Get backup mitra separately if exists
+    let backupMitra = null;
+    if (result[0].customer.backupMitraId) {
+      const backupResult = await db
+        .select({
+          id: mitraDB.id,
+          mitraName: mitraDB.mitraName,
+        })
+        .from(mitraDB)
+        .where(eq(mitraDB.id, result[0].customer.backupMitraId))
+        .limit(1);
+      
+      if (backupResult.length > 0) {
+        backupMitra = backupResult[0];
+      }
+    }
+
+    const customerRecord = result[0].customer;
+    const primaryMitra = result[0].primaryMitra;
+    
+    // Parse chosenDays to get qtyPackage if available
+    let qtyPackage = 1; // Default
+    try {
+      if (customerRecord.chosenDays) {
+        const chosenDays = JSON.parse(customerRecord.chosenDays);
+        // Count non-empty days
+        const activeDays = Object.values(chosenDays).filter(day => day && day !== '').length;
+        if (activeDays > 0) {
+          qtyPackage = activeDays;
+        }
+      }
+    } catch (e) {
+      console.log('Error parsing chosenDays:', e);
+    }
+    
+    // Format customer data from database - all dynamic values
+    const customerData: CustomerData & { monthlyFee: number } = {
+      id: customerRecord.id,
+      customerName: customerRecord.customerName,
+      acquisition: 'HOMA', // Default - field doesn't exist in schema
+      contact: customerRecord.contact,
+      address: customerRecord.address,
+      village: customerRecord.village || '',
+      district: customerRecord.district || '',
+      city: customerRecord.city,
+      postalCode: customerRecord.postalCode || '',
+      residentialType: 'House', // Default - field doesn't exist in schema
+      subscriptionPackage: (customerRecord.subscriptionPackage as any) || 'Monthly Subscription of Regular Cleaning (3 hours per visit; 2 visits per week)',
+      qtyPackage: qtyPackage,
+      ltv: customerRecord.ltv || 0,
+      monthlyFee: Number(customerRecord.monthlyFee) || 0,
+      firstDateSubscription: customerRecord.subscriptionStart ? new Date(customerRecord.subscriptionStart).toLocaleDateString('en-GB') : '',
+      subscriptionEnd: customerRecord.subscriptionEnd ? new Date(customerRecord.subscriptionEnd).toLocaleDateString('en-GB') : undefined,
+      status: customerRecord.subscriptionStatus || 'Active',
+      cleaner1: primaryMitra?.mitraName || '',
+      cleaner2: backupMitra?.mitraName || '',
+      churnTag: (customerRecord.subscriptionStatus === 'Inactive' ? 'External' : 'N/A'), // churnTag field doesn't exist in schema
+      churnReason: customerRecord.customerNotes || '', // churnReason field doesn't exist in schema
+      createdAt: customerRecord.createdAt?.toISOString() || new Date().toISOString(),
+      updatedAt: customerRecord.updatedAt?.toISOString() || new Date().toISOString(),
+      isDeleted: customerRecord.isDeleted || false,
+    };
+
+    return NextResponse.json({
+      success: true,
+      data: customerData,
+    });
 
   } catch (error) {
     console.error('Customer detail API error:', error);
@@ -314,7 +208,7 @@ export async function PATCH(
     const body = await request.json() as UpdateCustomerRequest;
 
     try {
-      // Check if customer exists
+      // Check if customer exists - fetch full record for audit logging
       const existingCustomer = await db
         .select()
         .from(customerDB)
@@ -332,6 +226,8 @@ export async function PATCH(
           { status: 404 }
         );
       }
+
+      const oldCustomerData = existingCustomer[0];
 
       // Build update object with only provided fields
       const updateData: any = {
@@ -359,13 +255,23 @@ export async function PATCH(
         .set(updateData)
         .where(eq(customerDB.id, customerId));
 
-      // Log audit event
+      // Create new data object for audit comparison
+      const newCustomerData = { ...oldCustomerData, ...updateData };
+
+      // Log detailed audit event with changed fields only
       if (session) {
-        logAuditEvent({ 
-          action: 'CUSTOMER_UPDATED',
+        const changes = getChangedFields(oldCustomerData, newCustomerData);
+
+        await logDetailedAudit({
           userId: session.userId,
-          email: session.email,
-          details: { customerId }
+          userEmail: session.email,
+          action: 'UPDATE_CUSTOMER',
+          entityType: 'customer',
+          entityId: customerId,
+          oldValue: changes.old,
+          newValue: changes.new,
+          ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+          userAgent: request.headers.get('user-agent') || undefined,
         });
       }
 
@@ -446,11 +352,16 @@ export async function DELETE(
 
         // Log audit event
         if (session) {
-          logAuditEvent({ 
-            action: 'CUSTOMER_HARD_DELETED',
+          await logDetailedAudit({
             userId: session.userId,
-            email: session.email,
-            details: { customerId }
+            userEmail: session.email,
+            action: 'CUSTOMER_HARD_DELETED',
+            entityType: 'customer',
+            entityId: customerId,
+            oldValue: { id: customerId },
+            newValue: null,
+            ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+            userAgent: request.headers.get('user-agent') || undefined,
           });
         }
 
@@ -470,11 +381,16 @@ export async function DELETE(
 
         // Log audit event
         if (session) {
-          logAuditEvent({ 
-            action: 'CUSTOMER_SOFT_DELETED',
+          await logDetailedAudit({
             userId: session.userId,
-            email: session.email,
-            details: { customerId }
+            userEmail: session.email,
+            action: 'CUSTOMER_SOFT_DELETED',
+            entityType: 'customer',
+            entityId: customerId,
+            oldValue: { isDeleted: false },
+            newValue: { isDeleted: true },
+            ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+            userAgent: request.headers.get('user-agent') || undefined,
           });
         }
 

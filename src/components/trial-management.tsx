@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { SessionData } from '@/types/auth';
 import { TrialListItem, TrialsResponse, TrialStatus, CreateTrialRequest, TrialFilters, AcquisitionType, ResidentialType } from '@/types/trial';
 import { Icons } from './icons';
-import TrialDetailView from './trial-detail';
 
 // Region interfaces
 interface City {
@@ -32,15 +32,6 @@ interface Mitra {
   phone: string;
 }
 
-// Update trial interface
-interface UpdateTrialData {
-  id: string;
-  start_date?: string;
-  end_date?: string;
-  assigned_mitra?: string;
-  subscription_status?: TrialStatus;
-}
-
 interface TrialManagementProps {
   session: SessionData;
 }
@@ -63,6 +54,17 @@ const residentialColors = {
   'Apartment': 'bg-indigo-100 text-indigo-800',
 };
 
+// Day options for trial schedule
+const dayOptions = [
+  { value: 'Monday', label: 'Monday' },
+  { value: 'Tuesday', label: 'Tuesday' },
+  { value: 'Wednesday', label: 'Wednesday' },
+  { value: 'Thursday', label: 'Thursday' },
+  { value: 'Friday', label: 'Friday' },
+  { value: 'Saturday', label: 'Saturday' },
+  { value: 'Sunday', label: 'Sunday' },
+];
+
 // Helper functions untuk konversi format tanggal
 const convertToDateInputFormat = (ddmmyyyy: string): string => {
   if (!ddmmyyyy || ddmmyyyy.length !== 10) return '';
@@ -77,10 +79,12 @@ const convertFromDateInputFormat = (yyyymmdd: string): string => {
 };
 
 export default function TrialManagement({ session }: TrialManagementProps) {
+  const router = useRouter();
   const [trials, setTrials] = useState<TrialListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [selectedTrial, setSelectedTrial] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -93,11 +97,11 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     village_id: '',
     postal_code: '',
     residential_type: 'House' as ResidentialType,
-    assignments: [{
-      date: '',
-      selected_mitra: '',
-      status: 'Trial Scheduled',
-    }],
+    // Trial Schedule fields
+    start_date: '',
+    end_date: '',
+    selected_day: '',
+    selected_mitra: '',
   });
 
   // Region dropdown states
@@ -114,9 +118,6 @@ export default function TrialManagement({ session }: TrialManagementProps) {
   
   // Error states
   const [formError, setFormError] = useState<string>('');
-  
-  // Update loading state
-  const [updateLoading, setUpdateLoading] = useState<string | null>(null);
 
   // Filter state
   const [filters, setFilters] = useState<TrialFilters>({
@@ -230,25 +231,81 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     }
   };
 
-  const fetchMitras = async (date?: string) => {
+  const fetchMitras = async (customerCity?: string, customerDistrict?: string) => {
     try {
       setLoadingMitras(true);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-      
-      const params = date ? `?available_date=${date}` : '';
+
+      // Fetch active mitras
+      const params = '?status=Active';
       console.log('Fetching mitras from:', `/api/mitra${params}`);
       const response = await fetch(`/api/mitra${params}`, {
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log('Mitra API response:', data);
-        // Mitra API returns direct array for simple requests, not wrapped in success/data
-        const mitrasArray = Array.isArray(data) ? data : [];
+        // API returns {items: [], page, total} structure for paginated requests
+        let mitrasArray = Array.isArray(data) ? data : (data.items && Array.isArray(data.items) ? data.items : []);
+
+        // Filter by region if customer city and district are provided
+        if (customerCity && customerDistrict) {
+          console.log('🔍 Filtering mitras for:', { customerCity, customerDistrict });
+          console.log('📋 Total mitras before filter:', mitrasArray.length);
+
+          mitrasArray = mitrasArray.filter((mitra: any) => {
+            console.log('Checking mitra:', {
+              name: mitra.name,
+              cityAssignment: mitra.cityAssignment,
+              locationAssignment: mitra.locationAssignment
+            });
+
+            // Check city assignment
+            if (!mitra.cityAssignment || mitra.cityAssignment !== customerCity) {
+              console.log(`  ❌ City mismatch: ${mitra.cityAssignment} !== ${customerCity}`);
+              return false;
+            }
+
+            // Check district assignment
+            if (!mitra.locationAssignment) {
+              console.log('  ⚠️ No locationAssignment, assuming covers all');
+              return true; // If no specific districts, assume covers all
+            }
+
+            try {
+              // locationAssignment might be already parsed or still a string
+              let districts = mitra.locationAssignment;
+
+              // If it's a string, parse it
+              if (typeof districts === 'string') {
+                districts = JSON.parse(districts);
+                console.log('  📍 Districts (parsed from string):', districts);
+              } else {
+                console.log('  📍 Districts (already array):', districts);
+              }
+
+              if (Array.isArray(districts)) {
+                const hasDistrict = districts.includes(customerDistrict);
+                console.log(`  ${hasDistrict ? '✅' : '❌'} District "${customerDistrict}" ${hasDistrict ? 'found' : 'not found'} in:`, districts);
+                return hasDistrict;
+              } else {
+                console.log('  ❌ Districts is not an array:', typeof districts, districts);
+              }
+            } catch (e) {
+              console.error('  ❌ Error parsing locationAssignment:', e);
+              console.error('  Raw value:', mitra.locationAssignment);
+            }
+
+            return false;
+          });
+
+          console.log(`✅ Filtered to ${mitrasArray.length} mitras covering ${customerCity} - ${customerDistrict}`);
+        }
+
         console.log('Setting', mitrasArray.length, 'mitras to state');
         setMitras(mitrasArray);
       } else {
@@ -267,11 +324,10 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     }
   };
 
-  // Load cities and mitras on component mount
+  // Load cities on component mount
   useEffect(() => {
     console.log('Component mounting, fetching initial data');
     fetchCities();
-    fetchMitras();
 
     // Cleanup function to reset loading states if component unmounts
     return () => {
@@ -282,6 +338,17 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     };
   }, []);
 
+  // Fetch mitras when city and district are selected
+  useEffect(() => {
+    if (formData.city_id && formData.district_id) {
+      console.log('City and district selected, fetching mitras for:', formData.city_id, formData.district_id);
+      fetchMitras(formData.city_id, formData.district_id);
+    } else {
+      // Reset mitras if city or district changes
+      setMitras([]);
+    }
+  }, [formData.city_id, formData.district_id]);
+
   // Handle cascading dropdown changes
   const handleCityChange = (cityId: string) => {
     setFormData(prev => ({
@@ -289,10 +356,13 @@ export default function TrialManagement({ session }: TrialManagementProps) {
       city_id: cityId,
       district_id: '',
       village_id: '',
-      postal_code: ''
+      postal_code: '',
+      // Reset trial schedule when region changes
+      selected_mitra: '',
     }));
     setDistricts([]);
     setVillages([]);
+    setMitras([]);
     setFormError(''); // Clear any validation errors
     if (cityId) {
       fetchDistricts(cityId);
@@ -304,7 +374,9 @@ export default function TrialManagement({ session }: TrialManagementProps) {
       ...prev,
       district_id: districtId,
       village_id: '',
-      postal_code: ''
+      postal_code: '',
+      // Reset trial schedule when district changes
+      selected_mitra: '',
     }));
     setVillages([]);
     setFormError(''); // Clear any validation errors
@@ -323,14 +395,18 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     setFormError(''); // Clear any validation errors
   };
 
-  const fetchTrials = useCallback(async () => {
+  const fetchTrials = useCallback(async (isRefresh = false) => {
     try {
       console.log('Starting fetchTrials with filters:', filters);
-      setLoading(true);
-      
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-      
+
       const params = new URLSearchParams();
       if (filters.q) params.append('q', filters.q);
       if (filters.status) params.append('status', filters.status);
@@ -341,16 +417,19 @@ export default function TrialManagement({ session }: TrialManagementProps) {
       params.append('page', filters.page?.toString() || '1');
       params.append('limit', filters.limit?.toString() || '10');
 
+      // Add cache-busting parameter for real-time updates
+      params.append('_t', Date.now().toString());
+
       const response = await fetch(`/api/trials?${params}`, {
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (response.ok) {
         const result = await response.json();
         console.log('Trials API response:', result);
-        
+
         // Handle new API response format
         if (result.success && result.data) {
           setTrials(result.data);
@@ -369,6 +448,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
             totalPages: data.totalPages,
           });
         }
+        setLastUpdated(new Date());
       } else {
         console.error('Failed to fetch trials:', response.status, response.statusText);
         setTrials([]);
@@ -384,6 +464,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
       setPagination({ page: 1, total: 0, totalPages: 0 });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [filters]);
 
@@ -391,7 +472,18 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     console.log('useEffect triggered for fetchTrials, filters:', filters);
     fetchTrials();
   }, [fetchTrials]);
-  
+
+  // Auto-refresh every 30 seconds for real-time updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!loading && !refreshing && !creating) {
+        fetchTrials(true);
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [filters, loading, refreshing, creating, fetchTrials]);
+
   // Fallback timeout to reset loading state
   useEffect(() => {
     const fallbackTimeout = setTimeout(() => {
@@ -400,7 +492,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
         setLoading(false);
       }
     }, 30000);
-    
+
     return () => clearTimeout(fallbackTimeout);
   }, [loading]);
 
@@ -438,27 +530,28 @@ export default function TrialManagement({ session }: TrialManagementProps) {
         return;
       }
 
-      // Validate assignments
-      const validAssignments = formData.assignments.filter(assignment => 
-        assignment.date && assignment.selected_mitra
-      );
-
-      if (validAssignments.length === 0) {
-        setFormError('Please add at least one trial assignment with date and mitra');
+      // Validate trial schedule
+      if (!formData.start_date) {
+        setFormError('Start date is required');
+        return;
+      }
+      if (!formData.selected_day) {
+        setFormError('Please select a day for weekly visits');
+        return;
+      }
+      if (!formData.selected_mitra) {
+        setFormError('Please select a mitra');
         return;
       }
 
-      // Validate assignment dates
-      for (let i = 0; i < validAssignments.length; i++) {
-        const assignment = validAssignments[i];
-        const assignmentDate = new Date(assignment.date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+      // Validate start date not in past
+      const startDate = new Date(formData.start_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-        if (assignmentDate < today) {
-          setFormError(`Assignment ${i + 1}: Date cannot be in the past`);
-          return;
-        }
+      if (startDate < today) {
+        setFormError('Start date cannot be in the past');
+        return;
       }
 
       // Add timeout to form submission
@@ -487,26 +580,26 @@ export default function TrialManagement({ session }: TrialManagementProps) {
             village_id: '',
             postal_code: '',
             residential_type: 'House' as ResidentialType,
-            assignments: [{
-              date: '',
-              selected_mitra: '',
-              status: 'Trial Scheduled',
-            }],
+            // Trial Schedule fields
+            start_date: '',
+            end_date: '',
+            selected_day: '',
+            selected_mitra: '',
           });
-          
+
           // Reset dropdown states
           setDistricts([]);
           setVillages([]);
           setFormError('');
           setShowForm(false);
-          
+
           // Refresh the trials list
           fetchTrials();
-          
+
           // Show success message
-          const assignmentCount = result.data?.assignments_created || 0;
+          const visitsCreated = result.data?.visitsCreated || 0;
           setFormError(''); // Clear any previous errors
-          alert(`Trial created successfully${assignmentCount > 0 ? ` with ${assignmentCount} assignment(s)!` : '!'}`);
+          alert(`Trial created successfully with ${visitsCreated} visit(s) scheduled!`);
         } else {
           setFormError(result.message || 'Failed to create trial');
         }
@@ -543,109 +636,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     }
   };
 
-  const handleUpdateTrial = async (updateData: UpdateTrialData) => {
-    setUpdateLoading(updateData.id);
-    try {
-      const response = await fetch('/api/trial', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateData),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          // Refresh trials list to show updated data
-          fetchTrials();
-        } else {
-          alert(result.message || 'Failed to update trial');
-        }
-      } else {
-        const errorData = await response.json();
-        alert(errorData.message || 'Failed to update trial');
-      }
-    } catch (error) {
-      console.error('Error updating trial:', error);
-      alert('Network error: Failed to update trial');
-    } finally {
-      setUpdateLoading(null);
-    }
-  };
-
-  const convertToCustomer = async (trialId: string) => {
-    if (!confirm('Are you sure you want to convert this trial to a customer?')) return;
-    
-    try {
-      const response = await fetch('/api/trial', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: trialId,
-          subscription_status: 'Active'
-        }),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          alert('Trial successfully converted to customer!');
-          fetchTrials();
-        } else {
-          alert(result.message || 'Failed to convert trial');
-        }
-      } else {
-        const errorData = await response.json();
-        alert(errorData.message || 'Failed to convert trial');
-      }
-    } catch (error) {
-      console.error('Error converting trial:', error);
-      alert('Network error: Failed to convert trial');
-    }
-  };
-
-  const addAssignment = () => {
-    setFormData(prev => ({
-      ...prev,
-      assignments: [...prev.assignments, {
-        date: '',
-        selected_mitra: '',
-        status: 'Trial Scheduled',
-      }]
-    }));
-  };
-
-  const updateAssignment = (index: number, field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      assignments: prev.assignments.map((assignment, i) => 
-        i === index ? { 
-          ...assignment, 
-          [field]: value,
-          // Clear selected mitra when date changes
-          ...(field === 'date' && { selected_mitra: '' })
-        } : assignment
-      )
-    }));
-
-    // If date is changed, fetch available mitras for that date
-    if (field === 'date' && value) {
-      console.log(`Checking mitra availability for date: ${value}`);
-      fetchMitras(value);
-    }
-  };
-
-  const removeAssignment = (index: number) => {
-    if (formData.assignments.length > 1) {
-      setFormData(prev => ({
-        ...prev,
-        assignments: prev.assignments.filter((_, i) => i !== index)
-      }));
-    }
-  };
+  // Removed old assignment functions - using Trial Schedule now
 
   const handleCancelForm = () => {
     // Reset form data
@@ -658,13 +649,13 @@ export default function TrialManagement({ session }: TrialManagementProps) {
       village_id: '',
       postal_code: '',
       residential_type: 'House' as ResidentialType,
-      assignments: [{
-        date: '',
-        selected_mitra: '',
-        status: 'Trial Scheduled',
-      }],
+      // Trial Schedule fields
+      start_date: '',
+      end_date: '',
+      selected_day: '',
+      selected_mitra: '',
     });
-    
+
     // Reset dropdown states
     setDistricts([]);
     setVillages([]);
@@ -674,13 +665,6 @@ export default function TrialManagement({ session }: TrialManagementProps) {
 
   return (
     <>
-      {selectedTrial && (
-        <TrialDetailView
-          trialId={selectedTrial}
-          onClose={() => setSelectedTrial(null)}
-        />
-      )}
-      
     <div className="space-y-6">
       {/* Create Trial Form */}
       <div className="card p-6">
@@ -868,92 +852,132 @@ export default function TrialManagement({ session }: TrialManagementProps) {
               </select>
             </div>
 
-            {/* Trial Assignments */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <label className="block text-sm font-medium text-gray-700">
-                  Trial Assignments *
-                </label>
-                <button
-                  type="button"
-                  onClick={addAssignment}
-                  className="text-sm text-blue-600 hover:text-blue-700 flex items-center"
-                >
-                  <Icons.plus className="w-4 h-4 mr-1" />
-                  Add Assignment
-                </button>
-              </div>
-              <div className="space-y-4">
-                {formData.assignments.map((assignment, index) => (
-                  <div key={index} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-sm font-medium text-gray-900">Assignment #{index + 1}</h4>
-                      {formData.assignments.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeAssignment(index)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Icons.trash className="w-4 h-4" />
-                        </button>
-                      )}
+            {/* Trial Schedule */}
+            <div className="border-t border-gray-200 pt-6">
+              <h3 className="text-md font-medium text-gray-900 mb-4">Trial Schedule</h3>
+
+              {/* Show warning if region not selected */}
+              {(!formData.city_id || !formData.district_id) && (
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Date *
-                        </label>
-                        <input
-                          type="date"
-                          required
-                          value={assignment.date}
-                          onChange={(e) => updateAssignment(index, 'date', e.target.value)}
-                          className="input-field"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Select Mitra *
-                        </label>
-                        <select
-                          required
-                          value={assignment.selected_mitra}
-                          onChange={(e) => updateAssignment(index, 'selected_mitra', e.target.value)}
-                          className="input-field"
-                          disabled={loadingMitras || (!loadingMitras && mitras.length === 0 && !!assignment.date)}
-                        >
-                          <option value="">{!assignment.date ? 'Select date first...' : 'Select mitra...'}</option>
-                          {Array.isArray(mitras) && mitras.map((mitra) => (
-                            <option key={mitra.id} value={mitra.id}>
-                              {mitra.name}
-                            </option>
-                          ))}
-                        </select>
-                        {loadingMitras && (
-                          <p className="text-xs text-blue-500 mt-1">Checking mitra availability...</p>
-                        )}
-                        {!loadingMitras && assignment.date && mitras.length === 0 && (
-                          <p className="text-xs text-red-500 mt-1">Mitra tidak available pada tanggal ini</p>
-                        )}
-                        {!loadingMitras && assignment.date && mitras.length > 0 && (
-                          <p className="text-xs text-green-500 mt-1">{mitras.length} mitra tersedia</p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Status
-                        </label>
-                        <input
-                          type="text"
-                          value={assignment.status}
-                          readOnly
-                          className="input-field bg-gray-50"
-                        />
-                      </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-yellow-700">
+                        Please select City and District first to see available mitras for this region.
+                      </p>
                     </div>
                   </div>
-                ))}
+                </div>
+              )}
+
+              {/* Show warning if no mitras available */}
+              {formData.city_id && formData.district_id && !loadingMitras && mitras.length === 0 && (
+                <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-red-700">
+                        No mitra available for <strong>{formData.city_id} - {formData.district_id}</strong>. Please select a different region or add a mitra that covers this area.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Start Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.start_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
+                    disabled={!formData.city_id || !formData.district_id || mitras.length === 0}
+                    className="input-field disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    End Date (Optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.end_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
+                    disabled={!formData.city_id || !formData.district_id || mitras.length === 0}
+                    className="input-field disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Leave empty for 30 days default</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Trial Day (1x per week) *
+                  </label>
+                  <select
+                    required
+                    value={formData.selected_day}
+                    onChange={(e) => setFormData(prev => ({ ...prev, selected_day: e.target.value }))}
+                    disabled={!formData.city_id || !formData.district_id || mitras.length === 0}
+                    className="input-field disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">Select day...</option>
+                    {dayOptions.map((day) => (
+                      <option key={day.value} value={day.value}>
+                        {day.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="md:col-span-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Assigned Mitra *
+                  </label>
+                  <select
+                    required
+                    value={formData.selected_mitra}
+                    onChange={(e) => setFormData(prev => ({ ...prev, selected_mitra: e.target.value }))}
+                    disabled={!formData.city_id || !formData.district_id || loadingMitras || mitras.length === 0}
+                    className="input-field disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">
+                      {!formData.city_id || !formData.district_id
+                        ? 'Select region first...'
+                        : loadingMitras
+                          ? 'Loading mitras...'
+                          : mitras.length === 0
+                            ? 'No mitra available'
+                            : 'Select Mitra...'}
+                    </option>
+                    {Array.isArray(mitras) && mitras.map((mitra) => (
+                      <option key={mitra.id} value={mitra.id}>
+                        {mitra.name} - {mitra.phone || 'No phone'}
+                      </option>
+                    ))}
+                  </select>
+                  {loadingMitras && (
+                    <p className="text-xs text-blue-500 mt-1">Checking available mitras for {formData.city_id} - {formData.district_id}...</p>
+                  )}
+                  {!loadingMitras && formData.city_id && formData.district_id && mitras.length > 0 && (
+                    <p className="text-xs text-green-600 mt-1">✓ {mitras.length} mitra(s) available for this region</p>
+                  )}
+                </div>
               </div>
+              <p className="text-xs text-gray-500 mt-3">
+                This will create visit records for every {formData.selected_day || '[selected day]'} between the start and end dates.
+              </p>
             </div>
 
             <div className="flex justify-end space-x-3">
@@ -1060,10 +1084,35 @@ export default function TrialManagement({ session }: TrialManagementProps) {
       <div className="card">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">Trials</h2>
-            <span className="text-sm text-gray-500">
-              {pagination.total} total trials
-            </span>
+            <div className="flex items-center space-x-3">
+              <h2 className="text-xl font-semibold text-gray-900">Trials</h2>
+              {refreshing && (
+                <div className="flex items-center text-blue-600">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                  <span className="text-sm">Updating...</span>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => fetchTrials(true)}
+                disabled={refreshing}
+                className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                title="Refresh data"
+              >
+                🔄 Refresh
+              </button>
+              <div className="text-right">
+                <span className="text-sm text-gray-500">
+                  {pagination.total} total trials
+                </span>
+                {lastUpdated && (
+                  <div className="text-xs text-gray-400">
+                    Last updated: {lastUpdated.toLocaleTimeString()}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1117,13 +1166,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                       <tr
                         className="hover:bg-gray-50 cursor-pointer"
                         onClick={() => {
-                          const newSelectedTrial = selectedTrial === trial.id ? null : trial.id;
-                          setSelectedTrial(newSelectedTrial);
-                          // Refresh mitras when opening detail view
-                          if (newSelectedTrial) {
-                            console.log('Trial detail opened, refreshing mitras...');
-                            fetchMitras();
-                          }
+                          router.push(`/app/trials/${trial.id}`);
                         }}
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -1131,7 +1174,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                             {trial.customerName}
                           </div>
                           <div className="text-xs text-gray-500">
-                            {trial.assignedCleaners.length > 0 ? trial.assignedCleaners.join(', ') : 'No cleaner assigned'}
+                            {trial.assignedCleaners && trial.assignedCleaners.length > 0 ? trial.assignedCleaners.join(', ') : 'No cleaner assigned'}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -1186,153 +1229,6 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                           </button>
                         </td>
                       </tr>
-                      
-                      {/* Expanded Detail View */}
-                      {selectedTrial === trial.id && (
-                        <tr className="bg-gray-50">
-                          <td colSpan={6} className="px-6 py-4">
-                            <div className="space-y-6">
-                              <h3 className="text-lg font-medium text-gray-900">Trial Assignment Details</h3>
-                              
-                              {/* Trial Assignment Form */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Start Date */}
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Start Date
-                                  </label>
-                                  <input
-                                    type="date"
-                                    defaultValue={trial.nextTrialStartDate ? (() => {
-                                      const parts = trial.nextTrialStartDate.split('/');
-                                      return parts.length === 3 ? `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}` : '';
-                                    })() : ''}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                                    onChange={(e) => {
-                                      if (e.target.value) {
-                                        // Check mitra availability for the new date
-                                        console.log(`Checking mitra availability for trial start date: ${e.target.value}`);
-                                        fetchMitras(e.target.value);
-                                        handleUpdateTrial({
-                                          id: trial.id,
-                                          start_date: e.target.value
-                                        });
-                                      }
-                                    }}
-                                  />
-                                </div>
-                                
-                                {/* End Date */}
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    End Date
-                                  </label>
-                                  <input
-                                    type="date"
-                                    defaultValue={trial.nextTrialEndDate ? (() => {
-                                      const parts = trial.nextTrialEndDate.split('/');
-                                      return parts.length === 3 ? `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}` : '';
-                                    })() : ''}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                                    onChange={(e) => {
-                                      if (e.target.value) {
-                                        handleUpdateTrial({
-                                          id: trial.id,
-                                          end_date: e.target.value
-                                        });
-                                      }
-                                    }}
-                                  />
-                                </div>
-                                
-                                {/* Assigned Cleaner */}
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Assigned Cleaner
-                                  </label>
-                                  <select
-                                    defaultValue={trial.assignedMitraId || ''}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                                    disabled={loadingMitras || mitras.length === 0}
-                                    onChange={(e) => {
-                                      handleUpdateTrial({
-                                        id: trial.id,
-                                        assigned_mitra: e.target.value
-                                      });
-                                    }}
-                                  >
-                                    <option value="">Select Cleaner</option>
-                                    {mitras.map((mitra) => (
-                                      <option key={mitra.id} value={mitra.id}>
-                                        {mitra.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  {loadingMitras && (
-                                    <div className="text-xs text-blue-500 mt-1">Checking cleaners availability...</div>
-                                  )}
-                                  {!loadingMitras && mitras.length === 0 && (
-                                    <div className="text-xs text-red-500 mt-1">Mitra tidak available</div>
-                                  )}
-                                  {!loadingMitras && mitras.length > 0 && (
-                                    <div className="text-xs text-green-500 mt-1">{mitras.length} mitra tersedia</div>
-                                  )}
-                                </div>
-                                
-                                {/* Status */}
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Status
-                                  </label>
-                                  <select
-                                    defaultValue={trial.overallStatus || 'Not Converted'}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                                    onChange={(e) => {
-                                      handleUpdateTrial({
-                                        id: trial.id,
-                                        subscription_status: e.target.value as TrialStatus
-                                      });
-                                    }}
-                                  >
-                                    <option value="Not Converted">Not Converted</option>
-                                    <option value="Converted">Converted</option>
-                                    <option value="Stalling/Postpone">Stalling/Postpone</option>
-                                    <option value="Cancelled">Cancelled</option>
-                                  </select>
-                                </div>
-                              </div>
-                              
-                              {/* Action Buttons */}
-                              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
-                                {updateLoading === trial.id && (
-                                  <div className="flex items-center text-sm text-gray-600">
-                                    <Icons.spinner className="w-4 h-4 mr-2 animate-spin" />
-                                    Updating...
-                                  </div>
-                                )}
-                                
-                                {trial.overallStatus !== 'Converted' && (
-                                  <button
-                                    onClick={() => convertToCustomer(trial.id)}
-                                    disabled={updateLoading === trial.id}
-                                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-                                  >
-                                    <Icons.check className="w-4 h-4 mr-2" />
-                                    Convert to Customer
-                                  </button>
-                                )}
-                                
-                                <button
-                                  onClick={() => setSelectedTrial(null)}
-                                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                                >
-                                  Close
-                                </button>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
                     </React.Fragment>
                   ))}
                 </tbody>

@@ -34,6 +34,7 @@ export default function MitraManagement({ session }: MitraManagementProps) {
   const [lastCreatedMitra, setLastCreatedMitra] = useState<any>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [selectedMitra, setSelectedMitra] = useState<string | null>(null);
+  const [detailViewRefreshTrigger, setDetailViewRefreshTrigger] = useState<number>(0);
   
   // Form state with new comprehensive schema
   const [showForm, setShowForm] = useState(false);
@@ -88,7 +89,7 @@ export default function MitraManagement({ session }: MitraManagementProps) {
       } else {
         setLoading(true);
       }
-      
+
       const params = new URLSearchParams();
       if (filters.q) params.append('q', filters.q);
       if (filters.status) params.append('status', filters.status);
@@ -96,7 +97,7 @@ export default function MitraManagement({ session }: MitraManagementProps) {
       if (filters.city) params.append('city', filters.city);
       params.append('page', filters.page?.toString() || '1');
       params.append('limit', filters.limit?.toString() || '10');
-      
+
       // Add cache-busting parameter for real-time updates
       params.append('_t', Date.now().toString());
 
@@ -110,6 +111,11 @@ export default function MitraManagement({ session }: MitraManagementProps) {
           totalPages: data.totalPages,
         });
         setLastUpdated(new Date());
+
+        // Trigger detail view refresh if it's open
+        if (selectedMitra) {
+          setDetailViewRefreshTrigger(Date.now());
+        }
       }
     } catch (error) {
       console.error('Error fetching mitras:', error);

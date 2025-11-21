@@ -1,69 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { customerDB, mitraDB } from '@/lib/schema';
+import { customerDB, mitraDB, visitDB } from '@/lib/schema';
 import { sql, and, or, ilike, eq, desc, count } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/logger';
 import type { CustomerListItem, CustomersResponse, CustomerApiError, CreateCustomerRequest } from '@/types/customer';
 
-// Mock data for customers - matching detail data exactly
-const mockCustomers: CustomerListItem[] = [
-  {
-    id: '1',
-    customerName: 'Handi Sulyansah',
-    subscriptionPackage: 'Monthly Subscription of Regular Cleaning (3 hours per visit; 2 visits per week)',
-    subscriptionStatus: 'Active',
-    monthlyFee: 1500000,
-    city: 'Jakarta Selatan',
-    createdAt: '2022-11-25T10:00:00Z',
-    updatedAt: '2023-01-15T14:30:00Z'
-  },
-  {
-    id: '2',
-    customerName: 'Sarah Williams',
-    subscriptionPackage: 'Monthly Subscription of Frequent Cleaning (3 hours per visit; 3 visits per week)',
-    subscriptionStatus: 'Active',
-    monthlyFee: 2200000,
-    city: 'Jakarta Selatan',
-    createdAt: '2022-12-15T10:30:00Z',
-    updatedAt: '2022-12-15T10:30:00Z'
-  },
-  {
-    id: '3',
-    customerName: 'Michael Chen',
-    subscriptionPackage: 'Monthly Subscription of Basic Cleaning (3 hours per visit; 1 visit per week)',
-    subscriptionStatus: 'Active',
-    monthlyFee: 900000,
-    city: 'Tangerang Selatan',
-    createdAt: '2022-12-20T14:30:00Z',
-    updatedAt: '2022-12-20T14:30:00Z'
-  },
-  {
-    id: '4',
-    customerName: 'Diana Rodriguez',
-    subscriptionPackage: 'Monthly Subscription of Special Partnership (3 hours per visit; 1 visit per week)',
-    subscriptionStatus: 'Inactive',
-    monthlyFee: 750000,
-    city: 'Jakarta Pusat',
-    createdAt: '2023-01-10T11:20:00Z',
-    updatedAt: '2023-06-15T16:00:00Z'
-  },
-];
-
 export async function GET(request: NextRequest): Promise<NextResponse<CustomersResponse | CustomerApiError>> {
   try {
     const session = await getSession();
     
-    // For development, allow access without session or return mock data if needed
-    if (!session && process.env.NODE_ENV === 'development') {
-      console.log('No session found, using mock data for development');
-      // Skip auth in development and continue with mock data fallback below
-    } else if (!session) {
+    if (!session && process.env.NODE_ENV !== 'development') {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
       );
-    } else if (!['ADMIN', 'OWNER', 'STAFF'].includes(session.role)) {
+    }
+
+    // Check RBAC - ADMIN/OWNER/STAFF can view customers
+    if (session && !['ADMIN', 'OWNER', 'STAFF'].includes(session.role)) {
       return NextResponse.json(
         { success: false, message: 'Forbidden' },
         { status: 403 }
@@ -82,123 +37,93 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
     const status = searchParams.get('status') || '';
     const city = searchParams.get('city') || '';
     const subscriptionPackage = searchParams.get('subscriptionPackage') || '';
+    const assignedMitra = searchParams.get('assignedMitra') || searchParams.get('assigned_mitra') || '';
 
-    // Try database first
-    let customers: CustomerListItem[] = [];
-    let total = 0;
-
-    try {
-      // Build where conditions
-      const conditions = [];
-      
-      // Search in customer name, address, or contact
-      if (search) {
-        conditions.push(
-          or(
-            ilike(customerDB.customerName, `%${search}%`),
-            ilike(customerDB.address, `%${search}%`),
-            ilike(customerDB.contact, `%${search}%`)
-          )
-        );
-      }
-      
-      // Status filter - map to subscriptionStatus
-      if (status) {
-        conditions.push(ilike(customerDB.subscriptionStatus, `%${status}%`));
-      }
-      
-      // City filter
-      if (city) {
-        conditions.push(ilike(customerDB.city, `%${city}%`));
-      }
-      
-      // Subscription package filter
-      if (subscriptionPackage) {
-        conditions.push(ilike(customerDB.subscriptionPackage, `%${subscriptionPackage}%`));
-      }
-      
-      // Add soft delete condition (only show non-deleted customers)
-      conditions.push(or(eq(customerDB.isDeleted, false), sql`${customerDB.isDeleted} IS NULL`));
-      
-      // Exclude only active Trial customers - Converted trials should appear here
-      conditions.push(sql`${customerDB.subscriptionStatus} != 'Trial' OR ${customerDB.subscriptionStatus} IS NULL`);
-
-      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-      // Get total count
-      const countResult = await db
-        .select({ count: count() })
-        .from(customerDB)
-        .where(whereClause);
-      
-      total = countResult[0]?.count || 0;
-
-      // Get paginated customers from database
-      const result = await db
-        .select({
-          id: customerDB.id,
-          customerName: customerDB.customerName,
-          subscriptionPackage: customerDB.subscriptionPackage,
-          subscriptionStatus: customerDB.subscriptionStatus,
-          monthlyFee: customerDB.monthlyFee,
-          city: customerDB.city,
-          ltv: customerDB.ltv,
-          createdAt: customerDB.createdAt,
-          updatedAt: customerDB.updatedAt,
-        })
-        .from(customerDB)
-        .where(whereClause)
-        .orderBy(desc(customerDB.createdAt))
-        .limit(limit)
-        .offset(offset);
-
-      customers = result.map(customer => ({
-        id: customer.id,
-        customerName: customer.customerName,
-        subscriptionPackage: customer.subscriptionPackage || '',
-        subscriptionStatus: customer.subscriptionStatus as any || 'Active',
-        monthlyFee: Number(customer.monthlyFee) || 0,
-        city: customer.city,
-        ltv: customer.ltv || 0,
-        createdAt: customer.createdAt?.toISOString() || new Date().toISOString(),
-        updatedAt: customer.updatedAt?.toISOString() || new Date().toISOString(),
-      }));
-
-    } catch (dbError) {
-      console.error('Database error, using mock data:', dbError);
-      
-      // Filter mock data based on parameters
-      // First exclude Trial customers - they should appear in /app/trial instead
-      let filteredData = mockCustomers.filter(customer => customer.subscriptionStatus !== 'Trial');
-      
-      if (search) {
-        const searchTerm = search.toLowerCase();
-        filteredData = filteredData.filter(customer => 
-          customer.customerName.toLowerCase().includes(searchTerm)
-        );
-      }
-      
-      if (status) {
-        filteredData = filteredData.filter(customer => 
-          customer.subscriptionStatus.toLowerCase().includes(status.toLowerCase())
-        );
-      }
-      
-      if (city) {
-        filteredData = filteredData.filter(customer => 
-          customer.city.toLowerCase().includes(city.toLowerCase())
-        );
-      }
-      
-      if (subscriptionPackage) {
-        filteredData = filteredData.filter(customer => 
-          customer.subscriptionPackage.toLowerCase().includes(subscriptionPackage.toLowerCase())
-        );
-      }
-      
-      total = filteredData.length;
-      customers = filteredData.slice(offset, offset + limit);
+    // Build where conditions for database query
+    const conditions = [];
+    
+    // Search in customer name, address, or contact
+    if (search) {
+      conditions.push(
+        or(
+          ilike(customerDB.customerName, `%${search}%`),
+          ilike(customerDB.address, `%${search}%`),
+          ilike(customerDB.contact, `%${search}%`)
+        )
+      );
     }
+    
+    // Status filter - map to subscriptionStatus
+    if (status) {
+      conditions.push(ilike(customerDB.subscriptionStatus, `%${status}%`));
+    }
+    
+    // City filter
+    if (city) {
+      conditions.push(ilike(customerDB.city, `%${city}%`));
+    }
+    
+    // Subscription package filter
+    if (subscriptionPackage) {
+      conditions.push(ilike(customerDB.subscriptionPackage, `%${subscriptionPackage}%`));
+    }
+    
+    // Assigned mitra filter - filter by primary or backup mitra
+    if (assignedMitra) {
+      conditions.push(
+        or(
+          eq(customerDB.assignedMitraId, assignedMitra),
+          eq(customerDB.backupMitraId, assignedMitra)
+        )
+      );
+    }
+    
+    // Add soft delete condition (only show non-deleted customers)
+    conditions.push(or(eq(customerDB.isDeleted, false), sql`${customerDB.isDeleted} IS NULL`));
+    
+    // Exclude only active Trial customers - Converted trials should appear here
+    conditions.push(sql`${customerDB.subscriptionStatus} != 'Trial' OR ${customerDB.subscriptionStatus} IS NULL`);
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    // Get total count from database
+    const countResult = await db
+      .select({ count: count() })
+      .from(customerDB)
+      .where(whereClause);
+    
+    const total = countResult[0]?.count || 0;
+
+    // Get paginated customers from database
+    const result = await db
+      .select({
+        id: customerDB.id,
+        customerName: customerDB.customerName,
+        subscriptionPackage: customerDB.subscriptionPackage,
+        subscriptionStatus: customerDB.subscriptionStatus,
+        monthlyFee: customerDB.monthlyFee,
+        city: customerDB.city,
+        ltv: customerDB.ltv,
+        createdAt: customerDB.createdAt,
+        updatedAt: customerDB.updatedAt,
+      })
+      .from(customerDB)
+      .where(whereClause)
+      .orderBy(desc(customerDB.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const customers: CustomerListItem[] = result.map(customer => ({
+      id: customer.id,
+      customerName: customer.customerName,
+      subscriptionPackage: customer.subscriptionPackage || '',
+      subscriptionStatus: customer.subscriptionStatus as any || 'Active',
+      monthlyFee: Number(customer.monthlyFee) || 0,
+      city: customer.city,
+      ltv: customer.ltv || 0,
+      createdAt: customer.createdAt?.toISOString() || new Date().toISOString(),
+      updatedAt: customer.updatedAt?.toISOString() || new Date().toISOString(),
+    }));
 
     const totalPages = Math.ceil(total / limit);
 
@@ -306,6 +231,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         subscriptionStart: (body as any).subscriptionStart || null,
         subscriptionEnd: (body as any).subscriptionEnd || null,
         subscriptionStatus: (body as any).subscriptionStatus || 'Active',
+        // subscriptionQTY: (body as any).subscriptionQTY || 1, // Column doesn't exist in actual database
+        // subscriptionPerQTY: (body as any).subscriptionPerQTY ? (body as any).subscriptionPerQTY.toString() : '0', // Column doesn't exist in actual database
         monthlyFee: (body as any).monthlyFee ? (body as any).monthlyFee.toString() : '0',
         totalPaid: '0',
         outstandingBalance: (body as any).monthlyFee ? (body as any).monthlyFee.toString() : '0',
@@ -330,6 +257,51 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         .returning({ id: customerDB.id });
 
       const newCustomerId = result[0]?.id;
+
+      // Generate visit schedule if all required data is provided
+      if (newCustomerId && assignedMitraId && (body as any).subscriptionStart && (body as any).selectedDays) {
+        console.log('🔄 Generating visit schedule for new customer');
+
+        const startDate = new Date((body as any).subscriptionStart);
+        const endDate = (body as any).subscriptionEnd
+          ? new Date((body as any).subscriptionEnd)
+          : new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000); // Default 30 days
+
+        const visitDates: { date: Date; day: string }[] = [];
+        const selectedDaysObj = (body as any).selectedDays;
+
+        // Convert selectedDays object to array (e.g., {day1: 'Monday', day2: 'Tuesday'} => ['Monday', 'Tuesday'])
+        const chosenDays = Object.values(selectedDaysObj).filter((day): day is string => Boolean(day));
+
+        const currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+          const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
+          if (chosenDays.includes(dayName)) {
+            visitDates.push({
+              date: new Date(currentDate),
+              day: dayName
+            });
+          }
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        if (visitDates.length > 0) {
+          const visitRecords = visitDates.map((visit, index) => ({
+            customerId: newCustomerId,
+            mitraId: assignedMitraId,
+            originalMitraId: assignedMitraId,
+            actualMitraId: assignedMitraId,
+            visitNumber: index + 1,
+            scheduledDate: visit.date.toISOString().split('T')[0],
+            scheduledDay: visit.day,
+            status: 'Scheduled',
+            durationHours: 3,
+          }));
+
+          await db.insert(visitDB).values(visitRecords);
+          console.log(`✅ Created ${visitRecords.length} visit records for new customer`);
+        }
+      }
 
       // Log audit event
       if (session) {

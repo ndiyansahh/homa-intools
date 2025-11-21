@@ -15,6 +15,7 @@ export interface TrialAssignment {
 export interface TrialData {
   id: string;
   customerName: string;
+  contact?: string;
   acquisition: AcquisitionType;
   address: string;
   district: string;
@@ -27,8 +28,12 @@ export interface TrialData {
   assignments: TrialAssignment[]; // Multiple trial assignments
   notes: string;
   subscriptionPackage?: string; // Selected subscription package
+  subscriptionStartDate?: string; // dd/mm/yyyy format
+  subscriptionEndDate?: string; // dd/mm/yyyy format
+  monthlyFee?: number; // Monthly subscription fee
   totalSessions?: number; // Total sessions based on mitra availability
   chosenDays?: string[]; // Selected days for service
+  overallStatus?: TrialStatus; // Overall status based on latest assignment
   createdAt: string;
   updatedAt: string;
   isDeleted?: boolean;
@@ -56,16 +61,21 @@ export interface CreateTrialRequest {
 export interface TrialListItem {
   id: string;
   customerName: string;
+  contact?: string;
   acquisition: AcquisitionType;
+  address?: string;
   district: string;
   city: string;
   village?: string;
+  postalCode?: string;
   residentialType: ResidentialType;
   nextTrialStartDate?: string;
   nextTrialEndDate?: string;
   assignedCleaners: string[];
+  assignedCleaner?: string | null; // Single assigned cleaner name
   assignedMitraId?: string; // Mitra ID for editing
   overallStatus?: TrialStatus; // Overall status based on latest assignment
+  subscriptionPackage?: string; // Selected subscription package
   ltv?: number; // Calculated LTV in months
   createdAt: string;
   isDeleted?: boolean;

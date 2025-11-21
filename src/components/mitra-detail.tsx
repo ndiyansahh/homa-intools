@@ -7,6 +7,7 @@ import { Icons } from './icons';
 interface MitraDetailProps {
   mitraId: string;
   onClose: () => void;
+  onUpdate?: () => void; // Callback after successful update
 }
 
 const statusColors = {
@@ -28,31 +29,72 @@ const bonusColors = {
   'Not Eligible': 'bg-red-100 text-red-800',
 };
 
-export default function MitraDetailView({ mitraId, onClose }: MitraDetailProps) {
+export default function MitraDetailView({ mitraId, onClose, onUpdate }: MitraDetailProps) {
   const [mitra, setMitra] = useState<MitraData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchMitra = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await fetch(`/api/mitra/${mitraId}`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          setMitra(data);
-        } else {
-          setError('Failed to load mitra details');
-        }
-      } catch (err) {
-        setError('Failed to load mitra details');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Editable form state
+  const [formData, setFormData] = useState<Partial<MitraData>>({});
 
+  const fetchMitra = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await fetch(`/api/mitra/${mitraId}?_t=${Date.now()}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        setMitra(data);
+        setFormData(data); // Initialize form with current data
+      } else {
+        setError('Failed to load mitra details');
+      }
+    } catch (err) {
+      setError('Failed to load mitra details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+
+      const response = await fetch(`/api/mitra/${mitraId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        alert('Mitra updated successfully');
+        await fetchMitra(); // Refresh data
+        if (onUpdate) onUpdate(); // Trigger parent refresh
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to update mitra: ${errorData.message || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Error updating mitra:', err);
+      alert('Failed to update mitra');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleChange = (field: keyof MitraData, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  useEffect(() => {
     fetchMitra();
   }, [mitraId]);
 
@@ -87,10 +129,10 @@ export default function MitraDetailView({ mitraId, onClose }: MitraDetailProps) 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        {/* Header with only close button on top right */}
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
           <div>
-            <h2 className="text-2xl font-semibold text-gray-900">Mitra Details</h2>
+            <h2 className="text-2xl font-semibold text-gray-900">Edit Mitra Details</h2>
             <p className="text-sm text-gray-600">Partner: {mitra.name}</p>
             {mitra.mitraCode && (
               <p className="text-xs text-gray-500 font-mono">{mitra.mitraCode}</p>
@@ -113,29 +155,52 @@ export default function MitraDetailView({ mitraId, onClose }: MitraDetailProps) 
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Name</label>
-                  <div className="mt-1 text-sm text-gray-900">{mitra.name}</div>
+                  <input
+                    type="text"
+                    value={formData.name || ''}
+                    onChange={(e) => handleChange('name', e.target.value)}
+                    className="input-field mt-1"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">NIK</label>
-                  <div className="mt-1 text-sm text-gray-900">{mitra.nik}</div>
+                  <input
+                    type="text"
+                    value={formData.nik || ''}
+                    onChange={(e) => handleChange('nik', e.target.value)}
+                    className="input-field mt-1"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Gender</label>
-                  <div className="mt-1 text-sm text-gray-900">{mitra.gender}</div>
+                  <select
+                    value={formData.gender || ''}
+                    onChange={(e) => handleChange('gender', e.target.value)}
+                    className="input-field mt-1"
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Date of Birth</label>
-                  <div className="mt-1 text-sm text-gray-900">{mitra.bornDate}</div>
+                  <input
+                    type="date"
+                    value={formData.bornDate || ''}
+                    onChange={(e) => handleChange('bornDate', e.target.value)}
+                    className="input-field mt-1"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Phone</label>
-                  <div className="mt-1 text-sm text-gray-900">
-                    {mitra.phone ? (
-                      <a href={`tel:+62${mitra.phone.replace(/^0/, '')}`} className="text-blue-600 hover:text-blue-800">
-                        {mitra.phone}
-                      </a>
-                    ) : 'Not provided'}
-                  </div>
+                  <input
+                    type="tel"
+                    value={formData.phone || ''}
+                    onChange={(e) => handleChange('phone', e.target.value)}
+                    className="input-field mt-1"
+                    placeholder="08xxxxxxxxxx"
+                  />
                 </div>
               </div>
             </div>
@@ -144,39 +209,65 @@ export default function MitraDetailView({ mitraId, onClose }: MitraDetailProps) 
               <h3 className="text-lg font-medium text-gray-900 mb-4">Partnership Information</h3>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Mitra Code</label>
-                  <div className="mt-1 text-sm font-mono text-gray-900">{mitra.mitraCode}</div>
+                  <label className="block text-sm font-medium text-gray-700">Mitra Code (Read-only)</label>
+                  <div className="mt-1 text-sm font-mono text-gray-900 bg-gray-50 px-3 py-2 rounded border border-gray-300">
+                    {mitra.mitraCode}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Join Date</label>
-                  <div className="mt-1 text-sm text-gray-900">{mitra.joinDate}</div>
+                  <input
+                    type="date"
+                    value={formData.joinDate || ''}
+                    onChange={(e) => handleChange('joinDate', e.target.value)}
+                    className="input-field mt-1"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Partnership Type</label>
-                  <div className="mt-1">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${partnershipColors[mitra.partnershipTypes as keyof typeof partnershipColors] || 'bg-gray-100 text-gray-800'}`}>
-                      {mitra.partnershipTypes}
-                    </span>
-                  </div>
+                  <select
+                    value={formData.partnershipTypes || ''}
+                    onChange={(e) => handleChange('partnershipTypes', e.target.value)}
+                    className="input-field mt-1"
+                  >
+                    <option value="">Select Type</option>
+                    <option value="Full Time">Full Time</option>
+                    <option value="Part Time">Part Time</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Status</label>
-                  <div className="mt-1">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColors[mitra.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'}`}>
-                      {mitra.status}
-                    </span>
-                  </div>
+                  <select
+                    value={formData.status || ''}
+                    onChange={(e) => handleChange('status', e.target.value)}
+                    className="input-field mt-1"
+                  >
+                    <option value="">Select Status</option>
+                    <option value="Active">Active</option>
+                    <option value="Exit">Exit</option>
+                    <option value="Active-Flag">Active-Flag</option>
+                    <option value="Banned">Banned</option>
+                  </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Tenure</label>
-                  <div className="mt-1 text-sm text-gray-900">
-                    {mitra.tenure} {parseInt(mitra.tenure) === 1 ? 'month' : 'months'}
-                  </div>
+                  <label className="block text-sm font-medium text-gray-700">Tenure (months)</label>
+                  <input
+                    type="number"
+                    value={formData.tenure || ''}
+                    onChange={(e) => handleChange('tenure', e.target.value)}
+                    className="input-field mt-1"
+                    min="0"
+                  />
                 </div>
-                {mitra.exitDate && (
+                {formData.status === 'Exit' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Exit Date</label>
-                    <div className="mt-1 text-sm text-gray-900">{mitra.exitDate}</div>
+                    <input
+                      type="date"
+                      value={formData.exitDate || ''}
+                      onChange={(e) => handleChange('exitDate', e.target.value)}
+                      className="input-field mt-1"
+                    />
                   </div>
                 )}
               </div>
@@ -187,36 +278,36 @@ export default function MitraDetailView({ mitraId, onClose }: MitraDetailProps) 
           <div>
             <h3 className="text-lg font-medium text-gray-900 mb-4">Address & Assignment</h3>
             <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-              {mitra.address && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Residential Address</label>
-                  <div className="mt-1 text-sm text-gray-900">{mitra.address}</div>
-                </div>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Residential Address</label>
+                <textarea
+                  value={formData.address || ''}
+                  onChange={(e) => handleChange('address', e.target.value)}
+                  className="input-field mt-1"
+                  rows={2}
+                  placeholder="Enter full address"
+                />
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">City Assignment</label>
-                  <div className="mt-1">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {mitra.cityAssignment || 'Not assigned'}
-                    </span>
-                  </div>
+                  <input
+                    type="text"
+                    value={formData.cityAssignment || ''}
+                    onChange={(e) => handleChange('cityAssignment', e.target.value)}
+                    className="input-field mt-1"
+                    placeholder="e.g., Jakarta"
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Location Assignment (Districts)</label>
-                  <div className="mt-1 text-sm text-gray-900">
-                    {mitra.locationAssignment ? (
-                      <div className="flex flex-wrap gap-1">
-                        {mitra.locationAssignment.split(',').map((location, index) => (
-                          <span key={index} className="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-200 text-gray-700">
-                            {location.trim()}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      'Not assigned'
-                    )}
-                  </div>
+                  <label className="block text-sm font-medium text-gray-700">Location Assignment (Districts, comma-separated)</label>
+                  <input
+                    type="text"
+                    value={formData.locationAssignment || ''}
+                    onChange={(e) => handleChange('locationAssignment', e.target.value)}
+                    className="input-field mt-1"
+                    placeholder="e.g., Kebayoran Baru, Senayan"
+                  />
                 </div>
               </div>
             </div>
@@ -229,79 +320,87 @@ export default function MitraDetailView({ mitraId, onClose }: MitraDetailProps) 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Bank</label>
-                  <div className="mt-1 text-sm text-gray-900">
-                    <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-800 font-medium">
-                      {mitra.bankAccount || 'Not provided'}
-                    </span>
-                  </div>
+                  <input
+                    type="text"
+                    value={formData.bankAccount || ''}
+                    onChange={(e) => handleChange('bankAccount', e.target.value)}
+                    className="input-field mt-1"
+                    placeholder="e.g., BCA"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Account Number</label>
-                  <div className="mt-1 text-sm font-mono text-gray-900 bg-white px-2 py-1 rounded border">
-                    {mitra.bankAccountNumber ? (
-                      <span className="select-all">{mitra.bankAccountNumber}</span>
-                    ) : (
-                      <span className="text-gray-400">Not provided</span>
-                    )}
-                  </div>
+                  <input
+                    type="text"
+                    value={formData.bankAccountNumber || ''}
+                    onChange={(e) => handleChange('bankAccountNumber', e.target.value)}
+                    className="input-field mt-1"
+                    placeholder="Account number"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Account Holder</label>
-                  <div className="mt-1 text-sm text-gray-900">{mitra.bankHoldersName || 'Not provided'}</div>
+                  <input
+                    type="text"
+                    value={formData.bankHoldersName || ''}
+                    onChange={(e) => handleChange('bankHoldersName', e.target.value)}
+                    className="input-field mt-1"
+                    placeholder="Account holder name"
+                  />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Bonus & Timeline */}
+          {/* Bonus Status & Base Rate */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">Bonus Status</h3>
               <div className="bg-gray-50 rounded-lg p-4">
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${bonusColors[mitra.bonus as keyof typeof bonusColors] || 'bg-gray-100 text-gray-800'}`}>
-                  {mitra.bonus}
-                </span>
+                <select
+                  value={formData.bonus || ''}
+                  onChange={(e) => handleChange('bonus', e.target.value)}
+                  className="input-field"
+                >
+                  <option value="">Select Bonus Status</option>
+                  <option value="Eligible">Eligible</option>
+                  <option value="Not Eligible">Not Eligible</option>
+                </select>
               </div>
             </div>
 
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Timeline</h3>
-              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Created</label>
-                  <div className="text-sm text-gray-900">
-                    {new Date(mitra.createdAt).toLocaleString('en-GB', {
-                      timeZone: 'Asia/Jakarta',
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Last Updated</label>
-                  <div className="text-sm text-gray-900">
-                    {new Date(mitra.updatedAt).toLocaleString('en-GB', {
-                      timeZone: 'Asia/Jakarta',
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </div>
-                </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Base Rate</h3>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <input
+                  type="number"
+                  value={(formData as any).baseRate || ''}
+                  onChange={(e) => handleChange('baseRate' as any, e.target.value)}
+                  className="input-field"
+                  placeholder="Base rate per visit"
+                  min="0"
+                  step="1000"
+                />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
-          <button onClick={onClose} className="btn-primary">
-            Close
+        {/* Footer with Save and Cancel buttons */}
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3 sticky bottom-0">
+          <button
+            onClick={onClose}
+            className="btn-secondary"
+            disabled={saving}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="btn-primary"
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </div>

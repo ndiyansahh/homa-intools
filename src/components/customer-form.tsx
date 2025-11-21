@@ -28,7 +28,6 @@ interface CreateCustomerRequest {
   firstDateSubscription: string;
   status: string;
   cleaner1: string;
-  cleaner2: string;
   notes: string;
 }
 
@@ -88,7 +87,6 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
     firstDateSubscription: '',
     status: 'Active',
     cleaner1: '',
-    cleaner2: '',
     notes: '',
   });
 
@@ -440,7 +438,9 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
         body: JSON.stringify({
           dayPattern: selectedDaysList,
           startDate: startDate.toISOString().split('T')[0], // 'yyyy-mm-dd'
-          endDate: endDate.toISOString().split('T')[0] // 'yyyy-mm-dd'
+          endDate: endDate.toISOString().split('T')[0], // 'yyyy-mm-dd'
+          city: formData.city, // Add city for coverage area filtering
+          district: formData.district, // Add district for coverage area filtering
         }),
       });
 
@@ -456,17 +456,31 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
 
       const availableMitras = data.data?.availableMitras || [];
       const unavailableMitras = data.data?.unavailableMitras || [];
-      
+      const totalMitrasAfterCoverageFilter = data.data?.totalMitrasAfterCoverageFilter || 0;
+      const coverageFilterApplied = data.data?.coverageFilterApplied || false;
+
       setAvailableMitras(availableMitras.map((result: any) => ({
         id: result.mitraId,
         name: result.mitraName
       })));
-      
+
       if (availableMitras.length === 0) {
-        const reasons = unavailableMitras.length > 0 
-          ? `Issues: ${unavailableMitras.map((m: any) => `${m.mitraName} (${m.reason})`).join(', ')}`
-          : '';
-        setMitraAvailabilityMessage(`No mitras available for all ${previewVisits.length} scheduled visits over ${formData.qtyPackage} month(s). ${reasons} Please select different days or date.`);
+        // Check if it's a coverage issue (no mitras in the area)
+        if (coverageFilterApplied && totalMitrasAfterCoverageFilter === 0) {
+          setMitraAvailabilityMessage(
+            `⚠️ No mitras service the area: ${formData.city} - ${formData.district}. ` +
+            `Please contact admin to assign mitras to this coverage area, or select a different location.`
+          );
+        } else {
+          // It's a capacity issue (mitras exist but are fully booked)
+          const reasons = unavailableMitras.length > 0
+            ? `Issues: ${unavailableMitras.map((m: any) => `${m.mitraName} (${m.reason})`).join(', ')}`
+            : '';
+          setMitraAvailabilityMessage(
+            `No mitras available for all ${previewVisits.length} scheduled visits over ${formData.qtyPackage} month(s). ` +
+            `${reasons} Please select different days or date.`
+          );
+        }
       } else {
         setMitraAvailabilityMessage(`${availableMitras.length} mitra(s) available for all ${previewVisits.length} scheduled visits over ${formData.qtyPackage} month(s).`);
       }
@@ -588,7 +602,6 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
       firstDateSubscription: '',
       status: 'Active',
       cleaner1: '',
-      cleaner2: '',
       notes: '',
     });
     setDistricts([]);
@@ -1016,7 +1029,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Primary Mitra * <span className="text-xs text-gray-500">(Required - Main service provider)</span>
+                  Assigned Mitra *
                 </label>
                 <select
                   value={formData.cleaner1}
@@ -1026,9 +1039,9 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                   disabled={loadingMitras || availableMitras.length === 0}
                 >
                   <option value="">
-                    {loadingMitras ? 'Checking availability...' : 
-                     availableMitras.length === 0 ? 'No mitras available' : 
-                     'Select primary mitra...'}
+                    {loadingMitras ? 'Checking availability...' :
+                     availableMitras.length === 0 ? 'No mitras available' :
+                     'Select mitra...'}
                   </option>
                   {availableMitras.map((mitra, index) => (
                     <option key={`mitra1-${mitra.id}-${index}`} value={mitra.name}>
@@ -1043,73 +1056,22 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                 )}
                 {formData.cleaner1 && (
                   <p className="text-xs text-green-600 mt-1">
-                    ✓ Primary mitra selected: {formData.cleaner1}
+                    ✓ Mitra selected: {formData.cleaner1}
                   </p>
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Secondary Mitra <span className="text-xs text-gray-500">(Optional - Backup if primary can't come)</span>
-                </label>
-                <select
-                  value={formData.cleaner2}
-                  onChange={(e) => setFormData(prev => ({ ...prev, cleaner2: e.target.value }))}
-                  className="input-field"
-                  disabled={loadingMitras || availableMitras.length === 0 || !formData.cleaner1}
-                >
-                  <option value="">
-                    {!formData.cleaner1 ? 'Select primary mitra first...' :
-                     loadingMitras ? 'Checking availability...' : 
-                     availableMitras.length === 0 ? 'No mitras available' : 
-                     'Select secondary mitra (optional)...'}
-                  </option>
-                  {availableMitras
-                    .filter(mitra => mitra.name !== formData.cleaner1)
-                    .map((mitra, index) => (
-                      <option key={`mitra2-${mitra.id}-${index}`} value={mitra.name}>
-                        {mitra.name}
-                      </option>
-                    ))}
-                </select>
-                {formData.cleaner2 && (
-                  <p className="text-xs text-blue-600 mt-1">
-                    ✓ Secondary mitra selected: {formData.cleaner2}
-                  </p>
-                )}
-                {!formData.cleaner2 && formData.cleaner1 && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    💡 Tip: Adding a secondary mitra provides backup coverage
-                  </p>
-                )}
-              </div>
-              
               {/* Mitra Assignment Summary */}
               {formData.cleaner1 && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                  <h4 className="text-sm font-medium text-green-900 mb-2">Mitra Assignment Summary</h4>
+                  <h4 className="text-sm font-medium text-green-900 mb-2">Mitra Assignment</h4>
                   <div className="space-y-1 text-sm">
                     <div className="flex items-center space-x-2">
                       <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                       <span className="text-green-800">
-                        <strong>Primary:</strong> {formData.cleaner1} (Main service provider)
+                        <strong>Assigned Mitra:</strong> {formData.cleaner1}
                       </span>
                     </div>
-                    {formData.cleaner2 ? (
-                      <div className="flex items-center space-x-2">
-                        <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                        <span className="text-blue-800">
-                          <strong>Secondary:</strong> {formData.cleaner2} (Backup coverage)
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center space-x-2">
-                        <span className="w-2 h-2 bg-gray-300 rounded-full"></span>
-                        <span className="text-gray-600">
-                          <strong>Secondary:</strong> Not assigned (optional)
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}

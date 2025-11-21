@@ -82,119 +82,28 @@ async function getAvailableMitra(availableDate: string | null): Promise<NextResp
     return NextResponse.json(availableMitra);
 
   } catch (dbError) {
-    console.error('Database error in getAvailableMitra:', dbError);
-    
-    // Fallback to mock data for available mitra
-    const mockAvailable = mitraData
-      .filter(m => m.status === 'ACTIVE' && !m.isDeleted)
-      .map(m => ({
-        id: m.id,
-        name: m.name,
-        phone: m.phone
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    console.error('❌ CRITICAL: Database error in getAvailableMitra:', dbError);
 
-    return NextResponse.json(mockAvailable);
+    // NO FALLBACK TO MOCK DATA - Return empty array with error indicator
+    return NextResponse.json([],{
+      status: 500,
+      statusText: 'Database error',
+      headers: {
+        'X-Error': 'Database connection failed'
+      }
+    });
   }
 }
 
+// ⚠️ DEPRECATED: Mock data is NO LONGER USED - All data comes from database
+// This is kept only for reference and will be removed in future versions
 // Mock data storage (replace with real database) - Updated to match new schema
-let mitraData: any[] = [
-  {
-    id: '1',
-    joinDate: '15/10/2022',
-    mitraCode: 'MITRA-202210-000001',
-    name: 'Syeila Nurhasanah', // Legacy field for compatibility
-    nik: '3171081506950002', // Legacy field for compatibility
-    gender: 'Wanita', // Legacy field for compatibility
-    bornDate: '06/15/1995', // Legacy field for compatibility
-    address: 'Jl. Kebon Jeruk No. 123, Jakarta Barat',
-    phone: '081291662589',
-    bankAccount: 'BCA',
-    bankAccountNumber: '5271236489',
-    bankHoldersName: 'Syeila Nurhasanah',
-    cityAssignment: 'Jakarta Barat',
-    locationAssignment: 'Jakarta Barat',
-    partnershipTypes: 'Full Time',
-    status: 'ACTIVE',
-    tenure: '12',
-    bonus: 'Eligible',
-    createdAt: '2022-10-15T10:00:00Z',
-    updatedAt: '2022-10-15T10:00:00Z',
-    isDeleted: false,
-  },
-  {
-    id: '2',
-    joinDate: '20/10/2022',
-    mitraCode: 'MITRA-202210-000002',
-    name: 'Ahmad Rizki', // Legacy field for compatibility
-    nik: '3172082107880003', // Legacy field for compatibility
-    gender: 'Pria', // Legacy field for compatibility
-    bornDate: '07/21/1988', // Legacy field for compatibility
-    address: 'Jl. Sudirman No. 456, Jakarta Pusat',
-    phone: '081234567890',
-    bankAccount: 'Mandiri',
-    bankAccountNumber: '1234567890',
-    bankHoldersName: 'Ahmad Rizki',
-    cityAssignment: 'Jakarta Pusat',
-    locationAssignment: 'Jakarta Pusat',
-    partnershipTypes: 'Part Time',
-    status: 'ACTIVE',
-    tenure: '6',
-    bonus: 'Eligible',
-    createdAt: '2022-10-20T14:30:00Z',
-    updatedAt: '2022-10-20T14:30:00Z',
-    isDeleted: false,
-  },
-  {
-    id: '3',
-    joinDate: '25/11/2022',
-    mitraCode: 'MITRA-202211-000001',
-    nik: '3173081203920001',
-    name: 'Sari Indah',
-    gender: 'Wanita',
-    bornDate: '12/03/1992',
-    address: 'Jl. Gatot Subroto No. 789, Jakarta Selatan',
-    phone: '6281987654321',
-    bankAccount: 'BNI',
-    bankAccountNumber: '9876543210',
-    bankHoldersName: 'Sari Indah',
-    cityAssignment: 'Jakarta',
-    locationAssignment: 'Jakarta Selatan',
-    partnershipTypes: 'Fulltime',
-    status: 'ACTIVE-FLAG',
-    tenure: '3',
-    exitDate: '25/11/2025',
-    bonus: 'Not Eligible',
-    createdAt: '2022-11-25T09:15:00Z',
-    updatedAt: '2025-10-01T10:00:00Z',
-    isDeleted: false,
-  },
-  {
-    id: '4',
-    joinDate: '01/12/2022',
-    mitraCode: 'MITRA-202212-000001',
-    nik: '3174081809850004',
-    name: 'Budi Santoso',
-    gender: 'Pria',
-    bornDate: '18/09/1985',
-    address: 'Jl. Thamrin No. 321, Jakarta Utara',
-    phone: '6281555666777',
-    bankAccount: 'BCA',
-    bankAccountNumber: '7777666555',
-    bankHoldersName: 'Budi Santoso',
-    cityAssignment: 'Jakarta',
-    locationAssignment: 'Jakarta Utara',
-    partnershipTypes: 'Partime',
-    status: 'EXIT',
-    tenure: '6',
-    exitDate: '01/06/2025',
-    bonus: 'Not Eligible',
-    createdAt: '2022-12-01T11:20:00Z',
-    updatedAt: '2025-06-01T16:00:00Z',
-    isDeleted: false,
-  }
-];
+let mitraData: any[] = [];
+
+// Log warning if someone tries to use mock data
+if (mitraData.length > 0) {
+  console.warn('⚠️ WARNING: Mock data detected but should not be used. All mitra data must come from database.');
+}
 
 const generateMitraCode = async (): Promise<string> => {
   const now = new Date();
@@ -226,14 +135,14 @@ const generateMitraCode = async (): Promise<string> => {
     return newCode;
     
   } catch (error) {
-    console.error('❌ Database error in mitraCode generation, using fallback:', error);
-    
-    // Fallback to mock data count for current month
-    const mockCount = mitraData.filter(m => !m.isDeleted && m.mitraCode && m.mitraCode.includes(yearMonth)).length;
-    const sequence = String(mockCount + 1).padStart(6, '0');
+    console.error('❌ Database error in mitraCode generation:', error);
+
+    // Fallback: Use timestamp-based sequence instead of mock data
+    const timestamp = Date.now();
+    const sequence = String(timestamp % 1000000).padStart(6, '0');
     const fallbackCode = `MITRA-${yearMonth}-${sequence}`;
-    
-    console.log(`🔄 Fallback mitraCode: ${fallbackCode}`);
+
+    console.log(`🔄 Fallback mitraCode (using timestamp): ${fallbackCode}`);
     return fallbackCode;
   }
 };
@@ -489,56 +398,14 @@ export async function POST(request: NextRequest) {
       }, { status: 201 });
 
     } catch (dbError) {
-      console.error('Database error during mitra creation:', dbError);
-      
-      // Fallback to mock data behavior
-      if (mitraData.some(m => m.nik === body.mitraNIK && !m.isDeleted)) {
-        return NextResponse.json({ error: 'NIK already exists' }, { status: 400 });
-      }
+      console.error('❌ CRITICAL: Database error during mitra creation:', dbError);
 
-      const mitraCode = await generateMitraCode();
-      const newMitra: any = {
-        id: Date.now().toString(),
-        joinDate: new Date().toLocaleDateString('en-GB', {
-          timeZone: 'Asia/Jakarta',
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric'
-        }).replace(/\//g, '/'),
-        mitraCode: mitraCode,
-        name: body.mitraName,
-        nik: body.mitraNIK,
-        gender: body.mitraGender,
-        bornDate: body.mitraDOB,
-        phone: body.mitraPhone,
-        bankAccount: body.mitraBankAccount,
-        bankHoldersName: body.mitraBankHolderName,
-        bankAccountNumber: body.mitraBankAccountNumber,
-        cityAssignment: body.mitraCityAssignment,
-        locationAssignment: body.mitraLocationAssignment.join(', '),
-        partnershipTypes: body.mitraPartnership,
-        status: body.status || 'Active',
-        tenure: body.mitraTenure?.toString() || '0',
-        bonus: body.mitraBonusCommission,
-        exitDate: body.mitraExitDate,
-        address: body.address || '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isDeleted: false,
-      };
-
-      mitraData.push(newMitra);
-
-      return NextResponse.json({ 
-        success: true,
-        data: { 
-          id: newMitra.id, 
-          mitraCode: newMitra.mitraCode,
-          mitraName: body.mitraName,
-          mitraNIK: body.mitraNIK
-        },
-        message: 'Mitra created successfully (using mock data)'
-      }, { status: 201 });
+      // NO FALLBACK TO MOCK DATA - Return proper error
+      return NextResponse.json({
+        success: false,
+        error: 'Database error: Failed to create mitra',
+        details: process.env.NODE_ENV === 'development' ? String(dbError) : undefined
+      }, { status: 500 });
     }
 
   } catch (error) {
@@ -576,162 +443,105 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '10')));
     const offset = (page - 1) * limit;
 
-    let mitras: MitraListItem[] = [];
-    let total = 0;
+    // Build where conditions
+    const conditions = [];
 
-    try {
-      // Build where conditions
-      const conditions = [];
-      
-      // Search in name, mitra code, nik, or phone with new schema
-      if (q) {
-        conditions.push(
-          or(
-            ilike(mitraDB.mitraName, `%${q}%`),
-            ilike(mitraDB.mitraCode, `%${q}%`),
-            ilike(mitraDB.mitraNIK, `%${q}%`),
-            ilike(mitraDB.mitraPhone, `%${q}%`),
-            ilike(mitraDB.contact, `%${q}%`), // Legacy fallback
-            ilike(mitraDB.address, `%${q}%`)
-          )
-        );
-      }
-
-      // Status filter
-      if (status) {
-        conditions.push(eq(mitraDB.status, status));
-      }
-
-      // Partnership type filter with new schema
-      if (partnershipType) {
-        conditions.push(eq(mitraDB.mitraPartnership, partnershipType));
-      }
-
-      // City filter with new schema
-      if (city) {
-        conditions.push(
-          or(
-            ilike(mitraDB.mitraCityAssignment, `%${city}%`),
-            ilike(mitraDB.city, `%${city}%`) // Legacy fallback
-          )
-        );
-      }
-
-      // Add soft delete condition (only show non-deleted)
-      conditions.push(or(eq(mitraDB.isDeleted, false), sql`${mitraDB.isDeleted} IS NULL`));
-
-      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-      // Get total count
-      const countResult = await db
-        .select({ count: count() })
-        .from(mitraDB)
-        .where(whereClause);
-      
-      total = countResult[0]?.count || 0;
-
-      // Get paginated mitras from database with new schema fields
-      const result = await db
-        .select({
-          id: mitraDB.id,
-          mitraName: mitraDB.mitraName,
-          mitraCode: mitraDB.mitraCode,
-          mitraNIK: mitraDB.mitraNIK,
-          mitraGender: mitraDB.mitraGender,
-          mitraDOB: mitraDB.mitraDOB,
-          mitraPhone: mitraDB.mitraPhone,
-          contact: mitraDB.contact,
-          address: mitraDB.address,
-          city: mitraDB.city,
-          district: mitraDB.district,
-          mitraBankAccount: mitraDB.mitraBankAccount,
-          mitraBankHolderName: mitraDB.mitraBankHolderName,
-          mitraBankAccountNumber: mitraDB.mitraBankAccountNumber,
-          mitraCityAssignment: mitraDB.mitraCityAssignment,
-          mitraLocationAssignment: mitraDB.mitraLocationAssignment,
-          mitraPartnership: mitraDB.mitraPartnership,
-          mitraTenure: mitraDB.mitraTenure,
-          mitraExitDate: mitraDB.mitraExitDate,
-          mitraBonusCommission: mitraDB.mitraBonusCommission,
-          status: mitraDB.status,
-          joinDate: mitraDB.joinDate,
-          createdAt: mitraDB.createdAt,
-        })
-        .from(mitraDB)
-        .where(whereClause)
-        .orderBy(desc(mitraDB.createdAt))
-        .limit(limit)
-        .offset(offset);
-
-      mitras = result.map(mitra => ({
-        id: mitra.id,
-        joinDate: mitra.joinDate ? new Date(mitra.joinDate).toLocaleDateString('en-GB').replace(/\//g, '/') : (mitra.createdAt ? new Date(mitra.createdAt).toLocaleDateString('en-GB').replace(/\//g, '/') : new Date().toLocaleDateString('en-GB').replace(/\//g, '/')),
-        name: mitra.mitraName || '',
-        nik: mitra.mitraNIK || '',
-        mitraCode: mitra.mitraCode || '',
-        address: mitra.address || '',
-        phone: mitra.mitraPhone || mitra.contact || '',
-        bankAccount: mitra.mitraBankAccount || '',
-        bankAccountNumber: mitra.mitraBankAccountNumber || '',
-        bankHoldersName: mitra.mitraBankHolderName || '',
-        status: mitra.status as any || 'ACTIVE',
-        partnershipTypes: mitra.mitraPartnership as any || 'Full Time',
-        cityAssignment: mitra.mitraCityAssignment || mitra.city || '',
-        locationAssignment: mitra.mitraLocationAssignment ? (typeof mitra.mitraLocationAssignment === 'string' ? mitra.mitraLocationAssignment : JSON.stringify(mitra.mitraLocationAssignment)) : (mitra.district || ''),
-      }));
-
-    } catch (dbError) {
-      console.error('Database error, using mock data:', dbError);
-      
-      // Fallback to mock data
-      let filteredMitra = mitraData.filter(mitra => !mitra.isDeleted);
-
-      // Apply mock data filters
-      if (q) {
-        const searchTerm = q.toLowerCase();
-        filteredMitra = filteredMitra.filter(mitra =>
-          mitra.name.toLowerCase().includes(searchTerm) ||
-          mitra.mitraCode.toLowerCase().includes(searchTerm) ||
-          mitra.nik.includes(searchTerm) ||
-          mitra.phone.includes(searchTerm)
-        );
-      }
-
-      if (status) {
-        filteredMitra = filteredMitra.filter(mitra => mitra.status === status);
-      }
-
-      if (partnershipType) {
-        filteredMitra = filteredMitra.filter(mitra => mitra.partnershipTypes === partnershipType);
-      }
-
-      if (city) {
-        filteredMitra = filteredMitra.filter(mitra =>
-          mitra.cityAssignment.toLowerCase().includes(city.toLowerCase()) ||
-          mitra.locationAssignment.toLowerCase().includes(city.toLowerCase())
-        );
-      }
-
-      total = filteredMitra.length;
-      const items = filteredMitra.slice(offset, offset + limit);
-      
-      mitras = items.map(mitra => ({
-        id: mitra.id,
-        joinDate: mitra.joinDate,
-        name: mitra.name,
-        nik: mitra.nik,
-        mitraCode: mitra.mitraCode,
-        address: mitra.address,
-        phone: mitra.phone,
-        bankAccount: mitra.bankAccount,
-        bankAccountNumber: mitra.bankAccountNumber,
-        bankHoldersName: mitra.bankHoldersName,
-        status: mitra.status,
-        partnershipTypes: mitra.partnershipTypes,
-        cityAssignment: mitra.cityAssignment,
-        locationAssignment: mitra.locationAssignment || '',
-      }));
+    // Search in name, mitra code, nik, or phone with new schema
+    if (q) {
+      conditions.push(
+        or(
+          ilike(mitraDB.mitraName, `%${q}%`),
+          ilike(mitraDB.mitraCode, `%${q}%`),
+          ilike(mitraDB.mitraNIK, `%${q}%`),
+          ilike(mitraDB.mitraPhone, `%${q}%`),
+          ilike(mitraDB.contact, `%${q}%`), // Legacy fallback
+          ilike(mitraDB.address, `%${q}%`)
+        )
+      );
     }
+
+    // Status filter
+    if (status) {
+      conditions.push(eq(mitraDB.status, status));
+    }
+
+    // Partnership type filter with new schema
+    if (partnershipType) {
+      conditions.push(eq(mitraDB.mitraPartnership, partnershipType));
+    }
+
+    // City filter with new schema
+    if (city) {
+      conditions.push(
+        or(
+          ilike(mitraDB.mitraCityAssignment, `%${city}%`),
+          ilike(mitraDB.city, `%${city}%`) // Legacy fallback
+        )
+      );
+    }
+
+    // Add soft delete condition (only show non-deleted)
+    conditions.push(or(eq(mitraDB.isDeleted, false), sql`${mitraDB.isDeleted} IS NULL`));
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    // Get total count from DATABASE ONLY
+    const countResult = await db
+      .select({ count: count() })
+      .from(mitraDB)
+      .where(whereClause);
+
+    const total = countResult[0]?.count || 0;
+
+    // Get paginated mitras from DATABASE ONLY - NO MOCK DATA FALLBACK
+    const result = await db
+      .select({
+        id: mitraDB.id,
+        mitraName: mitraDB.mitraName,
+        mitraCode: mitraDB.mitraCode,
+        mitraNIK: mitraDB.mitraNIK,
+        mitraGender: mitraDB.mitraGender,
+        mitraDOB: mitraDB.mitraDOB,
+        mitraPhone: mitraDB.mitraPhone,
+        contact: mitraDB.contact,
+        address: mitraDB.address,
+        city: mitraDB.city,
+        district: mitraDB.district,
+        mitraBankAccount: mitraDB.mitraBankAccount,
+        mitraBankHolderName: mitraDB.mitraBankHolderName,
+        mitraBankAccountNumber: mitraDB.mitraBankAccountNumber,
+        mitraCityAssignment: mitraDB.mitraCityAssignment,
+        mitraLocationAssignment: mitraDB.mitraLocationAssignment,
+        mitraPartnership: mitraDB.mitraPartnership,
+        mitraTenure: mitraDB.mitraTenure,
+        mitraExitDate: mitraDB.mitraExitDate,
+        mitraBonusCommission: mitraDB.mitraBonusCommission,
+        status: mitraDB.status,
+        joinDate: mitraDB.joinDate,
+        createdAt: mitraDB.createdAt,
+      })
+      .from(mitraDB)
+      .where(whereClause)
+      .orderBy(desc(mitraDB.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const mitras: MitraListItem[] = result.map(mitra => ({
+      id: mitra.id,
+      joinDate: mitra.joinDate ? new Date(mitra.joinDate).toLocaleDateString('en-GB').replace(/\//g, '/') : (mitra.createdAt ? new Date(mitra.createdAt).toLocaleDateString('en-GB').replace(/\//g, '/') : new Date().toLocaleDateString('en-GB').replace(/\//g, '/')),
+      name: mitra.mitraName || '',
+      nik: mitra.mitraNIK || '',
+      mitraCode: mitra.mitraCode || '',
+      address: mitra.address || '',
+      phone: mitra.mitraPhone || mitra.contact || '',
+      bankAccount: mitra.mitraBankAccount || '',
+      bankAccountNumber: mitra.mitraBankAccountNumber || '',
+      bankHoldersName: mitra.mitraBankHolderName || '',
+      status: mitra.status as any || 'ACTIVE',
+      partnershipTypes: mitra.mitraPartnership as any || 'Full Time',
+      cityAssignment: mitra.mitraCityAssignment || mitra.city || '',
+      locationAssignment: mitra.mitraLocationAssignment ? (typeof mitra.mitraLocationAssignment === 'string' ? mitra.mitraLocationAssignment : JSON.stringify(mitra.mitraLocationAssignment)) : (mitra.district || ''),
+    }));
 
     const totalPages = Math.ceil(total / limit);
 

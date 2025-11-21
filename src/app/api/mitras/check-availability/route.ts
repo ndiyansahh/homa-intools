@@ -7,7 +7,7 @@ import { getMitraAvailabilityForPattern } from '@/lib/utils/subscriptionUtils';
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body = await request.json();
-    const { dayPattern, startDate, endDate } = body;
+    const { dayPattern, startDate, endDate, city, district } = body;
 
     if (!dayPattern || !Array.isArray(dayPattern) || !startDate || !endDate) {
       return NextResponse.json(
@@ -16,17 +16,39 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Fetch all active mitras
-    const mitras = await db
+    // Fetch all active mitras with coverage area info
+    const allMitras = await db
       .select({
         id: mitraDB.id,
         mitraName: mitraDB.mitraName,
         contact: mitraDB.contact,
         status: mitraDB.status,
-        totalVisits: mitraDB.totalVisits
+        totalVisits: mitraDB.totalVisits,
+        mitraCityAssignment: mitraDB.mitraCityAssignment,
+        mitraLocationAssignment: mitraDB.mitraLocationAssignment
       })
       .from(mitraDB)
       .where(eq(mitraDB.status, 'Active'));
+
+    // Filter mitras by coverage area if city and district provided
+    let mitras = allMitras;
+    if (city && district) {
+      console.log(`Filtering mitras for coverage area: ${city} - ${district}`);
+      mitras = allMitras.filter((mitra) => {
+        // Check city match
+        if (mitra.mitraCityAssignment !== city) return false;
+
+        // Check district in locationAssignment array
+        try {
+          const districts = JSON.parse(mitra.mitraLocationAssignment || '[]');
+          return districts.includes(district);
+        } catch (e) {
+          console.error('Error parsing mitraLocationAssignment for mitra:', mitra.id, e);
+          return false;
+        }
+      });
+      console.log(`Filtered from ${allMitras.length} to ${mitras.length} mitras based on coverage`);
+    }
 
     // Get all existing visits for availability calculation
     const existingVisits = await db
@@ -61,7 +83,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       data: {
         availableMitras,
         unavailableMitras,
-        allMitras: availabilityResults
+        allMitras: availabilityResults,
+        totalMitrasBeforeFilter: allMitras.length,
+        totalMitrasAfterCoverageFilter: mitras.length,
+        coverageFilterApplied: city && district ? true : false
       }
     });
 
