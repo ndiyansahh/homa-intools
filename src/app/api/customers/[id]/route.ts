@@ -421,8 +421,125 @@ export async function PUT(
   request: NextRequest,
   { params }: RouteParams
 ): Promise<NextResponse> {
-  return NextResponse.json({
-    success: false,
-    message: 'PUT method temporarily disabled for development'
-  }, { status: 501 });
+  try {
+    const session = await getSession();
+    if (!session && process.env.NODE_ENV !== 'development') {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Check RBAC - only ADMIN/OWNER can update
+    if (session && !['ADMIN', 'OWNER'].includes(session.role)) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden' },
+        { status: 403 }
+      );
+    }
+
+    const { id: customerId } = await params;
+    if (!customerId) {
+      return NextResponse.json(
+        { success: false, message: 'Customer ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+
+    try {
+      // Check if customer exists - fetch full record for audit logging
+      const existingCustomer = await db
+        .select()
+        .from(customerDB)
+        .where(
+          and(
+            eq(customerDB.id, customerId),
+            or(eq(customerDB.isDeleted, false), sql`${customerDB.isDeleted} IS NULL`)
+          )
+        )
+        .limit(1);
+
+      if (existingCustomer.length === 0) {
+        return NextResponse.json(
+          { success: false, message: 'Customer not found' },
+          { status: 404 }
+        );
+      }
+
+      const oldCustomerData = existingCustomer[0];
+
+      // Build update object
+      const updateData: any = {
+        updatedAt: new Date(),
+      };
+
+      if (body.customerName) updateData.customerName = body.customerName;
+      if (body.contact) updateData.contact = body.contact;
+      if (body.address) updateData.address = body.address;
+      if (body.city) updateData.city = body.city;
+      if (body.district !== undefined) updateData.district = body.district;
+      if (body.village !== undefined) updateData.village = body.village;
+      if (body.postalCode !== undefined) updateData.postalCode = body.postalCode;
+      if (body.subscriptionPackage) updateData.subscriptionPackage = body.subscriptionPackage;
+      if (body.status) updateData.subscriptionStatus = body.status;
+
+      // Handle dates
+      if (body.firstDateSubscription) {
+        // Convert dd/MM/yyyy to yyyy-MM-dd for database
+        const [day, month, year] = body.firstDateSubscription.split('/');
+        updateData.subscriptionStart = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      }
+      if (body.subscriptionEnd) {
+        const [day, month, year] = body.subscriptionEnd.split('/');
+        updateData.subscriptionEnd = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      }
+
+      // Update customer
+      await db
+        .update(customerDB)
+        .set(updateData)
+        .where(eq(customerDB.id, customerId));
+
+      // Create new data object for audit comparison
+      const newCustomerData = { ...oldCustomerData, ...updateData };
+
+      // Log detailed audit event with changed fields only
+      if (session) {
+        const changes = getChangedFields(oldCustomerData, newCustomerData);
+
+        await logDetailedAudit({
+          userId: session.userId,
+          userEmail: session.email,
+          action: 'UPDATE_CUSTOMER',
+          entityType: 'customer',
+          entityId: customerId,
+          oldValue: changes.old,
+          newValue: changes.new,
+          ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+          userAgent: request.headers.get('user-agent') || undefined,
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Customer updated successfully',
+      });
+
+    } catch (dbError) {
+      console.error('Database error during customer update:', dbError);
+      return NextResponse.json(
+        { success: false, message: 'Failed to update customer - database error' },
+        { status: 500 }
+      );
+    }
+
+  } catch (error) {
+    console.error('Customer update API error:', error);
+    return NextResponse.json(
+      { success: false, message: 'Failed to update customer' },
+      { status: 500 }
+    );
+  }
 }

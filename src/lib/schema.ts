@@ -186,19 +186,20 @@ export const attendanceScheduleDB = pgTable('attendance_schedule_db', {
   id: uuid('id').defaultRandom().primaryKey(),
   customerId: uuid('customer_id').references(() => customerDB.id).notNull(),
   mitraId: uuid('mitra_id').references(() => mitraDB.id).notNull(),
-  
+
   // Schedule details
   scheduledDate: timestamp('scheduled_date').notNull(),
   scheduledTime: varchar('scheduled_time', { length: 10 }), // HH:MM format
   // duration: integer('duration').default(120), // minutes - Column doesn't exist in actual database
-  
+
   // Status
   status: varchar('status', { length: 20 }).default('Scheduled'), // Scheduled, Completed, Cancelled, No-Show
   // notes: text('notes'), // Column doesn't exist in actual database
-  
+
   // Metadata
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
+  updatedBy: varchar('updated_by', { length: 255 }), // Email or name of the user who last updated
   isDeleted: boolean('is_deleted').default(false),
 });
 
@@ -248,10 +249,11 @@ export const attendanceRecordDB = pgTable('attendance_record_db', {
   // Status and notes
   status: varchar('status', { length: 20 }).default('Scheduled'), // Scheduled, In-Progress, Completed, Cancelled
   notes: text('notes'),
-  
+
   // Metadata
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
+  updatedBy: varchar('updated_by', { length: 255 }), // Email or name of the user who last updated
   isDeleted: boolean('is_deleted').default(false),
 });
 
@@ -312,6 +314,7 @@ export const visitDB = pgTable('visit_db', {
   // Metadata
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  updatedBy: varchar('updated_by', { length: 255 }), // Email or name of the user who last updated
   completedAt: timestamp('completed_at', { withTimezone: true }),
 });
 

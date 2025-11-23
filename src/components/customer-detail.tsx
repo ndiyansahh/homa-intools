@@ -78,6 +78,22 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   const [cleaner2, setCleaner2] = useState('');
   const [availableCleaners, setAvailableCleaners] = useState<string[]>([]);
 
+  // Edit customer form states
+  const [editCustomerName, setEditCustomerName] = useState('');
+  const [editContact, setEditContact] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editCity, setEditCity] = useState('');
+  const [editDistrict, setEditDistrict] = useState('');
+  const [editVillage, setEditVillage] = useState('');
+  const [editPostalCode, setEditPostalCode] = useState('');
+  const [editSubscriptionPackage, setEditSubscriptionPackage] = useState('');
+  const [editStatus, setEditStatus] = useState('');
+
+  // Region dropdown data
+  const [cities, setCities] = useState<Array<{ id: string; name: string }>>([]);
+  const [districts, setDistricts] = useState<Array<{ id: string; name: string; city_id: string }>>([]);
+  const [villages, setVillages] = useState<Array<{ id: string; name: string; district_id: string; postal_code: string }>>([]);
+
   // Visit/Attendance states
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loadingVisits, setLoadingVisits] = useState(false);
@@ -199,6 +215,53 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       console.error('❌ Error fetching customer visits:', error);
     } finally {
       setLoadingVisits(false);
+    }
+  };
+
+  // Fetch cities for region dropdown
+  const fetchCities = async () => {
+    try {
+      const response = await fetch('/api/regions/cities');
+      if (response.ok) {
+        const data = await response.json();
+        setCities(data.cities || []);
+      }
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+    }
+  };
+
+  // Fetch districts based on city
+  const fetchDistricts = async (cityName: string) => {
+    if (!cityName) {
+      setDistricts([]);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/regions/districts?city=${encodeURIComponent(cityName)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setDistricts(data.districts || []);
+      }
+    } catch (error) {
+      console.error('Error fetching districts:', error);
+    }
+  };
+
+  // Fetch villages based on district
+  const fetchVillages = async (districtName: string) => {
+    if (!districtName) {
+      setVillages([]);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/regions/villages?district=${encodeURIComponent(districtName)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setVillages(data.villages || []);
+      }
+    } catch (error) {
+      console.error('Error fetching villages:', error);
     }
   };
 
@@ -674,30 +737,43 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   }, [availableMitras, showGenerateSchedule, customer]);
 
   const handleUpdateDate = async () => {
-    if (!newDate.trim()) {
-      alert('Please enter a valid date');
+    // Validate required fields
+    if (!editCustomerName.trim() || !editContact.trim() || !editAddress.trim() || !editCity.trim() || !newDate.trim()) {
+      alert('Please fill in all required fields (marked with *)');
       return;
     }
 
     try {
       setActionLoading(true);
-      const response = await fetch(`/api/customers/${customerId}/update-date`, {
-        method: 'POST',
+      const response = await fetch(`/api/customers/${customerId}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newDate, endDate: endDate || undefined }),
+        body: JSON.stringify({
+          customerName: editCustomerName,
+          contact: editContact,
+          address: editAddress,
+          city: editCity,
+          district: editDistrict,
+          village: editVillage,
+          postalCode: editPostalCode,
+          subscriptionPackage: editSubscriptionPackage,
+          status: editStatus,
+          firstDateSubscription: newDate,
+          subscriptionEnd: endDate || undefined,
+        }),
       });
 
       if (response.ok) {
-        alert('Date updated successfully');
+        alert('Customer updated successfully');
         setShowUpdateDate(false);
         fetchCustomer(); // Refresh customer data
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to update date');
+        alert(error.error || 'Failed to update customer');
       }
     } catch (error) {
-      console.error('Error updating date:', error);
-      alert('Failed to update date');
+      console.error('Error updating customer:', error);
+      alert('Failed to update customer');
     } finally {
       setActionLoading(false);
     }
@@ -775,16 +851,36 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
         {/* Action Buttons */}
         <div className="flex space-x-3">
           <button
-            onClick={() => setShowUpdateDate(true)}
+            onClick={async () => {
+              // Initialize form with current customer data
+              setEditCustomerName(customer.customerName || '');
+              setEditContact(customer.contact || '');
+              setEditAddress(customer.address || '');
+              setEditCity(customer.city || '');
+              setEditDistrict(customer.district || '');
+              setEditVillage(customer.village || '');
+              setEditPostalCode(customer.postalCode || '');
+              setEditSubscriptionPackage(customer.subscriptionPackage || '');
+              setEditStatus(customer.status || '');
+              setNewDate(customer.firstDateSubscription || '');
+              setEndDate(customer.subscriptionEnd || '');
+
+              // Fetch regions
+              await fetchCities();
+              if (customer.city) await fetchDistricts(customer.city);
+              if (customer.district) await fetchVillages(customer.district);
+
+              setShowUpdateDate(true);
+            }}
             className="btn-primary"
           >
-            Update Date
+            Edit Customer
           </button>
           <button
             onClick={() => setShowGenerateSchedule(true)}
             className="btn-secondary"
           >
-            Assignee Cleaner
+            Generate Visit Schedule
           </button>
         </div>
       </div>
@@ -1126,39 +1222,202 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
         </div>
       </div>
 
-      {/* Update Date Modal */}
+      {/* Edit Customer Modal */}
       {showUpdateDate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Update Date</h3>
-            <div className="space-y-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 my-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Customer</h3>
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+              {/* Basic Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Customer Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={editCustomerName}
+                    onChange={(e) => setEditCustomerName(e.target.value)}
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Contact *
+                  </label>
+                  <input
+                    type="text"
+                    value={editContact}
+                    onChange={(e) => setEditContact(e.target.value)}
+                    className="input-field"
+                  />
+                </div>
+              </div>
+
+              {/* Address */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  New Subscription Date * (dd/MM/yyyy)
+                  Address *
+                </label>
+                <textarea
+                  value={editAddress}
+                  onChange={(e) => setEditAddress(e.target.value)}
+                  className="input-field"
+                  rows={2}
+                />
+              </div>
+
+              {/* Location */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    City *
+                  </label>
+                  <select
+                    value={editCity}
+                    onChange={async (e) => {
+                      setEditCity(e.target.value);
+                      setEditDistrict('');
+                      setEditVillage('');
+                      setEditPostalCode('');
+                      if (e.target.value) {
+                        await fetchDistricts(e.target.value);
+                      } else {
+                        setDistricts([]);
+                        setVillages([]);
+                      }
+                    }}
+                    className="input-field"
+                  >
+                    <option value="">Select City</option>
+                    {cities.map(city => (
+                      <option key={city.id} value={city.name}>{city.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    District
+                  </label>
+                  <select
+                    value={editDistrict}
+                    onChange={async (e) => {
+                      setEditDistrict(e.target.value);
+                      setEditVillage('');
+                      setEditPostalCode('');
+                      if (e.target.value) {
+                        await fetchVillages(e.target.value);
+                      } else {
+                        setVillages([]);
+                      }
+                    }}
+                    className="input-field"
+                    disabled={!editCity}
+                  >
+                    <option value="">Select District</option>
+                    {districts.map(district => (
+                      <option key={district.id} value={district.name}>{district.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Village
+                  </label>
+                  <select
+                    value={editVillage}
+                    onChange={(e) => {
+                      setEditVillage(e.target.value);
+                      // Auto-fill postal code from selected village
+                      const selectedVillage = villages.find(v => v.name === e.target.value);
+                      if (selectedVillage) {
+                        setEditPostalCode(selectedVillage.postal_code || '');
+                      }
+                    }}
+                    className="input-field"
+                    disabled={!editDistrict}
+                  >
+                    <option value="">Select Village</option>
+                    {villages.map(village => (
+                      <option key={village.id} value={village.name}>{village.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Postal Code
+                  </label>
+                  <input
+                    type="text"
+                    value={editPostalCode}
+                    onChange={(e) => setEditPostalCode(e.target.value)}
+                    className="input-field"
+                    readOnly
+                  />
+                </div>
+              </div>
+
+              {/* Subscription */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Subscription Package *
                 </label>
                 <input
                   type="text"
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  placeholder="25/12/2025"
-                  pattern="\d{2}/\d{2}/\d{4}"
+                  value={editSubscriptionPackage}
+                  onChange={(e) => setEditSubscriptionPackage(e.target.value)}
                   className="input-field"
                 />
               </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Subscription Start (dd/MM/yyyy) *
+                  </label>
+                  <input
+                    type="text"
+                    value={newDate}
+                    onChange={(e) => setNewDate(e.target.value)}
+                    placeholder="25/12/2025"
+                    pattern="\d{2}/\d{2}/\d{4}"
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Subscription End (dd/MM/yyyy)
+                  </label>
+                  <input
+                    type="text"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    placeholder="30/12/2025"
+                    pattern="\d{2}/\d{2}/\d{4}"
+                    className="input-field"
+                  />
+                </div>
+              </div>
+
+              {/* Status */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  End Date (dd/MM/yyyy) - Optional
+                  Status *
                 </label>
                 <input
                   type="text"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  placeholder="30/12/2025"
-                  pattern="\d{2}/\d{2}/\d{4}"
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
                   className="input-field"
+                  placeholder="Active, Churn, etc."
                 />
               </div>
             </div>
+
             <div className="flex justify-end space-x-3 mt-6">
               <button
                 onClick={() => setShowUpdateDate(false)}
@@ -1172,7 +1431,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                 className="btn-primary"
                 disabled={actionLoading}
               >
-                {actionLoading ? 'Updating...' : 'Update Date'}
+                {actionLoading ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
