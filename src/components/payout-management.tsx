@@ -170,127 +170,102 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
     }
   };
 
-  // Export for Transfer - Simplified format
-  const handleExportForTransfer = async () => {
+  // Export Monthly Payout - Single month export
+  const handleExportMonthlyPayout = async () => {
     try {
       setExporting(true);
 
-      // Only include Pending/Unpaid payouts for transfer
-      const pendingPayouts = payouts.filter(p => p.status === 'Pending');
-
-      if (pendingPayouts.length === 0) {
-        alert('No pending payouts to export for transfer');
+      // Validate month is selected
+      if (!filterMonth) {
+        alert('Please select a month to export monthly payout');
         setExporting(false);
         return;
       }
 
-      // Simplified data for transfer - only essential columns
-      const exportData = pendingPayouts.map((payout, index) => ({
-        'No': index + 1,
-        'Mitra Name': payout.mitraName,
-        'Total Payout': parseFloat(payout.totalPayout), // Number without formatting
-        'Payout Date': payout.payoutDate,
-        'Status': payout.status,
-        'Notes': payout.notes || '-',
-      }));
+      // Build query params
+      const params = new URLSearchParams({
+        year: filterYear,
+        months: filterMonth,
+        format: 'csv',
+      });
 
-      // Calculate total
-      const grandTotal = pendingPayouts.reduce((sum, p) => sum + parseFloat(p.totalPayout), 0);
+      // Fetch export data from API
+      const response = await fetch(`/api/payouts/export?${params.toString()}`);
 
-      // Add summary row
-      exportData.push({
-        'No': '',
-        'Mitra Name': 'TOTAL',
-        'Total Payout': grandTotal,
-        'Payout Date': '',
-        'Status': '',
-        'Notes': `${pendingPayouts.length} mitras`,
-      } as any);
+      // Handle 404 - No data found
+      if (response.status === 404) {
+        const errorData = await response.json();
+        alert(errorData.message || `No payouts found for ${getMonthName(parseInt(filterMonth))} ${filterYear}`);
+        setExporting(false);
+        return;
+      }
 
-      // Convert to CSV
-      const headers = Object.keys(exportData[0] || {});
-      const csvContent = [
-        headers.join(','),
-        ...exportData.map(row =>
-          headers.map(header => {
-            const value = row[header as keyof typeof row];
-            return typeof value === 'string' && value.includes(',')
-              ? `"${value}"`
-              : value;
-          }).join(',')
-        )
-      ].join('\n');
+      if (!response.ok) {
+        throw new Error('Failed to export payout data');
+      }
 
-      // Create blob and download
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      // Download CSV file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `transfer_${filterYear}_${filterMonth || 'all'}.csv`);
-      link.style.visibility = 'hidden';
+      link.href = url;
+      link.download = `payout-monthly-${filterYear}-${filterMonth.padStart(2, '0')}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      alert('Export successful! CSV file has been downloaded.');
     } catch (error) {
-      console.error('Error exporting for transfer:', error);
-      alert('Failed to export transfer file');
+      console.error('Error exporting monthly payout:', error);
+      alert('Failed to export monthly payout');
     } finally {
       setExporting(false);
     }
   };
 
-  // Export Full Report - Complete data
-  const handleExportFullReport = async () => {
+  // Export Full Report Yearly - All months in a year
+  const handleExportFullReportYearly = async () => {
     try {
       setExporting(true);
 
-      // Prepare data for export
-      const exportData = payouts.map((payout, index) => ({
-        'No': index + 1,
-        'Payout ID': payout.payoutId,
-        'Year': payout.year,
-        'Month': getMonthName(payout.month),
-        'Mitra Name': payout.mitraName,
-        'Total Visits': payout.totalVisits,
-        'Price Per Visit': parseFloat(payout.pricePerVisit),
-        'Base Payout': parseFloat(payout.basePayout),
-        'Bonus Amount': parseFloat(payout.bonusAmount),
-        'Total Payout': parseFloat(payout.totalPayout),
-        'Status': payout.status,
-        'Payout Date': payout.payoutDate,
-        'Bonus Eligible': payout.bonusEligible ? 'Yes' : 'No',
-        'Notes': payout.notes || '-',
-      }));
+      // Build query params for all months
+      const params = new URLSearchParams({
+        year: filterYear,
+        months: '1,2,3,4,5,6,7,8,9,10,11,12', // All months
+        format: 'csv',
+      });
 
-      // Convert to CSV
-      const headers = Object.keys(exportData[0] || {});
-      const csvContent = [
-        headers.join(','),
-        ...exportData.map(row =>
-          headers.map(header => {
-            const value = row[header as keyof typeof row];
-            return typeof value === 'string' && value.includes(',')
-              ? `"${value}"`
-              : value;
-          }).join(',')
-        )
-      ].join('\n');
+      // Fetch export data from API
+      const response = await fetch(`/api/payouts/export?${params.toString()}`);
 
-      // Create blob and download
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      // Handle 404 - No data found
+      if (response.status === 404) {
+        const errorData = await response.json();
+        alert(errorData.message || `No payouts found for year ${filterYear}`);
+        setExporting(false);
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to export full report');
+      }
+
+      // Download CSV file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `payouts_full_report_${filterYear}_${filterMonth || 'all'}.csv`);
-      link.style.visibility = 'hidden';
+      link.href = url;
+      link.download = `payout-yearly-report-${filterYear}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
-      alert('Exported successfully!');
+      alert('Export successful! Full yearly report has been downloaded.');
     } catch (error) {
-      console.error('Error exporting:', error);
-      alert('Failed to export data');
+      console.error('Error exporting full report:', error);
+      alert('Failed to export full report');
     } finally {
       setExporting(false);
     }
@@ -367,22 +342,22 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
           </div>
           <div className="flex items-end gap-2">
             <button
-              onClick={handleExportForTransfer}
-              disabled={exporting || payouts.length === 0}
+              onClick={handleExportMonthlyPayout}
+              disabled={exporting || !filterMonth}
               className="btn-primary flex-1"
-              title="Export simplified format for bank transfer (pending payouts only)"
+              title="Export single month payout with bank details (select month first)"
             >
               <Icons.download className="h-4 w-4 mr-2 inline" />
-              {exporting ? 'Exporting...' : 'Export for Transfer'}
+              {exporting ? 'Exporting...' : 'Export Monthly Payout'}
             </button>
             <button
-              onClick={handleExportFullReport}
-              disabled={exporting || payouts.length === 0}
+              onClick={handleExportFullReportYearly}
+              disabled={exporting}
               className="btn-secondary flex-1"
-              title="Export complete report with all details"
+              title="Export full yearly report (all months for selected year)"
             >
               <Icons.download className="h-4 w-4 mr-2 inline" />
-              {exporting ? 'Exporting...' : 'Export Full Report'}
+              {exporting ? 'Exporting...' : 'Export Full Report Yearly'}
             </button>
           </div>
         </div>
