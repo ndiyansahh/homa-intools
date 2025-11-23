@@ -239,7 +239,6 @@ export default function TrialManagement({ session }: TrialManagementProps) {
 
       // Fetch active mitras
       const params = '?status=Active';
-      console.log('Fetching mitras from:', `/api/mitra${params}`);
       const response = await fetch(`/api/mitra${params}`, {
         signal: controller.signal
       });
@@ -248,31 +247,19 @@ export default function TrialManagement({ session }: TrialManagementProps) {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Mitra API response:', data);
         // API returns {items: [], page, total} structure for paginated requests
         let mitrasArray = Array.isArray(data) ? data : (data.items && Array.isArray(data.items) ? data.items : []);
 
         // Filter by region if customer city and district are provided
         if (customerCity && customerDistrict) {
-          console.log('🔍 Filtering mitras for:', { customerCity, customerDistrict });
-          console.log('📋 Total mitras before filter:', mitrasArray.length);
-
           mitrasArray = mitrasArray.filter((mitra: any) => {
-            console.log('Checking mitra:', {
-              name: mitra.name,
-              cityAssignment: mitra.cityAssignment,
-              locationAssignment: mitra.locationAssignment
-            });
-
             // Check city assignment
             if (!mitra.cityAssignment || mitra.cityAssignment !== customerCity) {
-              console.log(`  ❌ City mismatch: ${mitra.cityAssignment} !== ${customerCity}`);
               return false;
             }
 
             // Check district assignment
             if (!mitra.locationAssignment) {
-              console.log('  ⚠️ No locationAssignment, assuming covers all');
               return true; // If no specific districts, assume covers all
             }
 
@@ -283,30 +270,20 @@ export default function TrialManagement({ session }: TrialManagementProps) {
               // If it's a string, parse it
               if (typeof districts === 'string') {
                 districts = JSON.parse(districts);
-                console.log('  📍 Districts (parsed from string):', districts);
-              } else {
-                console.log('  📍 Districts (already array):', districts);
               }
 
               if (Array.isArray(districts)) {
-                const hasDistrict = districts.includes(customerDistrict);
-                console.log(`  ${hasDistrict ? '✅' : '❌'} District "${customerDistrict}" ${hasDistrict ? 'found' : 'not found'} in:`, districts);
-                return hasDistrict;
-              } else {
-                console.log('  ❌ Districts is not an array:', typeof districts, districts);
+                return districts.includes(customerDistrict);
               }
             } catch (e) {
-              console.error('  ❌ Error parsing locationAssignment:', e);
-              console.error('  Raw value:', mitra.locationAssignment);
+              console.error('Error parsing mitra locationAssignment:', e);
+              return false;
             }
 
             return false;
           });
-
-          console.log(`✅ Filtered to ${mitrasArray.length} mitras covering ${customerCity} - ${customerDistrict}`);
         }
 
-        console.log('Setting', mitrasArray.length, 'mitras to state');
         setMitras(mitrasArray);
       } else {
         console.error('Failed to fetch mitras:', response.status, response.statusText);
@@ -326,7 +303,6 @@ export default function TrialManagement({ session }: TrialManagementProps) {
 
   // Load cities on component mount
   useEffect(() => {
-    console.log('Component mounting, fetching initial data');
     fetchCities();
 
     // Cleanup function to reset loading states if component unmounts
@@ -341,7 +317,6 @@ export default function TrialManagement({ session }: TrialManagementProps) {
   // Fetch mitras when city and district are selected
   useEffect(() => {
     if (formData.city_id && formData.district_id) {
-      console.log('City and district selected, fetching mitras for:', formData.city_id, formData.district_id);
       fetchMitras(formData.city_id, formData.district_id);
     } else {
       // Reset mitras if city or district changes
@@ -397,7 +372,6 @@ export default function TrialManagement({ session }: TrialManagementProps) {
 
   const fetchTrials = useCallback(async (isRefresh = false) => {
     try {
-      console.log('Starting fetchTrials with filters:', filters);
       if (isRefresh) {
         setRefreshing(true);
       } else {
@@ -428,7 +402,6 @@ export default function TrialManagement({ session }: TrialManagementProps) {
 
       if (response.ok) {
         const result = await response.json();
-        console.log('Trials API response:', result);
 
         // Handle new API response format
         if (result.success && result.data) {
@@ -469,7 +442,6 @@ export default function TrialManagement({ session }: TrialManagementProps) {
   }, [filters]);
 
   useEffect(() => {
-    console.log('useEffect triggered for fetchTrials, filters:', filters);
     fetchTrials();
   }, [fetchTrials]);
 

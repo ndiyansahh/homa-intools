@@ -144,6 +144,7 @@ export async function PUT(
       ...attendanceData[attendanceIndex],
       ...body,
       updatedAt: new Date().toISOString(),
+      updatedBy: session.email, // Record who made the update
     };
 
     attendanceData[attendanceIndex] = updatedAttendance;
@@ -157,6 +158,7 @@ export async function PUT(
         attendanceId: updatedAttendance.id,
         clientName: updatedAttendance.clientName,
         updatedFields: Object.keys(body),
+        updatedBy: session.email,
       },
     });
 

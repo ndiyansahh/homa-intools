@@ -57,6 +57,7 @@ export async function GET(
         visitNotes: visitDB.visitNotes,
         createdAt: visitDB.createdAt,
         updatedAt: visitDB.updatedAt,
+        updatedBy: visitDB.updatedBy, // Who last updated this visit
         completedAt: visitDB.completedAt,
         // Include mitra info (actual mitra for display)
         mitraName: mitraDB.mitraName,
@@ -94,46 +95,12 @@ export async function GET(
       scheduled: visits.filter(v => v.status === 'Scheduled').length,
       cancelled: visits.filter(v => v.status === 'Cancelled').length,
       filtered: filteredVisits.length,
-      statuses: visits.map(v => ({ visitNumber: v.visitNumber, status: v.status, date: v.scheduledDate }))
-    });
-
-    // Get audit logs for completed visits to show who updated them
-    const completedVisitIds = filteredVisits
-      .filter(v => v.status === 'Done')
-      .map(v => v.id);
-
-    let auditLogs: any[] = [];
-    if (completedVisitIds.length > 0) {
-      // Get the most recent audit log for each visit
-      auditLogs = await db
-        .select({
-          entityId: auditLogDB.entityId,
-          userEmail: auditLogDB.userEmail,
-          createdAt: auditLogDB.createdAt,
-        })
-        .from(auditLogDB)
-        .where(
-          and(
-            eq(auditLogDB.entityType, 'visit'),
-            sql`${auditLogDB.entityId} IN (${sql.join(completedVisitIds.map(id => sql`${id}`), sql`, `)})`
-          )
-        )
-        .orderBy(desc(auditLogDB.createdAt));
-    }
-
-    // Add audit info to visits
-    const visitsWithAudit = filteredVisits.map(visit => {
-      const audit = auditLogs.find(log => log.entityId === visit.id);
-      return {
-        ...visit,
-        updatedBy: audit?.userEmail,
-        updatedByAt: audit?.createdAt,
-      };
+      statuses: visits.map(v => ({ visitNumber: v.visitNumber, status: v.status, date: v.scheduledDate, updatedBy: v.updatedBy }))
     });
 
     return NextResponse.json({
       success: true,
-      data: visitsWithAudit,
+      data: filteredVisits,
     });
 
   } catch (error) {
@@ -340,6 +307,7 @@ export async function PUT(
     // Update visit
     const updateData: any = {
       updatedAt: new Date(),
+      updatedBy: session.email, // Record who made the update
     };
 
     if (status !== undefined) {

@@ -194,14 +194,6 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
               )}
             </div>
             <div className="flex items-center space-x-3">
-              <button
-                onClick={() => fetchCustomers(true)}
-                disabled={refreshing}
-                className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50"
-                title="Refresh data"
-              >
-                🔄 Refresh
-              </button>
               <div className="text-right">
                 <span className="text-sm text-gray-500">
                   {pagination.total} total customers
