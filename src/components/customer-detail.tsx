@@ -224,7 +224,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       const response = await fetch('/api/regions/cities');
       if (response.ok) {
         const data = await response.json();
-        setCities(data.cities || []);
+        setCities(data.data || []);
       }
     } catch (error) {
       console.error('Error fetching cities:', error);
@@ -238,10 +238,10 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       return;
     }
     try {
-      const response = await fetch(`/api/regions/districts?city=${encodeURIComponent(cityName)}`);
+      const response = await fetch(`/api/regions/districts?city_id=${encodeURIComponent(cityName)}`);
       if (response.ok) {
         const data = await response.json();
-        setDistricts(data.districts || []);
+        setDistricts(data.data || []);
       }
     } catch (error) {
       console.error('Error fetching districts:', error);
@@ -255,10 +255,10 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       return;
     }
     try {
-      const response = await fetch(`/api/regions/villages?district=${encodeURIComponent(districtName)}`);
+      const response = await fetch(`/api/regions/villages?district_id=${encodeURIComponent(districtName)}`);
       if (response.ok) {
         const data = await response.json();
-        setVillages(data.villages || []);
+        setVillages(data.data || []);
       }
     } catch (error) {
       console.error('Error fetching villages:', error);
@@ -1038,20 +1038,8 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                       const isCancelled = visit.status === 'Cancelled';
                       const isEditingThisDate = editingDateVisitId === visit.id;
 
-                      // Determine the package name to display
-                      // If visit was completed before subscription start, it's from Trial period
-                      const getPackageName = () => {
-                        if (visit.status === 'Done' && visit.completedAt && visit.subscriptionStart) {
-                          const completedDate = new Date(visit.completedAt);
-                          const subStartDate = new Date(visit.subscriptionStart);
-                          if (completedDate < subStartDate) {
-                            return 'Trial';
-                          }
-                        }
-                        return visit.subscriptionPackage || 'N/A';
-                      };
-
-                      const packageName = getPackageName();
+                      // Display customer's current subscription package for all visits
+                      const packageName = customer?.subscriptionPackage || visit.subscriptionPackage || 'N/A';
 
                       return (
                         <div key={visit.id} className={`p-4 rounded border ${isCancelled ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-200'}`}>
@@ -1111,7 +1099,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                               <div className="space-y-1">
                                 {packageName && (
                                   <div className="text-xs text-gray-600 mb-1">
-                                    📦 Package: <span className={`font-medium ${packageName === 'Trial' ? 'text-indigo-600' : ''}`}>{packageName}</span>
+                                    📦 Package: <span className="font-medium">{packageName}</span>
                                   </div>
                                 )}
 

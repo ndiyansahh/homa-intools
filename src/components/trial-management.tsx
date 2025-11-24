@@ -1058,22 +1058,8 @@ export default function TrialManagement({ session }: TrialManagementProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <h2 className="text-xl font-semibold text-gray-900">Trials</h2>
-              {refreshing && (
-                <div className="flex items-center text-blue-600">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                  <span className="text-sm">Updating...</span>
-                </div>
-              )}
             </div>
             <div className="flex items-center space-x-3">
-              <button
-                onClick={() => fetchTrials(true)}
-                disabled={refreshing}
-                className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50"
-                title="Refresh data"
-              >
-                🔄 Refresh
-              </button>
               <div className="text-right">
                 <span className="text-sm text-gray-500">
                   {pagination.total} total trials
