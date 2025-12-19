@@ -82,9 +82,9 @@ export async function GET(
         filteredVisits = visits.filter(v => v.status === 'Done');
         console.log('🔒 Trial package - filtering to Done only');
       } else {
-        // For Non-Trial packages in customer view: show Done + Scheduled
-        filteredVisits = visits.filter(v => v.status === 'Done' || v.status === 'Scheduled');
-        console.log('📋 Non-Trial package - showing Done + Scheduled');
+        // For Non-Trial packages in customer view: show Done + Scheduled + Cancelled
+        filteredVisits = visits.filter(v => v.status === 'Done' || v.status === 'Scheduled' || v.status === 'Cancelled');
+        console.log('📋 Non-Trial package - showing Done + Scheduled + Cancelled');
       }
     }
     // If view is not 'customer' (i.e., trial page), return all visits as-is
@@ -161,18 +161,23 @@ export async function POST(
       );
     }
 
-    // Generate visit dates based on selected day (e.g., every Monday)
-    const visits: Date[] = [];
-    const start = new Date(startDate);
-    const end = endDate ? new Date(endDate) : new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000); // Default 30 days
+    // Get existing cancelled visits to replace them
+    const existingCancelledVisits = await db
+      .select()
+      .from(visitDB)
+      .where(
+        and(
+          eq(visitDB.customerId, id),
+          eq(visitDB.status, 'Cancelled')
+        )
+      );
 
-    const currentDate = new Date(start);
-    while (currentDate <= end) {
-      const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
-      if (dayName === selectedDay) {
-        visits.push(new Date(currentDate));
-      }
-      currentDate.setDate(currentDate.getDate() + 1);
+    // Check if there are cancelled visits to reschedule
+    if (existingCancelledVisits.length === 0) {
+      return NextResponse.json(
+        { success: false, message: 'No cancelled visits to reschedule. This feature is only available when you have cancelled visits.' },
+        { status: 400 }
+      );
     }
 
     // Get existing completed visits to preserve them
@@ -186,18 +191,44 @@ export async function POST(
         )
       );
 
-    // Find the highest visitNumber from completed visits
-    const maxVisitNumber = existingCompletedVisits.length > 0
-      ? Math.max(...existingCompletedVisits.map(v => v.visitNumber))
+    // Get existing scheduled visits to preserve them
+    const existingScheduledVisits = await db
+      .select()
+      .from(visitDB)
+      .where(
+        and(
+          eq(visitDB.customerId, id),
+          eq(visitDB.status, 'Scheduled')
+        )
+      );
+
+    // Find the highest visitNumber from all existing visits
+    const allExistingVisits = [...existingCompletedVisits, ...existingScheduledVisits, ...existingCancelledVisits];
+    const maxVisitNumber = allExistingVisits.length > 0
+      ? Math.max(...allExistingVisits.map(v => v.visitNumber))
       : 0;
 
-    // Delete existing visits for this trial (only non-Done visits to preserve completed history)
+    // Generate visit dates for ONLY the number of cancelled visits
+    const visits: Date[] = [];
+    const start = new Date(startDate);
+    const end = endDate ? new Date(endDate) : new Date(start.getTime() + 365 * 24 * 60 * 60 * 1000); // Default 1 year
+
+    const currentDate = new Date(start);
+    while (currentDate <= end && visits.length < existingCancelledVisits.length) {
+      const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
+      if (dayName === selectedDay) {
+        visits.push(new Date(currentDate));
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Delete ONLY cancelled visits (preserve Done and Scheduled)
     await db
       .delete(visitDB)
       .where(
         and(
           eq(visitDB.customerId, id),
-          sql`${visitDB.status} != 'Done'`
+          eq(visitDB.status, 'Cancelled')
         )
       );
 
@@ -226,17 +257,20 @@ export async function POST(
         })
         .where(eq(customerDB.id, id));
 
-      console.log(`✅ Created ${visitRecords.length} new visit records for customer ${id}`);
+      console.log(`✅ Rescheduled ${existingCancelledVisits.length} cancelled visit(s) with ${visitRecords.length} new scheduled visit(s)`);
       console.log(`✅ Preserved ${existingCompletedVisits.length} completed visit(s)`);
+      console.log(`✅ Preserved ${existingScheduledVisits.length} scheduled visit(s)`);
       console.log(`✅ Updated customer assignedMitraId to ${mitraId}`);
     }
 
     return NextResponse.json({
       success: true,
-      message: `Successfully scheduled ${visitRecords.length} new visit(s). ${existingCompletedVisits.length} completed visit(s) preserved.`,
+      message: `✅ ${existingCancelledVisits.length} cancelled visit(s) have been rescheduled successfully!\nExisting visits (${existingCompletedVisits.length} completed, ${existingScheduledVisits.length} scheduled) are preserved.`,
       data: {
         visitsCreated: visitRecords.length,
-        visitsPreserved: existingCompletedVisits.length,
+        cancelledVisitsRescheduled: existingCancelledVisits.length,
+        completedVisitsPreserved: existingCompletedVisits.length,
+        scheduledVisitsPreserved: existingScheduledVisits.length,
         visits: visitRecords,
       },
     });
@@ -272,7 +306,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { visitId, status, actualDate, visitNotes, scheduledDate } = body;
+    const { visitId, status, actualDate, visitNotes, scheduledDate, scheduledDay, actualMitraId } = body;
 
     if (!visitId) {
       return NextResponse.json(
@@ -328,10 +362,18 @@ export async function PUT(
 
     if (scheduledDate) {
       updateData.scheduledDate = scheduledDate;
-      // Update scheduledDay based on new date
-      const date = new Date(scheduledDate);
-      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-      updateData.scheduledDay = dayName;
+      // Update scheduledDay based on new date (if not provided)
+      if (scheduledDay) {
+        updateData.scheduledDay = scheduledDay;
+      } else {
+        const date = new Date(scheduledDate);
+        const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+        updateData.scheduledDay = dayName;
+      }
+    }
+
+    if (actualMitraId) {
+      updateData.actualMitraId = actualMitraId;
     }
 
     await db

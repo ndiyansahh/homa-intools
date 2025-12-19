@@ -111,6 +111,21 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedVisitHistory, setSelectedVisitHistory] = useState<any>(null);
 
+  // Cancel visit with reason states
+  const [showCancelReasonModal, setShowCancelReasonModal] = useState(false);
+  const [selectedVisitForCancel, setSelectedVisitForCancel] = useState<Visit | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [loadingCancelVisit, setLoadingCancelVisit] = useState(false);
+
+  // Single visit reschedule states
+  const [showSingleRescheduleModal, setShowSingleRescheduleModal] = useState(false);
+  const [selectedVisitForReschedule, setSelectedVisitForReschedule] = useState<Visit | null>(null);
+  const [singleRescheduleDate, setSingleRescheduleDate] = useState('');
+  const [singleRescheduleMitra, setSingleRescheduleMitra] = useState('');
+  const [availableMitrasForSingle, setAvailableMitrasForSingle] = useState<any[]>([]);
+  const [loadingSingleReschedule, setLoadingSingleReschedule] = useState(false);
+  const [loadingSingleAvailability, setLoadingSingleAvailability] = useState(false);
+
   // Generate visit schedule states
   const [showGenerateSchedule, setShowGenerateSchedule] = useState(false);
   const [scheduleStartDate, setScheduleStartDate] = useState('');
@@ -293,31 +308,158 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   // Cancel or undo cancel visit
   const handleCancelVisit = async (visitId: string, currentStatus: string) => {
     const isCancelling = currentStatus !== 'Cancelled';
-    const confirmMessage = isCancelling
-      ? 'Are you sure you want to cancel this visit?'
-      : 'Mark this visit as Scheduled again?';
 
-    if (!confirm(confirmMessage)) return;
+    if (isCancelling) {
+      // User is cancelling a scheduled visit - show modal to get reason
+      const visit = visits.find(v => v.id === visitId);
+      if (visit) {
+        setSelectedVisitForCancel(visit);
+        setCancelReason('');
+        setShowCancelReasonModal(true);
+      }
+    } else {
+      // User is rescheduling a cancelled visit - open modal
+      const visit = visits.find(v => v.id === visitId);
+      if (visit) {
+        setSelectedVisitForReschedule(visit);
+        setSingleRescheduleDate(visit.scheduledDate); // Prefill with original date
+        setSingleRescheduleMitra(visit.actualMitraId || ''); // Prefill with original mitra
+        setShowSingleRescheduleModal(true);
+      }
+    }
+  };
+
+  // Save cancellation with reason
+  const saveCancelVisit = async () => {
+    if (!selectedVisitForCancel || !cancelReason.trim()) {
+      alert('Please provide a reason for cancelling this visit');
+      return;
+    }
 
     try {
+      setLoadingCancelVisit(true);
       const response = await fetch(`/api/trial/${customerId}/visits`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          visitId,
-          status: isCancelling ? 'Cancelled' : 'Scheduled',
+          visitId: selectedVisitForCancel.id,
+          status: 'Cancelled',
+          visitNotes: `Cancellation reason: ${cancelReason}`, // Store reason in visitNotes
         }),
       });
 
       if (response.ok) {
+        setShowCancelReasonModal(false);
+        setSelectedVisitForCancel(null);
+        setCancelReason('');
+        await fetchVisits(); // Refresh visits
+        alert('Visit cancelled successfully');
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to cancel visit');
+      }
+    } catch (error) {
+      console.error('Error cancelling visit:', error);
+      alert('Failed to cancel visit');
+    } finally {
+      setLoadingCancelVisit(false);
+    }
+  };
+
+  // Check mitra availability for single visit reschedule
+  const checkSingleVisitAvailability = async () => {
+    if (!singleRescheduleDate || !customer || !allMitras.length) return;
+
+    try {
+      setLoadingSingleAvailability(true);
+      const dateObj = new Date(singleRescheduleDate);
+      const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+
+      const response = await fetch('/api/mitras/check-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dayPattern: [singleRescheduleDate],
+          startDate: singleRescheduleDate,
+          endDate: singleRescheduleDate,
+          city: customer.city,
+          district: customer.district,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          const available = result.data.availableMitras || [];
+          setAvailableMitrasForSingle(available);
+
+          // Auto-select mitra if current selection is available
+          if (singleRescheduleMitra) {
+            const isAvailable = available.some((m: any) => (m.mitraId || m.id) === singleRescheduleMitra);
+            if (!isAvailable && available.length > 0) {
+              // Current mitra not available, select first available
+              setSingleRescheduleMitra(available[0].mitraId || available[0].id);
+            }
+          } else if (available.length > 0) {
+            // No mitra selected, select first available
+            setSingleRescheduleMitra(available[0].mitraId || available[0].id);
+          }
+        }
+      } else {
+        // Fallback to all mitras
+        setAvailableMitrasForSingle(allMitras);
+      }
+    } catch (error) {
+      console.error('Error checking availability:', error);
+      setAvailableMitrasForSingle(allMitras);
+    } finally {
+      setLoadingSingleAvailability(false);
+    }
+  };
+
+  // Save single visit reschedule
+  const saveSingleVisitReschedule = async () => {
+    if (!selectedVisitForReschedule || !singleRescheduleDate || !singleRescheduleMitra) {
+      alert('Please select both date and mitra');
+      return;
+    }
+
+    try {
+      setLoadingSingleReschedule(true);
+
+      // Get day name from selected date
+      const dateObj = new Date(singleRescheduleDate);
+      const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+
+      const response = await fetch(`/api/trial/${customerId}/visits`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          visitId: selectedVisitForReschedule.id,
+          status: 'Scheduled',
+          scheduledDate: singleRescheduleDate,
+          scheduledDay: dayName,
+          actualMitraId: singleRescheduleMitra,
+        }),
+      });
+
+      if (response.ok) {
+        alert('Visit rescheduled successfully!');
+        setShowSingleRescheduleModal(false);
+        setSelectedVisitForReschedule(null);
+        setSingleRescheduleDate('');
+        setSingleRescheduleMitra('');
+        setAvailableMitrasForSingle([]);
         await fetchVisits(); // Refresh visits
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to update visit status');
+        alert(error.message || 'Failed to reschedule visit');
       }
     } catch (error) {
-      console.error('Error updating visit status:', error);
-      alert('Failed to update visit status');
+      console.error('Error rescheduling visit:', error);
+      alert('Failed to reschedule visit');
+    } finally {
+      setLoadingSingleReschedule(false);
     }
   };
 
@@ -610,18 +752,23 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
     }
 
     const completedVisits = visits.filter(v => v.status === 'Done').length;
-    const remainingVisits = visits.length - completedVisits;
     const scheduledVisits = visits.filter(v => v.status === 'Scheduled').length;
     const cancelledVisits = visits.filter(v => v.status === 'Cancelled').length;
 
-    let confirmMessage = `Generate ${remainingVisits} visit(s) for every ${selectedDay}?`;
+    // Check if there are cancelled visits to reschedule
+    if (cancelledVisits === 0) {
+      alert('No cancelled visits to reschedule. This feature is only available when you have cancelled visits.');
+      return;
+    }
+
+    let confirmMessage = `Reschedule ${cancelledVisits} cancelled visit(s) to every ${selectedDay}?`;
 
     if (visits.length > 0) {
-      confirmMessage += `\n\nCurrent schedule:`;
-      confirmMessage += `\n• ${completedVisits} completed (will be preserved)`;
-      if (scheduledVisits > 0) confirmMessage += `\n• ${scheduledVisits} scheduled (will be replaced)`;
-      if (cancelledVisits > 0) confirmMessage += `\n• ${cancelledVisits} cancelled (will be replaced)`;
-      confirmMessage += `\n\n→ Total: ${remainingVisits} new visit(s) will be generated`;
+      confirmMessage += `\n\nWhat will happen:`;
+      confirmMessage += `\n• ${completedVisits} completed visits → preserved`;
+      if (scheduledVisits > 0) confirmMessage += `\n• ${scheduledVisits} scheduled visits → preserved`;
+      confirmMessage += `\n• ${cancelledVisits} cancelled visits → replaced with new schedule`;
+      confirmMessage += `\n\nYou will create ${cancelledVisits} new visit(s).`;
     }
 
     if (!confirm(confirmMessage)) {
@@ -643,16 +790,16 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
 
       if (response.ok) {
         const result = await response.json();
-        alert(result.message || 'Visit schedule generated successfully');
+        alert(result.message || 'Cancelled visits have been rescheduled successfully!');
         setShowGenerateSchedule(false);
         await fetchVisits(); // Refresh visits
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to generate visit schedule');
+        alert(error.message || 'Failed to reschedule cancelled visits');
       }
     } catch (error) {
-      console.error('Error generating visit schedule:', error);
-      alert('Failed to generate visit schedule');
+      console.error('Error rescheduling visits:', error);
+      alert('Failed to reschedule cancelled visits');
     } finally {
       setLoadingSchedule(false);
     }
@@ -665,11 +812,8 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
 
       const hasCancelled = visits.some(v => v.status === 'Cancelled');
 
-      // Auto-detect mitra from existing visits or customer data
-      if (visits.length > 0 && visits[0].actualMitraId) {
-        console.log('Using mitra from existing visit:', visits[0].actualMitraId);
-        setSelectedMitraForSchedule(visits[0].actualMitraId);
-      }
+      // DON'T auto-set mitra here - wait for availability check first
+      // We will set mitra after availableMitras is loaded
 
       // Fetch all mitras if there are cancelled visits (so user can change)
       if (hasCancelled) {
@@ -720,21 +864,63 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
     }
   }, [scheduleStartDate, scheduleEndDate, selectedDay, showGenerateSchedule, allMitras, visits]);
 
-  // Set default mitra when availableMitras is loaded
+  // Set default mitra when availableMitras is loaded - ONLY from available mitras
   useEffect(() => {
-    if (showGenerateSchedule && availableMitras.length > 0 && customer?.cleaner1) {
-      console.log('Trying to set default mitra. AvailableMitras:', availableMitras.length, 'Cleaner1:', customer.cleaner1);
-      // Try to match by name (API uses 'name' field, not 'mitraName')
-      const mitra = availableMitras.find(m => m.mitraName === customer.cleaner1);
-      if (mitra) {
-        console.log('Found matching mitra:', mitra.mitraId);
-        setSelectedMitraForSchedule(mitra.mitraId);
-      } else {
-        console.log('No matching mitra found for:', customer.cleaner1);
-        console.log('Available mitra names:', availableMitras.map(m => m.mitraName));
+    if (showGenerateSchedule && availableMitras.length > 0) {
+      console.log('Setting default mitra from available mitras. Count:', availableMitras.length);
+
+      // Priority 1: Try to match with existing visit's mitra (if it's available)
+      const currentMitraId = visits.length > 0 ? visits[0].actualMitraId : null;
+      if (currentMitraId) {
+        const currentMitra = availableMitras.find(m => (m.mitraId || m.id) === currentMitraId);
+        if (currentMitra) {
+          console.log('✅ Current mitra is available:', currentMitra.mitraName);
+          setSelectedMitraForSchedule(currentMitraId);
+          return;
+        } else {
+          console.log('❌ Current mitra NOT available for selected dates');
+        }
       }
+
+      // Priority 2: Try to match with customer's cleaner1
+      if (customer?.cleaner1) {
+        const mitra = availableMitras.find(m => m.mitraName === customer.cleaner1);
+        if (mitra) {
+          console.log('✅ Found cleaner1 in available mitras:', mitra.mitraName);
+          setSelectedMitraForSchedule(mitra.mitraId || mitra.id);
+          return;
+        }
+      }
+
+      // Priority 3: Select first available mitra
+      const firstMitra = availableMitras[0];
+      console.log('ℹ️ Auto-selecting first available mitra:', firstMitra.mitraName || firstMitra.name);
+      setSelectedMitraForSchedule(firstMitra.mitraId || firstMitra.id);
     }
-  }, [availableMitras, showGenerateSchedule, customer]);
+  }, [availableMitras, showGenerateSchedule, customer, visits]);
+
+  // Single visit reschedule modal initialization
+  useEffect(() => {
+    if (showSingleRescheduleModal && selectedVisitForReschedule) {
+      // Fetch all mitras when modal opens
+      if (allMitras.length === 0) {
+        fetchAllMitras();
+      }
+    } else {
+      // Reset when modal closes
+      setAvailableMitrasForSingle([]);
+      setSingleRescheduleDate('');
+      setSingleRescheduleMitra('');
+    }
+  }, [showSingleRescheduleModal, selectedVisitForReschedule]);
+
+  // Check availability when date changes in single visit reschedule
+  useEffect(() => {
+    if (showSingleRescheduleModal && singleRescheduleDate && allMitras.length > 0) {
+      console.log('Checking availability for single visit reschedule...');
+      checkSingleVisitAvailability();
+    }
+  }, [showSingleRescheduleModal, singleRescheduleDate, allMitras]);
 
   const handleUpdateDate = async () => {
     // Validate required fields
@@ -880,7 +1066,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
             onClick={() => setShowGenerateSchedule(true)}
             className="btn-secondary"
           >
-            Generate Visit Schedule
+            Bulk Reschedule
           </button>
         </div>
       </div>
@@ -1426,11 +1612,11 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
         </div>
       )}
 
-      {/* Generate Visit Schedule Modal */}
+      {/* Bulk Reschedule Modal */}
       {showGenerateSchedule && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Generate Visit Schedule</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Bulk Reschedule Cancelled Visits</h3>
 
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -1538,14 +1724,17 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                   </p>
                   <ul className={`text-sm mt-1 ml-4 list-disc ${hasCancelledVisits ? 'text-orange-700' : 'text-blue-700'}`}>
                     <li>{visits.filter(v => v.status === 'Done').length} Completed (will be preserved)</li>
-                    <li>{visits.filter(v => v.status === 'Scheduled').length} Scheduled (will be replaced)</li>
+                    <li>{visits.filter(v => v.status === 'Scheduled').length} Scheduled (will be preserved)</li>
                     {visits.filter(v => v.status === 'Cancelled').length > 0 && (
-                      <li className="font-medium">{visits.filter(v => v.status === 'Cancelled').length} Cancelled (will be replaced with new mitra)</li>
+                      <li className="font-medium">{visits.filter(v => v.status === 'Cancelled').length} Cancelled (will be REPLACED with new mitra)</li>
                     )}
                   </ul>
                   <p className={`text-sm mt-2 font-medium ${hasCancelledVisits ? 'text-orange-800' : 'text-blue-800'}`}>
-                    → Will generate {visits.length - visits.filter(v => v.status === 'Done').length} new visit(s)
-                    {hasCancelledVisits && ' with selected mitra'}
+                    {hasCancelledVisits ? (
+                      <>→ Will create {visits.filter(v => v.status === 'Cancelled').length} new visit(s) to replace cancelled ones</>
+                    ) : (
+                      <>ℹ️ No cancelled visits to reschedule. This feature is only available when you have cancelled visits.</>
+                    )}
                   </p>
                 </div>
               )}
@@ -1561,17 +1750,21 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
               </button>
               <button
                 onClick={generateVisitSchedule}
-                className="btn-primary"
+                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={
                   loadingSchedule ||
                   !scheduleStartDate ||
                   !selectedDay ||
-                  !selectedMitraForSchedule
+                  !selectedMitraForSchedule ||
+                  !hasCancelledVisits
                 }
+                title={!hasCancelledVisits ? 'No cancelled visits to reschedule' : ''}
               >
                 {loadingSchedule
-                  ? 'Generating...'
-                  : `Generate ${visits.length > 0 ? (visits.length - visits.filter(v => v.status === 'Done').length) + ' ' : ''}Visit${visits.length - visits.filter(v => v.status === 'Done').length !== 1 ? 's' : ''}`
+                  ? 'Rescheduling...'
+                  : hasCancelledVisits
+                  ? `Reschedule ${visits.filter(v => v.status === 'Cancelled').length} Visit${visits.filter(v => v.status === 'Cancelled').length !== 1 ? 's' : ''}`
+                  : 'No Cancelled Visits'
                 }
               </button>
             </div>
@@ -1694,6 +1887,184 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                 disabled={loadingMitraChange}
               >
                 {loadingMitraChange ? 'Changing...' : 'Change Mitra'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Visit Reason Modal */}
+      {showCancelReasonModal && selectedVisitForCancel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Cancel Visit #{selectedVisitForCancel.visitNumber}</h3>
+            <div className="mb-4 p-3 bg-gray-50 rounded">
+              <p className="text-sm text-gray-600">
+                <strong>Mitra:</strong> {selectedVisitForCancel.mitraName}
+              </p>
+              <p className="text-sm text-gray-600">
+                <strong>Date:</strong> {selectedVisitForCancel.scheduledDate} ({selectedVisitForCancel.scheduledDay})
+              </p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reason for Cancellation *
+                </label>
+                <textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Why are you cancelling this visit?"
+                  rows={4}
+                  className="input-field"
+                  autoFocus
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Please provide a clear reason for cancelling this scheduled visit.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowCancelReasonModal(false);
+                  setSelectedVisitForCancel(null);
+                  setCancelReason('');
+                }}
+                className="btn-secondary"
+                disabled={loadingCancelVisit}
+              >
+                Close
+              </button>
+              <button
+                onClick={saveCancelVisit}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors disabled:opacity-50"
+                disabled={loadingCancelVisit || !cancelReason.trim()}
+              >
+                {loadingCancelVisit ? 'Cancelling...' : 'Cancel Visit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Single Visit Reschedule Modal */}
+      {showSingleRescheduleModal && selectedVisitForReschedule && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Reschedule Visit #{selectedVisitForReschedule.visitNumber}
+            </h3>
+
+            <div className="mb-4 p-3 bg-gray-50 rounded">
+              <p className="text-sm text-gray-600 mb-1">
+                <strong>Original Schedule:</strong>
+              </p>
+              <p className="text-sm text-gray-700">
+                📅 {selectedVisitForReschedule.scheduledDate} ({selectedVisitForReschedule.scheduledDay})
+              </p>
+              <p className="text-sm text-gray-700">
+                👤 {selectedVisitForReschedule.mitraName}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New Date *
+                </label>
+                <input
+                  type="date"
+                  value={singleRescheduleDate}
+                  onChange={(e) => setSingleRescheduleDate(e.target.value)}
+                  className="input-field"
+                  min={customer?.subscriptionStart ? (() => {
+                    try {
+                      // Convert dd/mm/yyyy to yyyy-mm-dd
+                      const parts = customer.subscriptionStart.split('/');
+                      if (parts.length === 3) {
+                        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                      }
+                      return new Date().toISOString().split('T')[0];
+                    } catch {
+                      return new Date().toISOString().split('T')[0];
+                    }
+                  })() : new Date().toISOString().split('T')[0]}
+                  max={customer?.subscriptionEnd ? (() => {
+                    try {
+                      // Convert dd/mm/yyyy to yyyy-mm-dd
+                      const parts = customer.subscriptionEnd.split('/');
+                      if (parts.length === 3) {
+                        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                      }
+                      return undefined;
+                    } catch {
+                      return undefined;
+                    }
+                  })() : undefined}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Date must be within subscription period
+                  {customer?.subscriptionStart && customer?.subscriptionEnd &&
+                    ` (${customer.subscriptionStart} - ${customer.subscriptionEnd})`
+                  }
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New Mitra *
+                  {loadingSingleAvailability && <span className="text-xs text-gray-500 ml-2">(Checking availability...)</span>}
+                </label>
+                <select
+                  value={singleRescheduleMitra}
+                  onChange={(e) => setSingleRescheduleMitra(e.target.value)}
+                  className="input-field"
+                  disabled={loadingSingleAvailability || !singleRescheduleDate}
+                >
+                  <option value="">
+                    {loadingSingleAvailability ? 'Checking availability...' : 'Select mitra'}
+                  </option>
+                  {(availableMitrasForSingle.length > 0 ? availableMitrasForSingle : allMitras).map((mitra) => (
+                    <option key={mitra.mitraId || mitra.id} value={mitra.mitraId || mitra.id}>
+                      {mitra.mitraName || mitra.name}
+                      {availableMitrasForSingle.length > 0 && mitra.availableForAllDates ? ' ✓' : ''}
+                    </option>
+                  ))}
+                </select>
+                {availableMitrasForSingle.length > 0 && (
+                  <p className="text-xs text-green-600 mt-1">
+                    ✓ {availableMitrasForSingle.length} mitra available for this date
+                  </p>
+                )}
+                {singleRescheduleDate && availableMitrasForSingle.length === 0 && !loadingSingleAvailability && allMitras.length > 0 && (
+                  <p className="text-xs text-orange-600 mt-1">
+                    ⚠️ No availability data - showing all mitras
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowSingleRescheduleModal(false);
+                  setSelectedVisitForReschedule(null);
+                  setSingleRescheduleDate('');
+                  setSingleRescheduleMitra('');
+                  setAvailableMitrasForSingle([]);
+                }}
+                className="btn-secondary"
+                disabled={loadingSingleReschedule}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveSingleVisitReschedule}
+                className="btn-primary"
+                disabled={loadingSingleReschedule || !singleRescheduleDate || !singleRescheduleMitra}
+              >
+                {loadingSingleReschedule ? 'Rescheduling...' : 'Reschedule Visit'}
               </button>
             </div>
           </div>
