@@ -22,16 +22,15 @@ export default function LoginForm() {
     return emailRegex.test(email);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const performLogin = async (email: string, password: string) => {
     setError('');
-    
-    if (!formData.email || !formData.password) {
+
+    if (!email || !password) {
       setError('Please fill in all fields');
       return;
     }
 
-    if (!validateEmail(formData.email)) {
+    if (!validateEmail(email)) {
       setError('Please enter a valid email address');
       return;
     }
@@ -44,7 +43,7 @@ export default function LoginForm() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ email, password }),
       });
 
       if (response.ok) {
@@ -54,7 +53,7 @@ export default function LoginForm() {
         }, 100);
       } else {
         const errorData: LoginError = await response.json();
-        
+
         if (errorData.error === 'INVALID_CREDENTIALS') {
           setError('Invalid email or password');
         } else if (errorData.error === 'RATE_LIMITED') {
@@ -71,6 +70,11 @@ export default function LoginForm() {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await performLogin(formData.email, formData.password);
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -79,8 +83,9 @@ export default function LoginForm() {
     }));
   };
 
-  const quickLogin = (email: string, password: string) => {
+  const quickLogin = async (email: string, password: string) => {
     setFormData({ email, password });
+    await performLogin(email, password);
   };
 
   return (
