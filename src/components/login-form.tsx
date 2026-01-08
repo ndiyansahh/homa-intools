@@ -101,7 +101,7 @@ export default function LoginForm() {
             <div className="mb-8">
               <div className="flex items-center space-x-3 mb-6">
                 <div className="w-12 h-12 bg-white/20 backdrop-blur-lg rounded-xl flex items-center justify-center">
-                  <span className="text-2xl">🏠</span>
+                  <span className="text-2xl"></span>
                 </div>
                 <h1 className="text-4xl font-bold text-white">HOMA</h1>
               </div>
@@ -277,7 +277,7 @@ export default function LoginForm() {
 
             {/* Footer */}
             <div className="mt-6 text-center text-xs text-gray-500">
-              <p>© 2024 HOMA. Secure internal management system.</p>
+              <p>© 2025 HOMA. Secure internal management system.</p>
             </div>
           </div>
         </div>

@@ -1978,10 +1978,10 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                   value={singleRescheduleDate}
                   onChange={(e) => setSingleRescheduleDate(e.target.value)}
                   className="input-field"
-                  min={customer?.subscriptionStart ? (() => {
+                  min={customer?.firstDateSubscription ? (() => {
                     try {
                       // Convert dd/mm/yyyy to yyyy-mm-dd
-                      const parts = customer.subscriptionStart.split('/');
+                      const parts = customer.firstDateSubscription.split('/');
                       if (parts.length === 3) {
                         return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
                       }
@@ -2005,8 +2005,8 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Date must be within subscription period
-                  {customer?.subscriptionStart && customer?.subscriptionEnd &&
-                    ` (${customer.subscriptionStart} - ${customer.subscriptionEnd})`
+                  {customer?.firstDateSubscription && customer?.subscriptionEnd &&
+                    ` (${customer.firstDateSubscription} - ${customer.subscriptionEnd})`
                   }
                 </p>
               </div>
