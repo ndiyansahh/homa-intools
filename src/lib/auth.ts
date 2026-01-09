@@ -26,7 +26,9 @@ export async function createSession(userId: string, role: UserRole, email: strin
   const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    // Use HTTPS detection: only set secure cookie if using HTTPS
+    // This allows staging (HTTP) and production (HTTPS) to work properly
+    secure: process.env.NEXT_PUBLIC_APP_URL?.startsWith('https://') ?? false,
     sameSite: 'lax',
     maxAge: COOKIE_MAX_AGE,
     path: '/',
@@ -72,7 +74,8 @@ export async function refreshSession() {
   const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, newToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    // Use HTTPS detection: only set secure cookie if using HTTPS
+    secure: process.env.NEXT_PUBLIC_APP_URL?.startsWith('https://') ?? false,
     sameSite: 'lax',
     maxAge: COOKIE_MAX_AGE,
     path: '/',
