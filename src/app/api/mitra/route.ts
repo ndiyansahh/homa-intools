@@ -519,6 +519,8 @@ export async function GET(request: NextRequest) {
         status: mitraDB.status,
         joinDate: mitraDB.joinDate,
         createdAt: mitraDB.createdAt,
+        baseRate: mitraDB.baseRate,
+        monthlyBaseRate: mitraDB.monthlyBaseRate,
       })
       .from(mitraDB)
       .where(whereClause)
@@ -541,6 +543,8 @@ export async function GET(request: NextRequest) {
       partnershipTypes: mitra.mitraPartnership as any || 'Full Time',
       cityAssignment: mitra.mitraCityAssignment || mitra.city || '',
       locationAssignment: mitra.mitraLocationAssignment ? (typeof mitra.mitraLocationAssignment === 'string' ? mitra.mitraLocationAssignment : JSON.stringify(mitra.mitraLocationAssignment)) : (mitra.district || ''),
+      baseRate: mitra.baseRate || '0',
+      monthlyBaseRate: mitra.monthlyBaseRate || '0',
     }));
 
     const totalPages = Math.ceil(total / limit);

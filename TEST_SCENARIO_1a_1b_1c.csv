@@ -1,0 +1,144 @@
+=== TEST SCENARIO - MITRA PAYOUT (1a, 1b, 1c) ===
+Date: 2025-01-24
+Period: January 2025
+
+===================================
+1. MASTER DATA - MITRAS
+===================================
+Mitra ID,Mitra Name,Status,Monthly Base Rate,Notes
+MITRA-A,Jane Doe (Senior),Active,900000,Senior mitra - higher base rate
+MITRA-B,John Smith (Junior),Active,700000,Junior mitra - lower base rate
+MITRA-C,Sarah Lee (Part-time),Active,600000,Part-time mitra
+
+===================================
+2. MASTER DATA - SUBSCRIPTION PACKAGES
+===================================
+Package ID,Package Name,Frequency,Visits per Month
+PKG-BASIC,Basic Package (2x/week),2x weekly,8
+PKG-REGULAR,Regular Package (3x/week),3x weekly,12
+PKG-FREQUENT,Frequent Package (3x/week),3x weekly,12
+
+===================================
+3. RATE CONFIGURATIONS (mitra_rate_config_db)
+===================================
+Config ID,Mitra ID,Mitra Name,Package ID,Package Name,Monthly Rate,Effective From,Effective To,Is Active,Notes
+RC-001,MITRA-A,Jane Doe,PKG-BASIC,Basic Package,800000,2025-01-01,,TRUE,Jane rate for Basic customers
+RC-002,MITRA-A,Jane Doe,PKG-REGULAR,Regular Package,1000000,2025-01-01,,TRUE,Jane rate for Regular customers
+RC-003,MITRA-A,Jane Doe,PKG-FREQUENT,Frequent Package,1200000,2025-01-01,,TRUE,Jane rate for Frequent customers
+RC-004,MITRA-B,John Smith,PKG-BASIC,Basic Package,700000,2025-01-01,,TRUE,John rate for Basic customers (different from Jane!)
+RC-005,MITRA-B,John Smith,PKG-REGULAR,Regular Package,900000,2025-01-01,,TRUE,John rate for Regular customers
+RC-006,MITRA-B,John Smith,PKG-FREQUENT,Frequent Package,1000000,2025-01-01,,TRUE,John rate for Frequent customers
+RC-007,MITRA-C,Sarah Lee,,,600000,2025-01-01,,TRUE,Sarah default rate (no package-specific config)
+
+===================================
+4. MASTER DATA - CUSTOMERS
+===================================
+Customer ID,Customer Name,Package ID,Package Name,Assigned Mitra ID,Assigned Mitra Name
+CUST-001,PT Maju Jaya,PKG-BASIC,Basic Package,MITRA-A,Jane Doe
+CUST-002,CV Sejahtera,PKG-FREQUENT,Frequent Package,MITRA-A,Jane Doe
+CUST-003,Toko Sumber Rejeki,PKG-BASIC,Basic Package,MITRA-B,John Smith
+CUST-004,PT Indo Foods,PKG-REGULAR,Regular Package,MITRA-B,John Smith
+CUST-005,Rumah Pak Budi,PKG-BASIC,Basic Package,MITRA-C,Sarah Lee
+
+===================================
+5. VISITS DATA - JANUARY 2025
+===================================
+Visit ID,Customer ID,Customer Name,Assigned Mitra,Actual Mitra,Scheduled Date,Status,Completed At,Package
+V-001,CUST-001,PT Maju Jaya,MITRA-A,MITRA-A,2025-01-02,Done,2025-01-02 09:00,PKG-BASIC
+V-002,CUST-001,PT Maju Jaya,MITRA-A,MITRA-A,2025-01-06,Done,2025-01-06 09:00,PKG-BASIC
+V-003,CUST-001,PT Maju Jaya,MITRA-A,MITRA-A,2025-01-09,Done,2025-01-09 09:00,PKG-BASIC
+V-004,CUST-001,PT Maju Jaya,MITRA-A,MITRA-A,2025-01-13,Done,2025-01-13 09:00,PKG-BASIC
+V-005,CUST-001,PT Maju Jaya,MITRA-A,MITRA-A,2025-01-16,Done,2025-01-16 09:00,PKG-BASIC
+V-006,CUST-001,PT Maju Jaya,MITRA-A,MITRA-A,2025-01-20,Done,2025-01-20 09:00,PKG-BASIC
+V-007,CUST-001,PT Maju Jaya,MITRA-A,MITRA-A,2025-01-23,Done,2025-01-23 09:00,PKG-BASIC
+V-008,CUST-001,PT Maju Jaya,MITRA-A,MITRA-A,2025-01-27,Done,2025-01-27 09:00,PKG-BASIC
+V-009,CUST-002,CV Sejahtera,MITRA-A,MITRA-A,2025-01-02,Done,2025-01-02 14:00,PKG-FREQUENT
+V-010,CUST-002,CV Sejahtera,MITRA-A,MITRA-A,2025-01-06,Done,2025-01-06 14:00,PKG-FREQUENT
+V-011,CUST-002,CV Sejahtera,MITRA-A,MITRA-A,2025-01-09,Done,2025-01-09 14:00,PKG-FREQUENT
+V-012,CUST-002,CV Sejahtera,MITRA-A,MITRA-A,2025-01-13,Done,2025-01-13 14:00,PKG-FREQUENT
+V-013,CUST-002,CV Sejahtera,MITRA-A,MITRA-A,2025-01-16,Done,2025-01-16 14:00,PKG-FREQUENT
+V-014,CUST-002,CV Sejahtera,MITRA-A,MITRA-A,2025-01-20,Done,2025-01-20 14:00,PKG-FREQUENT
+V-015,CUST-002,CV Sejahtera,MITRA-A,MITRA-A,2025-01-23,Done,2025-01-23 14:00,PKG-FREQUENT
+V-016,CUST-002,CV Sejahtera,MITRA-A,MITRA-A,2025-01-27,Done,2025-01-27 14:00,PKG-FREQUENT
+V-017,CUST-002,CV Sejahtera,MITRA-A,MITRA-A,2025-01-30,Done,2025-01-30 14:00,PKG-FREQUENT
+V-018,CUST-002,CV Sejahtera,MITRA-A,MITRA-A,2025-01-03,Missed,,PKG-FREQUENT
+V-019,CUST-002,CV Sejahtera,MITRA-A,MITRA-A,2025-01-10,Missed,,PKG-FREQUENT
+V-020,CUST-002,CV Sejahtera,MITRA-A,MITRA-A,2025-01-17,Missed,,PKG-FREQUENT
+V-021,CUST-003,Toko Sumber Rejeki,MITRA-B,MITRA-B,2025-01-03,Done,2025-01-03 10:00,PKG-BASIC
+V-022,CUST-003,Toko Sumber Rejeki,MITRA-B,MITRA-B,2025-01-07,Done,2025-01-07 10:00,PKG-BASIC
+V-023,CUST-003,Toko Sumber Rejeki,MITRA-B,MITRA-B,2025-01-10,Done,2025-01-10 10:00,PKG-BASIC
+V-024,CUST-003,Toko Sumber Rejeki,MITRA-B,MITRA-B,2025-01-14,Done,2025-01-14 10:00,PKG-BASIC
+V-025,CUST-003,Toko Sumber Rejeki,MITRA-B,MITRA-B,2025-01-17,Done,2025-01-17 10:00,PKG-BASIC
+V-026,CUST-003,Toko Sumber Rejeki,MITRA-B,MITRA-B,2025-01-21,Done,2025-01-21 10:00,PKG-BASIC
+V-027,CUST-003,Toko Sumber Rejeki,MITRA-B,MITRA-B,2025-01-24,Done,2025-01-24 10:00,PKG-BASIC
+V-028,CUST-003,Toko Sumber Rejeki,MITRA-B,MITRA-B,2025-01-28,Done,2025-01-28 10:00,PKG-BASIC
+V-029,CUST-004,PT Indo Foods,MITRA-B,MITRA-B,2025-01-02,Done,2025-01-02 13:00,PKG-REGULAR
+V-030,CUST-004,PT Indo Foods,MITRA-B,MITRA-B,2025-01-06,Done,2025-01-06 13:00,PKG-REGULAR
+V-031,CUST-004,PT Indo Foods,MITRA-B,MITRA-B,2025-01-09,Done,2025-01-09 13:00,PKG-REGULAR
+V-032,CUST-004,PT Indo Foods,MITRA-B,MITRA-B,2025-01-13,Done,2025-01-13 13:00,PKG-REGULAR
+V-033,CUST-004,PT Indo Foods,MITRA-B,MITRA-B,2025-01-16,Done,2025-01-16 13:00,PKG-REGULAR
+V-034,CUST-004,PT Indo Foods,MITRA-B,MITRA-B,2025-01-20,Done,2025-01-20 13:00,PKG-REGULAR
+V-035,CUST-004,PT Indo Foods,MITRA-B,MITRA-B,2025-01-23,Done,2025-01-23 13:00,PKG-REGULAR
+V-036,CUST-004,PT Indo Foods,MITRA-B,MITRA-B,2025-01-27,Done,2025-01-27 13:00,PKG-REGULAR
+V-037,CUST-004,PT Indo Foods,MITRA-B,MITRA-B,2025-01-30,Done,2025-01-30 13:00,PKG-REGULAR
+V-038,CUST-004,PT Indo Foods,MITRA-B,MITRA-B,2025-01-03,Missed,,PKG-REGULAR
+V-039,CUST-004,PT Indo Foods,MITRA-B,MITRA-B,2025-01-10,Missed,,PKG-REGULAR
+V-040,CUST-004,PT Indo Foods,MITRA-B,MITRA-B,2025-01-17,Missed,,PKG-REGULAR
+V-041,CUST-005,Rumah Pak Budi,MITRA-C,MITRA-C,2025-01-04,Done,2025-01-04 08:00,PKG-BASIC
+V-042,CUST-005,Rumah Pak Budi,MITRA-C,MITRA-C,2025-01-08,Done,2025-01-08 08:00,PKG-BASIC
+V-043,CUST-005,Rumah Pak Budi,MITRA-C,MITRA-C,2025-01-11,Done,2025-01-11 08:00,PKG-BASIC
+V-044,CUST-005,Rumah Pak Budi,MITRA-C,MITRA-C,2025-01-15,Done,2025-01-15 08:00,PKG-BASIC
+V-045,CUST-005,Rumah Pak Budi,MITRA-C,MITRA-C,2025-01-18,Done,2025-01-18 08:00,PKG-BASIC
+V-046,CUST-005,Rumah Pak Budi,MITRA-C,MITRA-C,2025-01-22,Done,2025-01-22 08:00,PKG-BASIC
+V-047,CUST-005,Rumah Pak Budi,MITRA-C,MITRA-C,2025-01-25,Done,2025-01-25 08:00,PKG-BASIC
+V-048,CUST-005,Rumah Pak Budi,MITRA-C,MITRA-C,2025-01-29,Done,2025-01-29 08:00,PKG-BASIC
+
+===================================
+6. EXPECTED CALCULATION BREAKDOWN
+===================================
+Mitra,Customer,Package,Scheduled,Completed,Monthly Rate,Formula,Customer Payout
+MITRA-A (Jane Doe),CUST-001 (PT Maju Jaya),PKG-BASIC,8,8,800000,8/8 × 800000,800000
+MITRA-A (Jane Doe),CUST-002 (CV Sejahtera),PKG-FREQUENT,12,9,1200000,9/12 × 1200000,900000
+MITRA-B (John Smith),CUST-003 (Toko Sumber Rejeki),PKG-BASIC,8,8,700000,8/8 × 700000,700000
+MITRA-B (John Smith),CUST-004 (PT Indo Foods),PKG-REGULAR,12,9,900000,9/12 × 900000,675000
+MITRA-C (Sarah Lee),CUST-005 (Rumah Pak Budi),PKG-BASIC,8,8,600000,8/8 × 600000,600000
+
+===================================
+7. EXPECTED PAYOUT SUMMARY (FINAL RESULT)
+===================================
+Mitra ID,Mitra Name,Total Scheduled Visits,Total Completed Visits,Total Payout,Status,Notes
+MITRA-A,Jane Doe (Senior),20,17,1700000,✅ PASS,"2 customers: Basic (100%) + Frequent (75%)"
+MITRA-B,John Smith (Junior),20,17,1375000,✅ PASS,"2 customers: Basic (100%) + Regular (75%)"
+MITRA-C,Sarah Lee (Part-time),8,8,600000,✅ PASS,"1 customer: Basic (100%) - uses default rate"
+
+Total Payouts for January 2025:,,,,,3675000,
+
+===================================
+8. VERIFICATION POINTS
+===================================
+Test Point,Expected Result,Status
+✅ 1a - Per Bulan Pro-rate,"Payout calculated per month with proration (completed/scheduled × rate)",MUST PASS
+✅ 1b - Configurable Rates,"Different rates used based on subscription package configuration",MUST PASS
+✅ 1c - Beda Mitra Beda Rate,"MITRA-A Basic (800k) ≠ MITRA-B Basic (700k) for same package",MUST PASS
+✅ Per Customer Calculation,"Each customer calculated separately then summed",MUST PASS
+✅ Fallback to Default,"MITRA-C uses default rate (600k) because no package-specific config",MUST PASS
+✅ Partial Completion,"CV Sejahtera: 9/12 visits = 75% payout (900k instead of 1.2M)",MUST PASS
+
+===================================
+9. EDGE CASES TESTED
+===================================
+Edge Case,Example,Expected Behavior
+100% Completion,CUST-001 (8/8 visits),Full payout (Rp 800.000)
+Partial Completion,CUST-002 (9/12 visits),Pro-rated payout (Rp 900.000)
+Different Rates Same Package,MITRA-A vs MITRA-B for Basic,Different amounts (800k vs 700k) ✅
+No Package Config,MITRA-C customers,Falls back to default rate (600k) ✅
+Multiple Customers,MITRA-A has 2 customers,Sum of both customer payouts ✅
+
+===================================
+10. SQL SCRIPTS TO INSERT TEST DATA
+===================================
+See separate file: test_data_insert.sql
+
+===================================
+END OF TEST SCENARIO
+===================================

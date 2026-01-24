@@ -218,6 +218,7 @@ export async function PUT(
     if (body.mitraBonusCommission) updateData.mitraBonusCommission = body.mitraBonusCommission;
     if (body.status) updateData.status = body.status;
     if (body.address) updateData.address = body.address;
+    if (body.monthlyBaseRate !== undefined) updateData.monthlyBaseRate = body.monthlyBaseRate;
 
     // Update the mitra in database
     await db
@@ -253,6 +254,14 @@ export async function PUT(
     console.error('Update mitra error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+}
+
+// PATCH /api/mitra/[id] - Partial update mitra (alias for PUT)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return PUT(request, { params });
 }
 
 // DELETE /api/mitra/[id] - Soft delete mitra

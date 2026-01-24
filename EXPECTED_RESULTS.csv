@@ -1,0 +1,53 @@
+MITRA PAYOUT - EXPECTED RESULTS (January 2025)
+
+===== SUMMARY TABLE =====
+Mitra,Customer,Package,Scheduled,Completed,Rate,Calculation,Payout
+Jane Doe,PT Maju Jaya,Basic,8,8,800000,8/8 × 800000,800000
+Jane Doe,CV Sejahtera,Frequent,12,9,1200000,9/12 × 1200000,900000
+John Smith,Toko Sumber Rejeki,Basic,8,8,700000,8/8 × 700000,700000
+John Smith,PT Indo Foods,Regular,12,9,900000,9/12 × 900000,675000
+Sarah Lee,Rumah Pak Budi,Basic,8,8,600000,8/8 × 600000,600000
+
+===== MITRA TOTALS =====
+Mitra,Total Payout,Customers,Notes
+Jane Doe,1700000,2,Senior - higher rates
+John Smith,1375000,2,Junior - lower rates
+Sarah Lee,600000,1,Part-time - default rate only
+GRAND TOTAL,3675000,5,All mitras combined
+
+===== RATE COMPARISON (Requirement 1c: Beda Mitra Beda Rate) =====
+Package,Jane Doe Rate,John Smith Rate,Sarah Lee Rate,Difference
+Basic,800000,700000,600000 (default),"Jane 100k > John, Jane 200k > Sarah ✅"
+Regular,1000000,900000,600000 (default),"Different rates ✅"
+Frequent,1200000,1000000,600000 (default),"Different rates ✅"
+
+===== VERIFICATION CHECKLIST =====
+Requirement,Test Case,Expected,Actual,Status
+1a - Per Bulan Pro-rate,CV Sejahtera partial completion,9/12 × 1.2M = 900k,?,PENDING TEST
+1a - Per Bulan Pro-rate,PT Maju Jaya full completion,8/8 × 800k = 800k,?,PENDING TEST
+1b - Configurable,Jane uses config (not hardcode),800k for Basic,?,PENDING TEST
+1b - Configurable,John uses config (not hardcode),700k for Basic,?,PENDING TEST
+1c - Beda Rate,Jane Basic ≠ John Basic,800k ≠ 700k,?,PENDING TEST
+Fallback,Sarah uses default (no pkg config),600k,?,PENDING TEST
+Per Customer,Jane has 2 customers summed,800k + 900k = 1.7M,?,PENDING TEST
+
+===== QUICK COPY-PASTE FOR EXCEL =====
+
+Mitra	Customer	Package	Scheduled	Completed	Monthly Rate	Formula	Expected Payout
+Jane Doe	PT Maju Jaya	Basic	8	8	800,000	8/8 × 800k	800,000
+Jane Doe	CV Sejahtera	Frequent	12	9	1,200,000	9/12 × 1.2M	900,000
+John Smith	Toko Sumber Rejeki	Basic	8	8	700,000	8/8 × 700k	700,000
+John Smith	PT Indo Foods	Regular	12	9	900,000	9/12 × 900k	675,000
+Sarah Lee	Rumah Pak Budi	Basic	8	8	600,000	8/8 × 600k	600,000
+
+Mitra Summary:
+Jane Doe	1,700,000	2 customers
+John Smith	1,375,000	2 customers
+Sarah Lee	600,000	1 customer
+TOTAL	3,675,000	5 customers
+
+Rate Comparison (Same Package, Different Rates):
+Package	Jane Doe	John Smith	Sarah Lee
+Basic	800,000	700,000	600,000
+Regular	1,000,000	900,000	600,000
+Frequent	1,200,000	1,000,000	600,000

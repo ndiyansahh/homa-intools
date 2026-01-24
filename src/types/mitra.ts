@@ -83,6 +83,8 @@ export interface MitraListItem {
   partnershipTypes: MitraPartnershipType;
   cityAssignment: string;
   locationAssignment: string;
+  baseRate?: string;
+  monthlyBaseRate?: string;
 }
 
 export interface MitraResponse {

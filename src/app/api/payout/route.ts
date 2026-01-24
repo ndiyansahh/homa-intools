@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { payoutDB, mitraDB, visitDB } from '@/lib/schema';
-import { eq, and, desc, gte, lte, like, count } from 'drizzle-orm';
+import { payoutDB, mitraDB, visitDB, mitraRateConfigDB, customerDB } from '@/lib/schema';
+import { eq, and, desc, gte, lte, like, count, isNull } from 'drizzle-orm';
 import { logAuditEvent } from '@/lib/logger';
 
 // GET - Fetch all payout records with filters
@@ -59,8 +59,10 @@ export async function GET(request: NextRequest) {
         year: payoutDB.year,
         month: payoutDB.month,
         payoutDate: payoutDB.payoutDate,
+        monthlyRate: payoutDB.monthlyRate, // NEW
+        scheduledVisits: payoutDB.scheduledVisits, // NEW
         totalVisits: payoutDB.totalVisits,
-        pricePerVisit: payoutDB.pricePerVisit,
+        pricePerVisit: payoutDB.pricePerVisit, // DEPRECATED
         basePayout: payoutDB.basePayout,
         bonusAmount: payoutDB.bonusAmount,
         totalPayout: payoutDB.totalPayout,
@@ -157,7 +159,8 @@ export async function POST(request: NextRequest) {
         id: mitraDB.id,
         mitraName: mitraDB.mitraName,
         bonusCommission: mitraDB.mitraBonusCommission,
-        baseRate: mitraDB.baseRate,
+        baseRate: mitraDB.baseRate, // DEPRECATED - kept for backward compatibility
+        monthlyBaseRate: mitraDB.monthlyBaseRate, // NEW - monthly rate
       })
       .from(mitraDB)
       .where(eq(mitraDB.isActive, true));
@@ -170,28 +173,155 @@ export async function POST(request: NextRequest) {
     console.log(`📅 Period: ${monthStart.toISOString().split('T')[0]} to ${lastDayOfMonth}`);
 
     for (const mitra of mitras) {
-      // Count completed visits for this mitra in the given month
-      const visits = await db
-        .select({ id: visitDB.id })
+      console.log(`\n🔄 Processing payout for ${mitra.mitraName}...`);
+
+      // Step 1: Get all completed visits for this mitra in the period (with customer info)
+      const completedVisits = await db
+        .select({
+          visitId: visitDB.id,
+          customerId: visitDB.customerId,
+          customerName: customerDB.customerName,
+          subscriptionPackageId: customerDB.subscriptionPackageId,
+          subscriptionPackage: customerDB.subscriptionPackage,
+          scheduledDate: visitDB.scheduledDate,
+          completedAt: visitDB.completedAt,
+        })
         .from(visitDB)
+        .leftJoin(customerDB, eq(visitDB.customerId, customerDB.id))
         .where(
           and(
-            eq(visitDB.actualMitraId, mitra.id),
+            eq(visitDB.actualMitraId, mitra.id), // Actually completed by this mitra
             eq(visitDB.status, 'Done'),
             gte(visitDB.completedAt, monthStart),
             lte(visitDB.completedAt, monthEnd)
           )
         );
 
-      const totalVisits = visits.length;
-
-      if (totalVisits === 0) {
+      if (completedVisits.length === 0) {
         console.log(`⏭️  Skipping ${mitra.mitraName} - no completed visits`);
-        continue; // Skip if no visits
+        continue;
       }
 
-      const pricePerVisit = Number(mitra.baseRate) || 0;
-      const basePayout = totalVisits * pricePerVisit;
+      // Step 2: Group visits by customer
+      const customerVisitMap = new Map<string, typeof completedVisits>();
+      completedVisits.forEach((visit) => {
+        const customerId = visit.customerId;
+        if (!customerVisitMap.has(customerId)) {
+          customerVisitMap.set(customerId, []);
+        }
+        customerVisitMap.get(customerId)!.push(visit);
+      });
+
+      console.log(`   📋 Processing ${customerVisitMap.size} unique customers`);
+
+      // Step 3: Calculate payout per customer (pro-rate by subscription package)
+      let totalBasePayout = 0;
+      let totalScheduledVisits = 0;
+      let totalCompletedVisits = 0;
+      const customerBreakdown: any[] = [];
+
+      for (const [customerId, visits] of customerVisitMap.entries()) {
+        const firstVisit = visits[0];
+        const customerName = firstVisit.customerName || 'Unknown';
+        const subscriptionPackageId = firstVisit.subscriptionPackageId;
+        const subscriptionPackage = firstVisit.subscriptionPackage || 'Unknown';
+
+        // Step 3a: Get rate configuration for this mitra + subscription package combo
+        const rateConfigs = await db
+          .select({
+            monthlyRate: mitraRateConfigDB.monthlyRate,
+          })
+          .from(mitraRateConfigDB)
+          .where(
+            and(
+              eq(mitraRateConfigDB.mitraId, mitra.id),
+              eq(mitraRateConfigDB.isActive, true),
+              lte(mitraRateConfigDB.effectiveFrom, lastDayOfMonth),
+              isNull(mitraRateConfigDB.effectiveTo),
+              subscriptionPackageId
+                ? eq(mitraRateConfigDB.subscriptionPackageId, subscriptionPackageId)
+                : isNull(mitraRateConfigDB.subscriptionPackageId)
+            )
+          )
+          .limit(1);
+
+        // Fallback chain: specific config → default config → mitra base rate
+        let monthlyRate = 0;
+        if (rateConfigs.length > 0) {
+          monthlyRate = Number(rateConfigs[0].monthlyRate);
+        } else {
+          // Try default config (subscriptionPackageId = NULL)
+          const defaultConfig = await db
+            .select({
+              monthlyRate: mitraRateConfigDB.monthlyRate,
+            })
+            .from(mitraRateConfigDB)
+            .where(
+              and(
+                eq(mitraRateConfigDB.mitraId, mitra.id),
+                eq(mitraRateConfigDB.isActive, true),
+                lte(mitraRateConfigDB.effectiveFrom, lastDayOfMonth),
+                isNull(mitraRateConfigDB.effectiveTo),
+                isNull(mitraRateConfigDB.subscriptionPackageId)
+              )
+            )
+            .limit(1);
+
+          if (defaultConfig.length > 0) {
+            monthlyRate = Number(defaultConfig[0].monthlyRate);
+          } else {
+            // Final fallback: mitra base rate
+            monthlyRate = Number(mitra.monthlyBaseRate) || Number(mitra.baseRate) || 0;
+          }
+        }
+
+        if (monthlyRate === 0) {
+          console.log(`   ⚠️  No rate configured for ${customerName} (${subscriptionPackage}), skipping`);
+          continue;
+        }
+
+        // Step 3b: Count scheduled visits for this customer in the period
+        const scheduledVisitsForCustomer = await db
+          .select({ id: visitDB.id })
+          .from(visitDB)
+          .where(
+            and(
+              eq(visitDB.customerId, customerId),
+              eq(visitDB.mitraId, mitra.id),
+              gte(visitDB.scheduledDate, monthStart.toISOString().split('T')[0]),
+              lte(visitDB.scheduledDate, lastDayOfMonth)
+            )
+          );
+
+        const scheduled = scheduledVisitsForCustomer.length;
+        const completed = visits.length;
+
+        // Step 3c: Calculate pro-rate for this customer
+        const denominator = scheduled > 0 ? scheduled : completed;
+        const customerPayout = (completed / denominator) * monthlyRate;
+
+        totalBasePayout += customerPayout;
+        totalScheduledVisits += scheduled;
+        totalCompletedVisits += completed;
+
+        customerBreakdown.push({
+          customerId,
+          customerName,
+          subscriptionPackage,
+          scheduledVisits: scheduled,
+          completedVisits: completed,
+          monthlyRate,
+          payout: customerPayout,
+        });
+
+        console.log(`   ✓ ${customerName} (${subscriptionPackage}): ${completed}/${scheduled} visits × Rp${monthlyRate.toLocaleString()} = Rp${customerPayout.toLocaleString()}`);
+      }
+
+      if (totalBasePayout === 0) {
+        console.log(`⏭️  Skipping ${mitra.mitraName} - total payout is 0`);
+        continue;
+      }
+
       const bonusEligible = mitra.bonusCommission === 'Eligible';
       const bonusAmount = 0; // Default 0, can be edited later
 
@@ -206,16 +336,20 @@ export async function POST(request: NextRequest) {
         year,
         month,
         payoutDate: lastDayOfMonth,
-        totalVisits,
-        pricePerVisit: pricePerVisit.toString(),
-        basePayout: basePayout.toString(),
+        monthlyRate: '0', // Not applicable anymore (different rates per customer)
+        scheduledVisits: totalScheduledVisits,
+        totalVisits: totalCompletedVisits,
+        pricePerVisit: '0', // DEPRECATED
+        basePayout: totalBasePayout.toString(),
         bonusAmount: bonusAmount.toString(),
-        totalPayout: (basePayout + bonusAmount).toString(),
+        totalPayout: (totalBasePayout + bonusAmount).toString(),
         status: 'Pending',
         bonusEligible,
+        breakdown: JSON.stringify({ customers: customerBreakdown }), // NEW - store breakdown
       });
 
-      console.log(`✅ Generated payout for ${mitra.mitraName}: ${totalVisits} visits × Rp${pricePerVisit} = Rp${basePayout}`);
+      console.log(`\n✅ Generated payout for ${mitra.mitraName}:`);
+      console.log(`   Total: Rp${totalBasePayout.toLocaleString()} (${totalCompletedVisits}/${totalScheduledVisits} visits across ${customerBreakdown.length} customers)`);
     }
 
     if (payoutRecords.length === 0) {

@@ -113,7 +113,8 @@ export const mitraDB = pgTable('mitra_db', {
   status: varchar('status', { length: 20 }).default('Active'),
   
   // Financial details
-  baseRate: decimal('base_rate', { precision: 10, scale: 2 }).default('0'),
+  baseRate: decimal('base_rate', { precision: 10, scale: 2 }).default('0'), // DEPRECATED: Use monthlyBaseRate instead
+  monthlyBaseRate: decimal('monthly_base_rate', { precision: 10, scale: 2 }).default('0'), // Monthly base rate (NEW)
   commissionRate: decimal('commission_rate', { precision: 5, scale: 2 }).default('10.00'),
   totalEarnings: decimal('total_earnings', { precision: 12, scale: 2 }).default('0'),
   totalVisits: integer('total_visits').default(0),
@@ -330,9 +331,11 @@ export const payoutDB = pgTable('payout_db', {
   payoutDate: date('payout_date').notNull(), // Last day of month
 
   // Calculation details
-  totalVisits: integer('total_visits').default(0), // Qty
-  pricePerVisit: decimal('price_per_visit', { precision: 10, scale: 2 }).default('0'), // Price per Qty
-  basePayout: decimal('base_payout', { precision: 12, scale: 2 }).default('0'), // Qty * Price per Qty
+  monthlyRate: decimal('monthly_rate', { precision: 10, scale: 2 }).default('0'), // Monthly base rate (NEW)
+  scheduledVisits: integer('scheduled_visits').default(0), // Total scheduled visits in period (NEW)
+  totalVisits: integer('total_visits').default(0), // Completed visits (Qty)
+  pricePerVisit: decimal('price_per_visit', { precision: 10, scale: 2 }).default('0'), // DEPRECATED: Price per Qty
+  basePayout: decimal('base_payout', { precision: 12, scale: 2 }).default('0'), // (totalVisits / scheduledVisits) × monthlyRate
   bonusAmount: decimal('bonus_amount', { precision: 10, scale: 2 }).default('0'), // Editable bonus
   totalPayout: decimal('total_payout', { precision: 12, scale: 2 }).default('0'), // basePayout + bonusAmount
 
@@ -340,11 +343,35 @@ export const payoutDB = pgTable('payout_db', {
   status: varchar('status', { length: 20 }).default('Pending'), // Pending, Paid, Cancelled
   bonusEligible: boolean('bonus_eligible').default(false), // From mitraBonusCommission
 
+  // Breakdown (NEW - stores per-customer calculation details)
+  breakdown: jsonb('breakdown'), // { customers: [{ customerId, customerName, subscriptionPackage, scheduledVisits, completedVisits, monthlyRate, payout }] }
+
   // Metadata
   notes: text('notes'),
   paidAt: timestamp('paid_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+// Mitra Rate Configuration Table - Configurable payout rates per mitra and subscription type (NEW for 1b)
+export const mitraRateConfigDB = pgTable('mitra_rate_config_db', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  mitraId: uuid('mitra_id').references(() => mitraDB.id).notNull(),
+  subscriptionPackageId: uuid('subscription_package_id').references(() => subscriptionPackageDB.id), // NULL = default rate for all packages
+
+  // Rate configuration
+  monthlyRate: decimal('monthly_rate', { precision: 10, scale: 2 }).notNull(), // Monthly base rate
+
+  // Effective period (for historical tracking)
+  effectiveFrom: date('effective_from').notNull(), // Start date for this rate
+  effectiveTo: date('effective_to'), // NULL = currently active
+
+  // Metadata
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  createdBy: varchar('created_by', { length: 255 }), // User who created this config
+  isActive: boolean('is_active').default(true),
 });
 
 // Visit Mitra Change History Table - Track all mitra changes for a visit
@@ -422,6 +449,7 @@ export const mitraRelations = relations(mitraDB, ({ many }) => ({
   attendanceRecords: many(attendanceRecordDB),
   payouts: many(mitraPayoutDB),
   visits: many(visitDB),
+  rateConfigs: many(mitraRateConfigDB), // NEW
 }));
 
 export const visitRelations = relations(visitDB, ({ one }) => ({
@@ -469,6 +497,17 @@ export const mitraPayoutRelations = relations(mitraPayoutDB, ({ one }) => ({
   }),
 }));
 
+export const mitraRateConfigRelations = relations(mitraRateConfigDB, ({ one }) => ({
+  mitra: one(mitraDB, {
+    fields: [mitraRateConfigDB.mitraId],
+    references: [mitraDB.id],
+  }),
+  subscriptionPackage: one(subscriptionPackageDB, {
+    fields: [mitraRateConfigDB.subscriptionPackageId],
+    references: [subscriptionPackageDB.id],
+  }),
+}));
+
 // Note: Trial data is stored in customer_db with subscription_status = 'Trial'
 // No separate trial tables needed since trials are just customers with Trial status
 
@@ -505,5 +544,8 @@ export type NewPayout = typeof payoutDB.$inferInsert;
 
 export type AuditLog = typeof auditLogDB.$inferSelect;
 export type NewAuditLog = typeof auditLogDB.$inferInsert;
+
+export type MitraRateConfig = typeof mitraRateConfigDB.$inferSelect;
+export type NewMitraRateConfig = typeof mitraRateConfigDB.$inferInsert;
 
 // Trial types removed - trials are now just customers with subscription_status = 'Trial'
