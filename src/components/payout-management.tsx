@@ -129,7 +129,7 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
 
   const handleEditBonus = (payout: PayoutRecord) => {
     if (!payout.bonusEligible) {
-      alert('This mitra is not eligible for bonus');
+      alert('This mitra is not eligible for lainnya');
       return;
     }
 
@@ -154,17 +154,17 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
       });
 
       if (response.ok) {
-        alert('Bonus updated successfully');
+        alert('Lainnya updated successfully');
         setShowBonusModal(false);
         setSelectedPayout(null);
         fetchPayouts();
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to update bonus');
+        alert(error.message || 'Failed to update lainnya');
       }
     } catch (error) {
-      console.error('Error updating bonus:', error);
-      alert('Failed to update bonus');
+      console.error('Error updating lainnya:', error);
+      alert('Failed to update lainnya');
     } finally {
       setUpdating(false);
     }
@@ -430,7 +430,7 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
                       Base Payout
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Bonus
+                      Lainnya
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Total Payout
@@ -457,7 +457,7 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{payout.mitraName}</div>
                         {payout.bonusEligible && (
-                          <div className="text-xs text-green-600">✓ Bonus Eligible</div>
+                          <div className="text-xs text-green-600">✓ Lainnya Eligible</div>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -480,7 +480,7 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
                             onClick={() => handleEditBonus(payout)}
                             className="text-blue-600 hover:text-blue-900 text-sm font-medium"
                           >
-                            Edit Bonus
+                            Edit Lainnya
                           </button>
                         )}
                       </td>
@@ -528,12 +528,12 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Edit Bonus - {selectedPayout.mitraName}
+              Edit Lainnya - {selectedPayout.mitraName}
             </h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Bonus Amount (Rp)
+                  Lainnya Amount (Rp)
                 </label>
                 <input
                   type="number"
@@ -563,7 +563,7 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
                     <span className="font-medium">{formatCurrency(selectedPayout.basePayout)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Bonus Amount:</span>
+                    <span>Lainnya Amount:</span>
                     <span className="font-medium text-green-600">
                       {formatCurrency(bonusAmount || '0')}
                     </span>
@@ -596,7 +596,7 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
                 className="btn-primary"
                 disabled={updating}
               >
-                {updating ? 'Updating...' : 'Update Bonus'}
+                {updating ? 'Updating...' : 'Update Lainnya'}
               </button>
             </div>
           </div>

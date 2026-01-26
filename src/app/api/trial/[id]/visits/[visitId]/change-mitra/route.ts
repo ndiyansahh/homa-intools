@@ -3,6 +3,8 @@ import { db } from '@/lib/db';
 import { visitDB, visitMitraChangeHistoryDB, mitraDB, customerDB } from '@/lib/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
+import { getConfig, CONFIG_KEYS } from '@/lib/config';
+import { detectPayoutAdjustment, createPayoutAdjustments } from '@/lib/payout-adjustment';
 
 interface RouteParams {
   params: Promise<{
@@ -48,6 +50,7 @@ export async function POST(
       .select({
         id: visitDB.id,
         customerId: visitDB.customerId,
+        mitraId: visitDB.mitraId,
         actualMitraId: visitDB.actualMitraId,
         originalMitraId: visitDB.originalMitraId,
         status: visitDB.status,
@@ -69,12 +72,19 @@ export async function POST(
 
     const visit = visitResult[0];
 
-    // Check if visit is already Done (locked)
-    if (visit.status === 'Done') {
+    // Check if completed visits should be locked (Feedback 6b)
+    const lockCompletedVisits = await getConfig(CONFIG_KEYS.LOCK_COMPLETED_VISITS, false);
+
+    if (lockCompletedVisits && visit.status === 'Done') {
       return NextResponse.json(
-        { success: false, message: 'Cannot change mitra for completed visit' },
+        { success: false, message: 'Cannot change mitra for completed visit (locked by admin)' },
         { status: 400 }
       );
+    }
+
+    // If lock is disabled, allow changing mitra even for completed visits
+    if (!lockCompletedVisits && visit.status === 'Done') {
+      console.log(`⚠️  Changing mitra for completed visit ${visitId} - lock is DISABLED (Feedback 6b)`);
     }
 
     // Check if new mitra exists and is active
@@ -191,6 +201,28 @@ export async function POST(
       .where(eq(visitDB.id, visitId));
 
     console.log(`✅ Mitra changed for visit ${visitId}: ${fromMitraId} → ${newMitraId} (Sequence #${sequenceNumber})`);
+
+    // Feature 8b: Detect payout adjustments needed when mitra changes
+    try {
+      const adjustments = await detectPayoutAdjustment({
+        visitId,
+        oldStatus: visit.status || 'Scheduled',
+        newStatus: visit.status || 'Scheduled', // Status didn't change
+        oldMitraId: visit.mitraId,
+        newMitraId: newMitraId,
+        oldActualMitraId: fromMitraId || null,
+        newActualMitraId: newMitraId,
+        userEmail: session.email,
+      });
+
+      if (adjustments && adjustments.length > 0) {
+        await createPayoutAdjustments(adjustments);
+        console.log(`📊 Created ${adjustments.length} payout adjustment(s) for mitra change on visit ${visitId}`);
+      }
+    } catch (adjustmentError) {
+      // Log error but don't fail the mitra change
+      console.error('Error creating payout adjustment:', adjustmentError);
+    }
 
     return NextResponse.json({
       success: true,

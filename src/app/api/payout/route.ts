@@ -1,9 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { payoutDB, mitraDB, visitDB, mitraRateConfigDB, customerDB } from '@/lib/schema';
+import { payoutDB, mitraDB, visitDB, mitraRateConfigDB, customerDB, payoutAdjustmentDB } from '@/lib/schema';
 import { eq, and, desc, gte, lte, like, count, isNull } from 'drizzle-orm';
 import { logAuditEvent } from '@/lib/logger';
+
+/**
+ * Calculate the billing cycle (invoice period) that contains a given date
+ * Billing cycles are monthly periods starting from the subscription start date
+ *
+ * Example: If subscription starts on 7-Jan-2026:
+ * - Cycle 1: 7-Jan to 6-Feb
+ * - Cycle 2: 7-Feb to 6-Mar
+ * - etc.
+ *
+ * @param subscriptionStart - Customer's subscription start date (YYYY-MM-DD)
+ * @param targetDate - Date to find the billing cycle for
+ * @returns { start: Date, end: Date } - The billing cycle period
+ */
+function getBillingCycle(subscriptionStart: string, targetDate: Date): { start: Date; end: Date } {
+  const subStart = new Date(subscriptionStart);
+  const target = new Date(targetDate);
+
+  // Find which billing cycle the target date falls into
+  let cycleStart = new Date(subStart);
+
+  // Advance cycle start to the correct year/month
+  while (true) {
+    const cycleEnd = new Date(cycleStart);
+    cycleEnd.setMonth(cycleEnd.getMonth() + 1);
+    cycleEnd.setDate(cycleEnd.getDate() - 1); // Last day of cycle (e.g., 6-Feb if start is 7-Jan)
+
+    if (target >= cycleStart && target <= cycleEnd) {
+      return { start: cycleStart, end: cycleEnd };
+    }
+
+    // Move to next cycle
+    cycleStart = new Date(cycleEnd);
+    cycleStart.setDate(cycleStart.getDate() + 1);
+
+    // Safety check to prevent infinite loop
+    if (cycleStart > target) {
+      // Target is before subscription start, use first cycle
+      return {
+        start: new Date(subStart),
+        end: new Date(new Date(subStart).setMonth(subStart.getMonth() + 1) - 86400000) // -1 day
+      };
+    }
+  }
+}
 
 // GET - Fetch all payout records with filters
 export async function GET(request: NextRequest) {
@@ -166,6 +211,7 @@ export async function POST(request: NextRequest) {
       .where(eq(mitraDB.isActive, true));
 
     const payoutRecords = [];
+    const payoutAdjustmentsMap = new Map<string, any[]>(); // Store adjustments by mitraId
     const monthStart = new Date(year, month - 1, 1);
     const monthEnd = new Date(year, month, 0); // Last day of month
     const lastDayOfMonth = monthEnd.toISOString().split('T')[0];
@@ -226,7 +272,51 @@ export async function POST(request: NextRequest) {
         const subscriptionPackageId = firstVisit.subscriptionPackageId;
         const subscriptionPackage = firstVisit.subscriptionPackage || 'Unknown';
 
-        // Step 3a: Get rate configuration for this mitra + subscription package combo
+        // Step 3a: Get customer's subscription start date to calculate billing cycle
+        const customerData = await db
+          .select({
+            subscriptionStart: customerDB.subscriptionStart,
+          })
+          .from(customerDB)
+          .where(eq(customerDB.id, customerId))
+          .limit(1);
+
+        if (!customerData.length || !customerData[0].subscriptionStart) {
+          console.log(`   ⚠️  No subscription start date for ${customerName}, skipping`);
+          continue;
+        }
+
+        const subscriptionStart = customerData[0].subscriptionStart;
+
+        // Step 3b: Group visits by billing cycle (DYNAMIC!)
+        // Each visit's billing cycle is determined by its SCHEDULED DATE, not payout month
+        const billingCycleMap = new Map<string, {
+          cycle: { start: Date; end: Date };
+          visits: typeof visits;
+        }>();
+
+        for (const visit of visits) {
+          const scheduledDate = new Date(visit.scheduledDate);
+          const billingCycle = getBillingCycle(subscriptionStart, scheduledDate);
+          const cycleKey = `${billingCycle.start.toISOString()}_${billingCycle.end.toISOString()}`;
+
+          if (!billingCycleMap.has(cycleKey)) {
+            billingCycleMap.set(cycleKey, {
+              cycle: billingCycle,
+              visits: []
+            });
+          }
+
+          billingCycleMap.get(cycleKey)!.visits.push(visit);
+        }
+
+        console.log(`   📅 ${customerName}: ${billingCycleMap.size} billing cycle(s) in this payout month`);
+
+        // Step 3c: Calculate payout for each billing cycle separately
+        for (const [cycleKey, { cycle: billingCycle, visits: cycleVisits }] of billingCycleMap.entries()) {
+          console.log(`   📅   Billing cycle: ${billingCycle.start.toISOString().split('T')[0]} to ${billingCycle.end.toISOString().split('T')[0]}`);
+
+        // Step 3d: Get rate configuration for this mitra + subscription package combo
         const rateConfigs = await db
           .select({
             monthlyRate: mitraRateConfigDB.monthlyRate,
@@ -280,42 +370,54 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Step 3b: Count scheduled visits for this customer in the period
-        const scheduledVisitsForCustomer = await db
-          .select({ id: visitDB.id })
-          .from(visitDB)
-          .where(
-            and(
-              eq(visitDB.customerId, customerId),
-              eq(visitDB.mitraId, mitra.id),
-              gte(visitDB.scheduledDate, monthStart.toISOString().split('T')[0]),
-              lte(visitDB.scheduledDate, lastDayOfMonth)
-            )
-          );
+          // Step 3e: Count scheduled visits for this customer in THIS BILLING CYCLE
+          // FIXED BUG #1: Removed mitraId filter - denominator should be total scheduled visits
+          //               regardless of which mitra, to handle mid-month mitra changes correctly
+          // FIXED BUG #2: Use billing cycle dates (determined by visit's scheduledDate)
+          //               to ensure prorate calculation matches invoice period
+          // FIXED BUG #3: Dynamic billing cycle per visit, not per payout month
+          const scheduledVisitsForCustomer = await db
+            .select({ id: visitDB.id })
+            .from(visitDB)
+            .where(
+              and(
+                eq(visitDB.customerId, customerId),
+                // NO mitraId filter here! Total scheduled for customer in billing period
+                gte(visitDB.scheduledDate, billingCycle.start.toISOString().split('T')[0]),
+                lte(visitDB.scheduledDate, billingCycle.end.toISOString().split('T')[0])
+              )
+            );
 
-        const scheduled = scheduledVisitsForCustomer.length;
-        const completed = visits.length;
+          const scheduled = scheduledVisitsForCustomer.length;
+          const completed = cycleVisits.length; // Use cycleVisits (visits in this billing cycle)
 
-        // Step 3c: Calculate pro-rate for this customer
-        const denominator = scheduled > 0 ? scheduled : completed;
-        const customerPayout = (completed / denominator) * monthlyRate;
+          // Step 3f: Calculate pro-rate for this customer x billing cycle
+          // Formula: (completed visits in this billing cycle / total scheduled in billing cycle) × monthly rate
+          // Example: Jan 2026 payout with billing cycle 7-Jan to 6-Feb (9 scheduled)
+          //          Visit 1-8 completed in Jan → 8/9 × Rp 900,000 = Rp 800,000
+          //          Visit 9 completed in Feb → 1/9 × Rp 900,000 = Rp 100,000
+          const denominator = scheduled > 0 ? scheduled : completed;
+          const customerPayout = (completed / denominator) * monthlyRate;
 
-        totalBasePayout += customerPayout;
-        totalScheduledVisits += scheduled;
-        totalCompletedVisits += completed;
+          totalBasePayout += customerPayout;
+          totalScheduledVisits += scheduled;
+          totalCompletedVisits += completed;
 
-        customerBreakdown.push({
-          customerId,
-          customerName,
-          subscriptionPackage,
-          scheduledVisits: scheduled,
-          completedVisits: completed,
-          monthlyRate,
-          payout: customerPayout,
-        });
+          customerBreakdown.push({
+            customerId,
+            customerName,
+            subscriptionPackage,
+            billingCycleStart: billingCycle.start.toISOString().split('T')[0],
+            billingCycleEnd: billingCycle.end.toISOString().split('T')[0],
+            scheduledVisits: scheduled,
+            completedVisits: completed,
+            monthlyRate,
+            payout: customerPayout,
+          });
 
-        console.log(`   ✓ ${customerName} (${subscriptionPackage}): ${completed}/${scheduled} visits × Rp${monthlyRate.toLocaleString()} = Rp${customerPayout.toLocaleString()}`);
-      }
+          console.log(`   ✓ ${customerName} (${subscriptionPackage}): ${completed}/${scheduled} visits × Rp${monthlyRate.toLocaleString()} = Rp${customerPayout.toLocaleString()} [Billing: ${billingCycle.start.toISOString().split('T')[0]} to ${billingCycle.end.toISOString().split('T')[0]}]`);
+        } // End billing cycle loop
+      } // End customer loop
 
       if (totalBasePayout === 0) {
         console.log(`⏭️  Skipping ${mitra.mitraName} - total payout is 0`);
@@ -323,14 +425,50 @@ export async function POST(request: NextRequest) {
       }
 
       const bonusEligible = mitra.bonusCommission === 'Eligible';
-      const bonusAmount = 0; // Default 0, can be edited later
+      let bonusAmount = 0; // Default 0, can be edited later
+
+      // Feature 8b: Check for pending adjustments for this mitra
+      const pendingAdjustments = await db
+        .select()
+        .from(payoutAdjustmentDB)
+        .where(
+          and(
+            eq(payoutAdjustmentDB.mitraId, mitra.id),
+            eq(payoutAdjustmentDB.status, 'PENDING')
+          )
+        );
+
+      let totalAdjustmentAmount = 0;
+      const adjustmentBreakdown: any[] = [];
+
+      if (pendingAdjustments.length > 0) {
+        console.log(`\n📊 Found ${pendingAdjustments.length} pending adjustment(s) for ${mitra.mitraName}`);
+
+        for (const adj of pendingAdjustments) {
+          totalAdjustmentAmount += Number(adj.adjustmentAmount);
+          adjustmentBreakdown.push({
+            adjustmentId: adj.adjustmentId,
+            type: adj.adjustmentType,
+            amount: Number(adj.adjustmentAmount),
+            reason: adj.reason,
+            originalYear: adj.originalYear,
+            originalMonth: adj.originalMonth,
+          });
+
+          console.log(`   ${adj.adjustmentType}: ${Number(adj.adjustmentAmount) > 0 ? '+' : ''}Rp${Number(adj.adjustmentAmount).toLocaleString()} - ${adj.reason}`);
+        }
+      }
 
       // Generate payout ID: PAY/MitraName/YYYY.MM.DD-XXXXX
       const mitraNameClean = mitra.mitraName.replace(/\s+/g, '');
       const sequence: string = String(payoutRecords.length + 1).padStart(5, '0');
       const payoutId = `PAY/${mitraNameClean}/${year}.${String(month).padStart(2, '0')}.${String(monthEnd.getDate()).padStart(2, '0')}-${sequence}`;
 
-      payoutRecords.push({
+      // Calculate final payout with adjustments
+      const finalBasePayout = totalBasePayout + totalAdjustmentAmount;
+      const finalTotalPayout = finalBasePayout + bonusAmount;
+
+      const payoutRecord = {
         payoutId,
         mitraId: mitra.id,
         year,
@@ -340,16 +478,31 @@ export async function POST(request: NextRequest) {
         scheduledVisits: totalScheduledVisits,
         totalVisits: totalCompletedVisits,
         pricePerVisit: '0', // DEPRECATED
-        basePayout: totalBasePayout.toString(),
+        basePayout: finalBasePayout.toString(),
         bonusAmount: bonusAmount.toString(),
-        totalPayout: (totalBasePayout + bonusAmount).toString(),
+        totalPayout: finalTotalPayout.toString(),
         status: 'Pending',
         bonusEligible,
-        breakdown: JSON.stringify({ customers: customerBreakdown }), // NEW - store breakdown
-      });
+        breakdown: JSON.stringify({
+          customers: customerBreakdown,
+          adjustments: adjustmentBreakdown.length > 0 ? adjustmentBreakdown : undefined,
+        }),
+      };
+
+      payoutRecords.push(payoutRecord);
+
+      // Store adjustments to mark as APPLIED later
+      if (pendingAdjustments.length > 0) {
+        payoutAdjustmentsMap.set(mitra.id, pendingAdjustments);
+      }
 
       console.log(`\n✅ Generated payout for ${mitra.mitraName}:`);
-      console.log(`   Total: Rp${totalBasePayout.toLocaleString()} (${totalCompletedVisits}/${totalScheduledVisits} visits across ${customerBreakdown.length} customers)`);
+      console.log(`   Base: Rp${totalBasePayout.toLocaleString()}`);
+      if (totalAdjustmentAmount !== 0) {
+        console.log(`   Adjustments: ${totalAdjustmentAmount > 0 ? '+' : ''}Rp${totalAdjustmentAmount.toLocaleString()}`);
+        console.log(`   Final: Rp${finalBasePayout.toLocaleString()}`);
+      }
+      console.log(`   (${totalCompletedVisits}/${totalScheduledVisits} visits across ${customerBreakdown.length} customers)`);
     }
 
     if (payoutRecords.length === 0) {
@@ -360,7 +513,32 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert payout records
-    await db.insert(payoutDB).values(payoutRecords);
+    const insertedPayouts = await db.insert(payoutDB).values(payoutRecords).returning();
+
+    // Feature 8b: Mark adjustments as APPLIED and link to created payout
+    for (const insertedPayout of insertedPayouts) {
+      const pendingAdjs = payoutAdjustmentsMap.get(insertedPayout.mitraId);
+
+      if (pendingAdjs && pendingAdjs.length > 0) {
+        await db
+          .update(payoutAdjustmentDB)
+          .set({
+            status: 'APPLIED',
+            appliedPayoutId: insertedPayout.id,
+            appliedYear: year,
+            appliedMonth: month,
+            appliedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(payoutAdjustmentDB.mitraId, insertedPayout.mitraId),
+              eq(payoutAdjustmentDB.status, 'PENDING')
+            )
+          );
+
+        console.log(`📊 Marked ${pendingAdjs.length} adjustment(s) as APPLIED for payout ${insertedPayout.payoutId}`);
+      }
+    }
 
     // Log audit event
     if (session) {

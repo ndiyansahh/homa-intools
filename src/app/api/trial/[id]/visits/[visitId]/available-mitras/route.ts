@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { mitraDB, customerDB, visitDB } from '@/lib/schema';
 import { eq, and, or, sql, ne } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
+import { getConfig, CONFIG_KEYS } from '@/lib/config';
 
 interface RouteParams {
   params: Promise<{
@@ -91,35 +92,46 @@ export async function GET(
       .from(mitraDB)
       .where(eq(mitraDB.status, 'Active'));
 
-    // Filter mitras by region coverage
-    const regionFilteredMitras = allMitras.filter(mitra => {
-      // Check city match first
-      if (!mitra.mitraCityAssignment || mitra.mitraCityAssignment !== customer.city) {
-        return false; // City must match exactly
-      }
+    // Check if region filter is enabled (Feedback 2a)
+    const enableRegionFilter = await getConfig(CONFIG_KEYS.ENABLE_MITRA_REGION_FILTER, false);
 
-      // If no district assignment or no customer district, accept (city match is enough)
-      if (!mitra.mitraLocationAssignment || !customer.district) {
-        return true;
-      }
+    // Filter mitras by region coverage (only if enabled)
+    let regionFilteredMitras = allMitras;
 
-      try {
-        // mitraLocationAssignment is JSON array of districts
-        const districts = typeof mitra.mitraLocationAssignment === 'string'
-          ? JSON.parse(mitra.mitraLocationAssignment)
-          : mitra.mitraLocationAssignment;
-
-        // Check if mitra covers customer's district
-        if (Array.isArray(districts)) {
-          return districts.includes(customer.district);
+    if (enableRegionFilter) {
+      console.log(`🔍 Region filter ENABLED - Filtering mitras for ${customer.city} - ${customer.district}`);
+      regionFilteredMitras = allMitras.filter(mitra => {
+        // Check city match first
+        if (!mitra.mitraCityAssignment || mitra.mitraCityAssignment !== customer.city) {
+          return false; // City must match exactly
         }
 
-        return false;
-      } catch (error) {
-        console.warn(`Failed to parse location assignment for mitra ${mitra.id}:`, error);
-        return false;
-      }
-    });
+        // If no district assignment or no customer district, accept (city match is enough)
+        if (!mitra.mitraLocationAssignment || !customer.district) {
+          return true;
+        }
+
+        try {
+          // mitraLocationAssignment is JSON array of districts
+          const districts = typeof mitra.mitraLocationAssignment === 'string'
+            ? JSON.parse(mitra.mitraLocationAssignment)
+            : mitra.mitraLocationAssignment;
+
+          // Check if mitra covers customer's district
+          if (Array.isArray(districts)) {
+            return districts.includes(customer.district);
+          }
+
+          return false;
+        } catch (error) {
+          console.warn(`Failed to parse location assignment for mitra ${mitra.id}:`, error);
+          return false;
+        }
+      });
+      console.log(`✅ Filtered from ${allMitras.length} to ${regionFilteredMitras.length} mitras based on region`);
+    } else {
+      console.log(`⚠️  Region filter DISABLED - Using all ${allMitras.length} active mitras`);
+    }
 
     // Get all visits on this date (exclude current visit)
     const visitsOnDate = await db
@@ -147,25 +159,38 @@ export async function GET(
       }
     });
 
-    // Filter by availability (max 8 hours per day)
-    const MAX_HOURS_PER_DAY = 8;
-    const availableMitras = regionFilteredMitras
-      .map(mitra => {
-        const currentHours = mitraHoursMap.get(mitra.id) || 0;
-        const availableHours = MAX_HOURS_PER_DAY - currentHours;
-        const isAvailable = availableHours >= 3; // Need at least 3 hours for a visit
+    // Check if max hours restriction is enabled (Feedback 2b)
+    const enableMaxHours = await getConfig(CONFIG_KEYS.ENABLE_SCHEDULE_MAX_HOURS, false);
 
-        return {
-          id: mitra.id,
-          mitraName: mitra.mitraName,
-          mitraCode: mitra.mitraCode,
-          contact: mitra.contact,
-          currentHours,
-          availableHours,
-          isAvailable,
-        };
-      })
-      .filter(mitra => mitra.isAvailable); // Only return available mitras
+    // Filter by availability (max 8 hours per day - only if enabled)
+    const MAX_HOURS_PER_DAY = 8;
+    const mitraWithAvailability = regionFilteredMitras.map(mitra => {
+      const currentHours = mitraHoursMap.get(mitra.id) || 0;
+      const availableHours = MAX_HOURS_PER_DAY - currentHours;
+      const isAvailable = enableMaxHours
+        ? availableHours >= 3 // Need at least 3 hours for a visit (if restriction enabled)
+        : true; // Always available if restriction disabled
+
+      return {
+        id: mitra.id,
+        mitraName: mitra.mitraName,
+        mitraCode: mitra.mitraCode,
+        contact: mitra.contact,
+        currentHours,
+        availableHours,
+        isAvailable,
+      };
+    });
+
+    const availableMitras = enableMaxHours
+      ? mitraWithAvailability.filter(mitra => mitra.isAvailable) // Filter if restriction enabled
+      : mitraWithAvailability; // Return all if restriction disabled
+
+    if (enableMaxHours) {
+      console.log(`🕐 Max hours restriction ENABLED - Filtered to ${availableMitras.length} mitras with available hours`);
+    } else {
+      console.log(`⚠️  Max hours restriction DISABLED - All ${availableMitras.length} mitras available (no hour limit)`);
+    }
 
     console.log(`Found ${availableMitras.length} available mitras for visit ${visitId} on ${visit.scheduledDate}`);
     console.log(`  Total region-matched: ${regionFilteredMitras.length}`);
@@ -183,6 +208,11 @@ export async function GET(
         availableMitras,
         totalRegionMatched: regionFilteredMitras.length,
         totalAvailable: availableMitras.length,
+        // NEW: Toggle status
+        filters: {
+          regionFilterEnabled: enableRegionFilter,
+          maxHoursEnabled: enableMaxHours,
+        },
       },
     });
 

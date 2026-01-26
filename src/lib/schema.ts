@@ -336,7 +336,7 @@ export const payoutDB = pgTable('payout_db', {
   totalVisits: integer('total_visits').default(0), // Completed visits (Qty)
   pricePerVisit: decimal('price_per_visit', { precision: 10, scale: 2 }).default('0'), // DEPRECATED: Price per Qty
   basePayout: decimal('base_payout', { precision: 12, scale: 2 }).default('0'), // (totalVisits / scheduledVisits) × monthlyRate
-  bonusAmount: decimal('bonus_amount', { precision: 10, scale: 2 }).default('0'), // Editable bonus
+  bonusAmount: decimal('bonus_amount', { precision: 10, scale: 2 }).default('0'), // Editable lainnya
   totalPayout: decimal('total_payout', { precision: 12, scale: 2 }).default('0'), // basePayout + bonusAmount
 
   // Status
@@ -351,6 +351,49 @@ export const payoutDB = pgTable('payout_db', {
   paidAt: timestamp('paid_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+// Payout Adjustment Table - Track adjustments for next period when historical visits are edited (NEW for 8b)
+export const payoutAdjustmentDB = pgTable('payout_adjustment_db', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  adjustmentId: varchar('adjustment_id', { length: 100 }).unique().notNull(), // ADJ/MitraName/YYYY.MM.DD-XXXXX
+
+  // Related payout records
+  originalPayoutId: uuid('original_payout_id').references(() => payoutDB.id), // Payout that needs adjustment
+  appliedPayoutId: uuid('applied_payout_id').references(() => payoutDB.id), // Payout where adjustment was applied
+  mitraId: uuid('mitra_id').references(() => mitraDB.id).notNull(),
+
+  // Adjustment details
+  adjustmentAmount: decimal('adjustment_amount', { precision: 12, scale: 2 }).notNull(), // Positive = add, Negative = deduct
+  adjustmentType: varchar('adjustment_type', { length: 50 }).notNull(), // OVERPAYMENT_DEDUCTION, UNDERPAYMENT_ADDITION, MANUAL_ADJUSTMENT
+
+  // Reason and context
+  reason: text('reason').notNull(), // Human-readable reason
+  relatedVisitId: uuid('related_visit_id').references(() => visitDB.id), // NULL if manual adjustment
+  relatedCustomerId: uuid('related_customer_id').references(() => customerDB.id), // Customer involved
+
+  // Original vs corrected values (for audit trail)
+  originalVisits: integer('original_visits'), // Original completed visits count
+  correctedVisits: integer('corrected_visits'), // Corrected visits count after edit
+  originalPayout: decimal('original_payout', { precision: 12, scale: 2 }), // Original payout amount
+  correctedPayout: decimal('corrected_payout', { precision: 12, scale: 2 }), // Corrected payout amount
+
+  // Period information
+  originalYear: integer('original_year'), // Year of original payout
+  originalMonth: integer('original_month'), // Month of original payout (1-12)
+  appliedYear: integer('applied_year'), // Year where adjustment applied
+  appliedMonth: integer('applied_month'), // Month where adjustment applied
+
+  // Status
+  status: varchar('status', { length: 20 }).default('PENDING'), // PENDING, APPLIED, CANCELLED, REJECTED
+
+  // Metadata
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  createdBy: varchar('created_by', { length: 255 }), // User who created this adjustment
+  appliedAt: timestamp('applied_at', { withTimezone: true }), // When adjustment was applied
+  approvedBy: varchar('approved_by', { length: 255 }), // User who approved (if workflow needed)
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
 });
 
 // Mitra Rate Configuration Table - Configurable payout rates per mitra and subscription type (NEW for 1b)
@@ -411,6 +454,26 @@ export const auditLogDB = pgTable('audit_log_db', {
 
   // Timestamp
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+// System Config Table - Application-wide settings and toggles (Feedback 2a, 2b)
+export const systemConfigDB = pgTable('system_config_db', {
+  id: uuid('id').defaultRandom().primaryKey(),
+
+  // Config key-value
+  configKey: varchar('config_key', { length: 100 }).notNull().unique(), // e.g., 'enable_mitra_region_filter'
+  configValue: text('config_value').notNull(), // Stored as JSON string for flexibility
+  dataType: varchar('data_type', { length: 20 }).default('string'), // 'boolean', 'string', 'number', 'json'
+
+  // Metadata
+  description: text('description'), // Human-readable description
+  category: varchar('category', { length: 50 }), // e.g., 'mitra', 'scheduling', 'general'
+  isActive: boolean('is_active').default(true),
+
+  // Audit
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  updatedBy: varchar('updated_by', { length: 255 }), // User email who last updated
 });
 
 // Simple Relations without problematic references
@@ -542,10 +605,16 @@ export type NewVisit = typeof visitDB.$inferInsert;
 export type Payout = typeof payoutDB.$inferSelect;
 export type NewPayout = typeof payoutDB.$inferInsert;
 
+export type PayoutAdjustment = typeof payoutAdjustmentDB.$inferSelect;
+export type NewPayoutAdjustment = typeof payoutAdjustmentDB.$inferInsert;
+
 export type AuditLog = typeof auditLogDB.$inferSelect;
 export type NewAuditLog = typeof auditLogDB.$inferInsert;
 
 export type MitraRateConfig = typeof mitraRateConfigDB.$inferSelect;
 export type NewMitraRateConfig = typeof mitraRateConfigDB.$inferInsert;
+
+export type SystemConfig = typeof systemConfigDB.$inferSelect;
+export type NewSystemConfig = typeof systemConfigDB.$inferInsert;
 
 // Trial types removed - trials are now just customers with subscription_status = 'Trial'

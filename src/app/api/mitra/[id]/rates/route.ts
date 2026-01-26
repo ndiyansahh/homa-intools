@@ -8,7 +8,7 @@ import { logAuditEvent } from '@/lib/logger';
 // GET - Fetch all rate configurations for a specific mitra
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -21,7 +21,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const mitraId = params.id;
+    const { id: mitraId } = await params;
 
     console.log(`📊 Fetching rate configs for mitra ${mitraId}`);
 
@@ -65,7 +65,7 @@ export async function GET(
 // POST - Create new rate configuration for a mitra
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -78,7 +78,7 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const mitraId = params.id;
+    const { id: mitraId } = await params;
     const body = await request.json();
     const {
       subscriptionPackageId = null, // NULL = default rate for all packages
@@ -198,7 +198,7 @@ export async function POST(
 // PATCH - Update existing rate configuration
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -211,7 +211,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const mitraId = params.id;
+    const { id: mitraId } = await params;
     const body = await request.json();
     const { rateConfigId, ...updates } = body;
 
@@ -307,7 +307,7 @@ export async function PATCH(
 // DELETE - Soft delete (deactivate) a rate configuration
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -320,7 +320,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const mitraId = params.id;
+    const { id: mitraId } = await params;
     const { searchParams } = new URL(request.url);
     const rateConfigId = searchParams.get('rateConfigId');
 

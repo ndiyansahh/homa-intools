@@ -670,10 +670,10 @@ export default function MitraManagement({ session }: MitraManagementProps) {
                 <p className="text-xs text-gray-500 mt-1">Enter tenure period in months (can be any number)</p>
               </div>
 
-              {/* Bonus Commission */}
+              {/* Lainnya Commission */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Bonus Commission *
+                  Lainnya Commission *
                 </label>
                 <select
                   value={formData.mitraBonusCommission}

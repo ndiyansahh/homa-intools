@@ -54,10 +54,10 @@ export async function PUT(
 
     const payout = currentPayout[0];
 
-    // Check if bonus is eligible
+    // Check if lainnya is eligible
     if (bonusAmount !== undefined && !payout.bonusEligible) {
       return NextResponse.json(
-        { success: false, message: 'Mitra is not eligible for bonus' },
+        { success: false, message: 'Mitra is not eligible for lainnya' },
         { status: 400 }
       );
     }

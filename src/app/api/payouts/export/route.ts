@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
         'Bank Holder Name',
         'Qty',
         'Price per Qty',
-        'Bonus Amount',
+        'Lainnya Amount',
         'Price Total',
       ];
 

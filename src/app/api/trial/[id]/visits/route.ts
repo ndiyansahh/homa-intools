@@ -4,6 +4,8 @@ import { visitDB, mitraDB, customerDB, auditLogDB } from '@/lib/schema';
 import { eq, and, or, sql, desc } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { logDetailedAudit, getChangedFields } from '@/lib/audit-logger.server';
+import { getConfig, CONFIG_KEYS } from '@/lib/config';
+import { detectPayoutAdjustment, createPayoutAdjustments } from '@/lib/payout-adjustment';
 
 interface RouteParams {
   params: Promise<{
@@ -329,11 +331,19 @@ export async function PUT(
       );
     }
 
-    if (oldVisit[0].status === 'Done' && scheduledDate) {
+    // Check if completed visits should be locked (Feedback 6b)
+    const lockCompletedVisits = await getConfig(CONFIG_KEYS.LOCK_COMPLETED_VISITS, false);
+
+    if (lockCompletedVisits && oldVisit[0].status === 'Done' && scheduledDate) {
       return NextResponse.json(
-        { success: false, message: 'Cannot edit date for completed visit' },
+        { success: false, message: 'Cannot edit date for completed visit (locked by admin)' },
         { status: 400 }
       );
+    }
+
+    // If lock is disabled, allow editing even for completed visits
+    if (!lockCompletedVisits && oldVisit[0].status === 'Done') {
+      console.log(`⚠️  Editing completed visit ${visitId} - lock is DISABLED (Feedback 6b)`);
     }
 
     const oldVisitData = oldVisit[0];
@@ -380,6 +390,28 @@ export async function PUT(
       .update(visitDB)
       .set(updateData)
       .where(eq(visitDB.id, visitId));
+
+    // Feature 8b: Detect payout adjustments needed when historical visits are edited
+    try {
+      const adjustments = await detectPayoutAdjustment({
+        visitId,
+        oldStatus: oldVisitData.status || 'Scheduled',
+        newStatus: status !== undefined ? status : oldVisitData.status || 'Scheduled',
+        oldMitraId: oldVisitData.mitraId,
+        newMitraId: updateData.mitraId || oldVisitData.mitraId,
+        oldActualMitraId: oldVisitData.actualMitraId,
+        newActualMitraId: actualMitraId || oldVisitData.actualMitraId,
+        userEmail: session.email,
+      });
+
+      if (adjustments && adjustments.length > 0) {
+        await createPayoutAdjustments(adjustments);
+        console.log(`📊 Created ${adjustments.length} payout adjustment(s) for visit ${visitId}`);
+      }
+    } catch (adjustmentError) {
+      // Log error but don't fail the visit update
+      console.error('Error creating payout adjustment:', adjustmentError);
+    }
 
     // Log detailed audit
     const newVisitData = { ...oldVisitData, ...updateData };

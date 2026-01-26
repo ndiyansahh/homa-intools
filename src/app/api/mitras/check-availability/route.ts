@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { mitraDB, visitDB } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { getMitraAvailabilityForPattern } from '@/lib/utils/subscriptionUtils';
+import { getConfig, CONFIG_KEYS } from '@/lib/config';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -30,10 +31,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .from(mitraDB)
       .where(eq(mitraDB.status, 'Active'));
 
-    // Filter mitras by coverage area if city and district provided
+    // Check if region filter is enabled (Feedback 2a)
+    const enableRegionFilter = await getConfig(CONFIG_KEYS.ENABLE_MITRA_REGION_FILTER, false);
+
+    // Filter mitras by coverage area if city and district provided AND filter is enabled
     let mitras = allMitras;
-    if (city && district) {
-      console.log(`Filtering mitras for coverage area: ${city} - ${district}`);
+    if (city && district && enableRegionFilter) {
+      console.log(`🔍 Region filter ENABLED - Filtering mitras for coverage area: ${city} - ${district}`);
       mitras = allMitras.filter((mitra) => {
         // Check city match
         if (mitra.mitraCityAssignment !== city) return false;
@@ -47,7 +51,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           return false;
         }
       });
-      console.log(`Filtered from ${allMitras.length} to ${mitras.length} mitras based on coverage`);
+      console.log(`✅ Filtered from ${allMitras.length} to ${mitras.length} mitras based on coverage`);
+    } else if (city && district && !enableRegionFilter) {
+      console.log(`⚠️  Region filter DISABLED - Returning all ${allMitras.length} active mitras (ignoring city/district)`);
     }
 
     // Get all existing visits for availability calculation
@@ -86,7 +92,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         allMitras: availabilityResults,
         totalMitrasBeforeFilter: allMitras.length,
         totalMitrasAfterCoverageFilter: mitras.length,
-        coverageFilterApplied: city && district ? true : false
+        coverageFilterApplied: city && district && enableRegionFilter ? true : false,
+        coverageFilterEnabled: enableRegionFilter, // NEW: Toggle status
       }
     });
 

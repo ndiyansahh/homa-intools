@@ -44,12 +44,12 @@ export interface CreateMitraRequest {
   mitraGender: MitraGender; // Wanita, Pria
   mitraDOB: string; // mm/dd/yyyy format
   mitraPhone: string; // 10-12 digits
-  
+
   // Banking information
   mitraBankAccount: string; // Free text (e.g., BCA)
   mitraBankHolderName: string; // Free text
   mitraBankAccountNumber: string; // Number
-  
+
   // Assignment details
   mitraCityAssignment: MitraCityAssignment; // Jabodetabek cities
   mitraLocationAssignment: string[]; // Array of districts
@@ -57,9 +57,12 @@ export interface CreateMitraRequest {
   mitraTenure: number; // Free number
   mitraExitDate?: string; // dd/mm/yyyy format, optional
   mitraBonusCommission: MitraBonusCommission; // Eligible, Not Eligible
-  
+
+  // Payout rate (Feature 1a-1c)
+  monthlyBaseRate?: number; // Monthly payout rate in Rupiah
+
   status?: MitraStatus; // Optional, defaults to Active
-  
+
   // Legacy fields (optional for backward compatibility)
   address?: string;
 }

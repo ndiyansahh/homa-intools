@@ -352,17 +352,17 @@ export default function MitraDetailView({ mitraId, onClose, onUpdate }: MitraDet
             </div>
           </div>
 
-          {/* Bonus Status & Base Rate */}
+          {/* Lainnya Status & Base Rate */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Bonus Status</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Lainnya Status</h3>
               <div className="bg-gray-50 rounded-lg p-4">
                 <select
                   value={formData.bonus || ''}
                   onChange={(e) => handleChange('bonus', e.target.value)}
                   className="input-field"
                 >
-                  <option value="">Select Bonus Status</option>
+                  <option value="">Select Lainnya Status</option>
                   <option value="Eligible">Eligible</option>
                   <option value="Not Eligible">Not Eligible</option>
                 </select>
