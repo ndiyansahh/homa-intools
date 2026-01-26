@@ -241,10 +241,10 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Validate bonus commission
+    // Validate lainnya commission
     if (!body.mitraBonusCommission || !['Eligible', 'Not Eligible'].includes(body.mitraBonusCommission)) {
-      return NextResponse.json({ 
-        error: 'Bonus commission must be "Eligible" or "Not Eligible"' 
+      return NextResponse.json({
+        error: 'Lainnya commission must be "Eligible" or "Not Eligible"'
       }, { status: 400 });
     }
 
