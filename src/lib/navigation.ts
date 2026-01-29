@@ -45,6 +45,13 @@ export const navigationItems: NavigationItem[] = [
     description: 'Payment and payout management'
   },
   {
+    name: 'Packages',
+    href: '/app/packages',
+    icon: 'box',
+    roles: ['ADMIN', 'OWNER'],
+    description: 'Subscription package management'
+  },
+  {
     name: 'Settings',
     href: '/app/settings',
     icon: 'cog',

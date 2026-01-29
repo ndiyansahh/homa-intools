@@ -15,9 +15,7 @@ interface CreateTrialRequest {
   postal_code: string;
   residential_type?: 'House' | 'Apartment' | 'Office Space';
   // Trial Schedule fields
-  start_date?: string;
-  end_date?: string;
-  selected_day?: string;
+  trial_date?: string; // Changed: single date instead of start_date/end_date/selected_day
   selected_mitra?: string;
 }
 
@@ -97,18 +95,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const trialId = generateTrialID();
 
       // Validate trial schedule if provided
-      if (body.start_date && body.selected_day && body.selected_mitra) {
+      if (body.trial_date && body.selected_mitra) {
         // Validate date format (YYYY-MM-DD)
         const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!dateRegex.test(body.start_date)) {
+        if (!dateRegex.test(body.trial_date)) {
           return NextResponse.json(
-            { success: false, message: 'Invalid start date format. Use YYYY-MM-DD' },
-            { status: 400 }
-          );
-        }
-        if (body.end_date && !dateRegex.test(body.end_date)) {
-          return NextResponse.json(
-            { success: false, message: 'Invalid end date format. Use YYYY-MM-DD' },
+            { success: false, message: 'Invalid trial date format. Use YYYY-MM-DD' },
             { status: 400 }
           );
         }
@@ -169,10 +161,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }
         }
 
-        // 3. Get trial start date from schedule
+        // 3. Get trial date from schedule
         let subscriptionStart = null;
-        if (body.start_date) {
-          subscriptionStart = body.start_date; // YYYY-MM-DD format from form
+        if (body.trial_date) {
+          subscriptionStart = body.trial_date; // YYYY-MM-DD format from form
         }
 
         // 4. Create trial customer in customer_db with Trial package
@@ -193,8 +185,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           totalPaid: '0',
           outstandingBalance: '0',
           customerNotes: `Trial customer created via API - Trial ID: ${trialId}${body.residential_type ? ` - Residential Type: ${body.residential_type}` : ''}`,
-          chosenDays: body.selected_day ? JSON.stringify([body.selected_day]) : null, // Save selected day as array
-          dayPattern: body.selected_day ? JSON.stringify([body.selected_day]) : null, // Save to both fields for compatibility
+          chosenDays: null, // No chosen days for single trial visit
+          dayPattern: null, // No day pattern for single trial visit
           isActive: true,
           isDeleted: false,
           // createdAt and updatedAt are automatically set by database defaultNow()
@@ -211,15 +203,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             village: customerData.village,
             postalCode: customerData.postalCode,
             assignedMitraId: customerData.assignedMitraId, // Include the assigned cleaner
-            subscriptionStart: customerData.subscriptionStart, // Include trial start date
+            subscriptionStart: customerData.subscriptionStart, // Include trial date
             subscriptionStatus: customerData.subscriptionStatus,
             subscriptionPackage: customerData.subscriptionPackage,
             monthlyFee: customerData.monthlyFee,
             totalPaid: customerData.totalPaid,
             outstandingBalance: customerData.outstandingBalance,
             customerNotes: customerData.customerNotes,
-            chosenDays: customerData.chosenDays, // Save selected day
-            dayPattern: customerData.dayPattern, // Save to both fields for compatibility
+            chosenDays: customerData.chosenDays, // No chosen days for single trial
+            dayPattern: customerData.dayPattern, // No day pattern for single trial
             isActive: customerData.isActive,
             isDeleted: customerData.isDeleted,
             // createdAt and updatedAt are automatically set by database defaultNow()
@@ -228,42 +220,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         const newCustomer = customerResult[0];
 
-        // 5. Generate visit schedule if trial schedule is provided
+        // 5. Create single visit record if trial date is provided
         let visitsCreated = 0;
-        if (body.start_date && body.selected_day && assignedMitraId) {
-          // Generate visit dates based on selected day (e.g., every Monday)
-          const visits: Date[] = [];
-          const start = new Date(body.start_date);
-          const end = body.end_date ? new Date(body.end_date) : new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000); // Default 30 days
+        if (body.trial_date && assignedMitraId) {
+          // Create one visit record for the selected trial date
+          const trialDate = new Date(body.trial_date);
+          const dayName = trialDate.toLocaleDateString('en-US', { weekday: 'long' });
 
-          const currentDate = new Date(start);
-          while (currentDate <= end) {
-            const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
-            if (dayName === body.selected_day) {
-              visits.push(new Date(currentDate));
-            }
-            currentDate.setDate(currentDate.getDate() + 1);
-          }
+          const visitRecord = {
+            customerId: newCustomer.id,
+            mitraId: assignedMitraId, // Kept for backward compatibility
+            originalMitraId: assignedMitraId, // Track original assignment
+            actualMitraId: assignedMitraId, // Initially same as original, can be changed later
+            visitNumber: 1,
+            scheduledDate: body.trial_date, // Use the trial date directly
+            scheduledDay: dayName,
+            status: 'Scheduled',
+            durationHours: 3, // Default 3 hours for trial
+          };
 
-          // Create visit records
-          if (visits.length > 0) {
-            const visitRecords = visits.map((visitDate, index) => ({
-              customerId: newCustomer.id,
-              mitraId: assignedMitraId, // Kept for backward compatibility
-              originalMitraId: assignedMitraId, // Track original assignment
-              actualMitraId: assignedMitraId, // Initially same as original, can be changed later
-              visitNumber: index + 1,
-              scheduledDate: visitDate.toISOString().split('T')[0],
-              scheduledDay: body.selected_day || 'Monday',
-              status: 'Scheduled',
-              durationHours: 3, // Default 3 hours for trial
-            }));
+          await tx.insert(visitDB).values([visitRecord]);
+          visitsCreated = 1;
 
-            await tx.insert(visitDB).values(visitRecords);
-            visitsCreated = visitRecords.length;
-
-            console.log(`✅ Created ${visitsCreated} visit records for trial ${newCustomer.id}`);
-          }
+          console.log(`✅ Created 1 visit record for trial ${newCustomer.id} on ${body.trial_date}`);
         }
 
         return {

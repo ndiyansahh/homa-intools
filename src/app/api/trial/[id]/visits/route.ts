@@ -114,7 +114,7 @@ export async function GET(
   }
 }
 
-// POST - Create/Update trial schedule and generate visits
+// POST - Add single trial visit
 export async function POST(
   request: NextRequest,
   { params }: RouteParams
@@ -137,11 +137,20 @@ export async function POST(
 
     const { id } = await params;
     const body = await request.json();
-    const { startDate, endDate, selectedDay, mitraId } = body;
+    const { trialDate, mitraId } = body;
 
-    if (!startDate || !selectedDay || !mitraId) {
+    if (!trialDate || !mitraId) {
       return NextResponse.json(
-        { success: false, message: 'Start date, selected day, and mitra are required' },
+        { success: false, message: 'Trial date and mitra are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate date format
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(trialDate)) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid date format. Use YYYY-MM-DD' },
         { status: 400 }
       );
     }
@@ -163,117 +172,62 @@ export async function POST(
       );
     }
 
-    // Get existing cancelled visits to replace them
-    const existingCancelledVisits = await db
-      .select()
-      .from(visitDB)
-      .where(
-        and(
-          eq(visitDB.customerId, id),
-          eq(visitDB.status, 'Cancelled')
-        )
-      );
+    // Verify mitra exists and is active
+    const mitra = await db
+      .select({
+        id: mitraDB.id,
+        mitraName: mitraDB.mitraName,
+        status: mitraDB.status,
+      })
+      .from(mitraDB)
+      .where(eq(mitraDB.id, mitraId))
+      .limit(1);
 
-    // Check if there are cancelled visits to reschedule
-    if (existingCancelledVisits.length === 0) {
+    if (mitra.length === 0 || mitra[0].status !== 'Active') {
       return NextResponse.json(
-        { success: false, message: 'No cancelled visits to reschedule. This feature is only available when you have cancelled visits.' },
+        { success: false, message: 'Selected mitra is not active or does not exist' },
         { status: 400 }
       );
     }
 
-    // Get existing completed visits to preserve them
-    const existingCompletedVisits = await db
+    // Get all existing visits to determine next visitNumber
+    const existingVisits = await db
       .select()
       .from(visitDB)
-      .where(
-        and(
-          eq(visitDB.customerId, id),
-          eq(visitDB.status, 'Done')
-        )
-      );
+      .where(eq(visitDB.customerId, id));
 
-    // Get existing scheduled visits to preserve them
-    const existingScheduledVisits = await db
-      .select()
-      .from(visitDB)
-      .where(
-        and(
-          eq(visitDB.customerId, id),
-          eq(visitDB.status, 'Scheduled')
-        )
-      );
-
-    // Find the highest visitNumber from all existing visits
-    const allExistingVisits = [...existingCompletedVisits, ...existingScheduledVisits, ...existingCancelledVisits];
-    const maxVisitNumber = allExistingVisits.length > 0
-      ? Math.max(...allExistingVisits.map(v => v.visitNumber))
+    const maxVisitNumber = existingVisits.length > 0
+      ? Math.max(...existingVisits.map(v => v.visitNumber))
       : 0;
 
-    // Generate visit dates for ONLY the number of cancelled visits
-    const visits: Date[] = [];
-    const start = new Date(startDate);
-    const end = endDate ? new Date(endDate) : new Date(start.getTime() + 365 * 24 * 60 * 60 * 1000); // Default 1 year
+    // Calculate the day name from the trial date
+    const trialDateObj = new Date(trialDate);
+    const dayName = trialDateObj.toLocaleDateString('en-US', { weekday: 'long' });
 
-    const currentDate = new Date(start);
-    while (currentDate <= end && visits.length < existingCancelledVisits.length) {
-      const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
-      if (dayName === selectedDay) {
-        visits.push(new Date(currentDate));
-      }
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-
-    // Delete ONLY cancelled visits (preserve Done and Scheduled)
-    await db
-      .delete(visitDB)
-      .where(
-        and(
-          eq(visitDB.customerId, id),
-          eq(visitDB.status, 'Cancelled')
-        )
-      );
-
-    // Create new visit records starting from maxVisitNumber + 1
-    const visitRecords = visits.map((visitDate, index) => ({
+    // Create single visit record
+    const visitRecord = {
       customerId: id,
       mitraId: mitraId, // Kept for backward compatibility
       originalMitraId: mitraId, // Track original assignment
       actualMitraId: mitraId, // Initially same as original, can be changed later
-      visitNumber: maxVisitNumber + index + 1,
-      scheduledDate: visitDate.toISOString().split('T')[0],
-      scheduledDay: selectedDay,
+      visitNumber: maxVisitNumber + 1,
+      scheduledDate: trialDate,
+      scheduledDay: dayName,
       status: 'Scheduled',
       durationHours: 3, // Default 3 hours for trial
-    }));
+    };
 
-    if (visitRecords.length > 0) {
-      await db.insert(visitDB).values(visitRecords);
+    await db.insert(visitDB).values([visitRecord]);
 
-      // Update customer's assignedMitraId to match the visit schedule
-      await db
-        .update(customerDB)
-        .set({
-          assignedMitraId: mitraId,
-          updatedAt: new Date(),
-        })
-        .where(eq(customerDB.id, id));
-
-      console.log(`✅ Rescheduled ${existingCancelledVisits.length} cancelled visit(s) with ${visitRecords.length} new scheduled visit(s)`);
-      console.log(`✅ Preserved ${existingCompletedVisits.length} completed visit(s)`);
-      console.log(`✅ Preserved ${existingScheduledVisits.length} scheduled visit(s)`);
-      console.log(`✅ Updated customer assignedMitraId to ${mitraId}`);
-    }
+    console.log(`✅ Created trial visit #${visitRecord.visitNumber} for ${customer[0].customerName} on ${trialDate} with ${mitra[0].mitraName}`);
 
     return NextResponse.json({
       success: true,
-      message: `✅ ${existingCancelledVisits.length} cancelled visit(s) have been rescheduled successfully!\nExisting visits (${existingCompletedVisits.length} completed, ${existingScheduledVisits.length} scheduled) are preserved.`,
+      message: `Trial visit scheduled successfully for ${trialDate}`,
       data: {
-        visitsCreated: visitRecords.length,
-        cancelledVisitsRescheduled: existingCancelledVisits.length,
-        completedVisitsPreserved: existingCompletedVisits.length,
-        scheduledVisitsPreserved: existingScheduledVisits.length,
-        visits: visitRecords,
+        visit: visitRecord,
+        visitNumber: visitRecord.visitNumber,
+        mitraName: mitra[0].mitraName,
       },
     });
 

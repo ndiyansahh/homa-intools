@@ -98,9 +98,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     postal_code: '',
     residential_type: 'House' as ResidentialType,
     // Trial Schedule fields
-    start_date: '',
-    end_date: '',
-    selected_day: '',
+    trial_date: '', // Changed: single date instead of start_date/end_date/selected_day
     selected_mitra: '',
   });
 
@@ -503,12 +501,8 @@ export default function TrialManagement({ session }: TrialManagementProps) {
       }
 
       // Validate trial schedule
-      if (!formData.start_date) {
-        setFormError('Start date is required');
-        return;
-      }
-      if (!formData.selected_day) {
-        setFormError('Please select a day for weekly visits');
+      if (!formData.trial_date) {
+        setFormError('Trial date is required');
         return;
       }
       if (!formData.selected_mitra) {
@@ -516,13 +510,13 @@ export default function TrialManagement({ session }: TrialManagementProps) {
         return;
       }
 
-      // Validate start date not in past
-      const startDate = new Date(formData.start_date);
+      // Validate trial date not in past
+      const trialDate = new Date(formData.trial_date);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      if (startDate < today) {
-        setFormError('Start date cannot be in the past');
+      if (trialDate < today) {
+        setFormError('Trial date cannot be in the past');
         return;
       }
 
@@ -553,9 +547,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
             postal_code: '',
             residential_type: 'House' as ResidentialType,
             // Trial Schedule fields
-            start_date: '',
-            end_date: '',
-            selected_day: '',
+            trial_date: '',
             selected_mitra: '',
           });
 
@@ -622,9 +614,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
       postal_code: '',
       residential_type: 'House' as ResidentialType,
       // Trial Schedule fields
-      start_date: '',
-      end_date: '',
-      selected_day: '',
+      trial_date: '',
       selected_mitra: '',
     });
 
@@ -864,56 +854,23 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Start Date *
+                    Trial Date *
                   </label>
                   <input
                     type="date"
                     required
-                    value={formData.start_date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
+                    value={formData.trial_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, trial_date: e.target.value }))}
                     disabled={!formData.city_id || !formData.district_id || mitras.length === 0}
                     className="input-field disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Select one date for the trial visit</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    End Date (Optional)
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.end_date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
-                    disabled={!formData.city_id || !formData.district_id || mitras.length === 0}
-                    className="input-field disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Leave empty for 30 days default</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Trial Day (1x per week) *
-                  </label>
-                  <select
-                    required
-                    value={formData.selected_day}
-                    onChange={(e) => setFormData(prev => ({ ...prev, selected_day: e.target.value }))}
-                    disabled={!formData.city_id || !formData.district_id || mitras.length === 0}
-                    className="input-field disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Select day...</option>
-                    {dayOptions.map((day) => (
-                      <option key={day.value} value={day.value}>
-                        {day.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="md:col-span-3">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Assigned Mitra *
                   </label>
@@ -948,7 +905,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                 </div>
               </div>
               <p className="text-xs text-gray-500 mt-3">
-                This will create visit records for every {formData.selected_day || '[selected day]'} between the start and end dates.
+                This will create one visit record for the selected date.
               </p>
             </div>
 

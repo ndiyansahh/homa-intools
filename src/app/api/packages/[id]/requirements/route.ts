@@ -44,7 +44,7 @@ export async function GET(
       validationRules: {
         minDays: visitsPerWeek,
         maxDays: visitsPerWeek,
-        allowDuplicateDays: false,
+        allowDuplicateDays: true, // Allow customers to select the same day multiple times (e.g., Monday 08:00-11:00 & Monday 11:00-14:00)
         requireStartDate: !pkg.subscriptionPackage.toLowerCase().includes('trial')
       }
     };

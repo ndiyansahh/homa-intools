@@ -137,6 +137,11 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
 
+  // Add single visit states
+  const [showAddVisitForm, setShowAddVisitForm] = useState(false);
+  const [newVisitDate, setNewVisitDate] = useState('');
+  const [newVisitMitra, setNewVisitMitra] = useState('');
+
   useEffect(() => {
     fetchCustomer();
     fetchAvailableCleaners();
@@ -1063,6 +1068,13 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
             Edit Customer
           </button>
           <button
+            onClick={() => setShowAddVisitForm(!showAddVisitForm)}
+            className="btn-secondary"
+          >
+            <Icons.plus className="w-4 h-4 mr-1" />
+            Add Visit
+          </button>
+          <button
             onClick={() => setShowGenerateSchedule(true)}
             className="btn-secondary"
           >
@@ -1070,6 +1082,108 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
           </button>
         </div>
       </div>
+
+      {/* Add Visit Form */}
+      {showAddVisitForm && (
+        <div className="card p-6 bg-blue-50 border-blue-200">
+          <h3 className="text-md font-semibold text-gray-900 mb-4">Schedule New Visit</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Visit Date *
+              </label>
+              <input
+                type="date"
+                value={newVisitDate}
+                onChange={(e) => setNewVisitDate(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Assigned Mitra *
+              </label>
+              <select
+                value={newVisitMitra}
+                onChange={(e) => setNewVisitMitra(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option value="">Select Mitra...</option>
+                {allMitras.map((mitra) => (
+                  <option key={mitra.id} value={mitra.id}>
+                    {mitra.name} - {mitra.phone || 'No phone'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2 mt-4">
+            <button
+              onClick={() => {
+                setShowAddVisitForm(false);
+                setNewVisitDate('');
+                setNewVisitMitra('');
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={async () => {
+                if (!newVisitDate || !newVisitMitra) {
+                  alert('Please select visit date and assign a mitra');
+                  return;
+                }
+
+                // Validate date is not in the past
+                const selectedDate = new Date(newVisitDate);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                if (selectedDate < today) {
+                  alert('Visit date cannot be in the past');
+                  return;
+                }
+
+                try {
+                  const response = await fetch(`/api/customers/${customerId}/visits`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      visitDate: newVisitDate,
+                      mitraId: newVisitMitra,
+                    }),
+                  });
+
+                  if (response.ok) {
+                    const result = await response.json();
+                    alert(result.message || 'Visit added successfully');
+
+                    // Reset form
+                    setNewVisitDate('');
+                    setNewVisitMitra('');
+                    setShowAddVisitForm(false);
+
+                    // Refresh visits
+                    await fetchVisits();
+                  } else {
+                    const error = await response.json();
+                    alert(error.message || 'Failed to add visit');
+                  }
+                } catch (error) {
+                  console.error('Error adding visit:', error);
+                  alert('Failed to add visit');
+                }
+              }}
+              disabled={!newVisitDate || !newVisitMitra}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Icons.check className="w-4 h-4 mr-2" />
+              Add Visit
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Customer Information Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

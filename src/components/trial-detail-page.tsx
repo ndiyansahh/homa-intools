@@ -85,10 +85,11 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
   // Trial schedule state
   const [trialVisits, setTrialVisits] = useState<any[]>([]);
   const [loadingVisits, setLoadingVisits] = useState(false);
-  const [selectedTrialDay, setSelectedTrialDay] = useState('');
-  const [trialStartDate, setTrialStartDate] = useState('');
-  const [trialEndDate, setTrialEndDate] = useState('');
-  const [selectedTrialMitra, setSelectedTrialMitra] = useState('');
+
+  // New trial date form state (for adding additional trials)
+  const [showAddTrialForm, setShowAddTrialForm] = useState(false);
+  const [newTrialDate, setNewTrialDate] = useState('');
+  const [newTrialMitra, setNewTrialMitra] = useState('');
 
   // Mitra change modal state
   const [showChangeMitraModal, setShowChangeMitraModal] = useState(false);
@@ -386,10 +387,20 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
     }
   };
 
-  // Save trial schedule and create visits
-  const saveTrialSchedule = async () => {
-    if (!trial || !trialStartDate || !selectedTrialDay || !selectedTrialMitra) {
-      alert('Please fill in start date, select a day, and assign a mitra');
+  // Add single trial visit
+  const addTrialVisit = async () => {
+    if (!trial || !newTrialDate || !newTrialMitra) {
+      alert('Please select trial date and assign a mitra');
+      return;
+    }
+
+    // Validate date is not in the past
+    const selectedDate = new Date(newTrialDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate < today) {
+      alert('Trial date cannot be in the past');
       return;
     }
 
@@ -399,24 +410,28 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          startDate: trialStartDate,
-          endDate: trialEndDate || null,
-          selectedDay: selectedTrialDay,
-          mitraId: selectedTrialMitra,
+          trialDate: newTrialDate,
+          mitraId: newTrialMitra,
         }),
       });
 
       if (response.ok) {
         const result = await response.json();
-        alert(result.message || 'Trial schedule saved successfully');
+        alert(result.message || 'Trial visit added successfully');
+
+        // Reset form
+        setNewTrialDate('');
+        setNewTrialMitra('');
+        setShowAddTrialForm(false);
+
         await fetchTrialVisits(); // Refresh visits
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to save trial schedule');
+        alert(error.message || 'Failed to add trial visit');
       }
     } catch (error) {
-      console.error('Error saving trial schedule:', error);
-      alert('Failed to save trial schedule');
+      console.error('Error adding trial visit:', error);
+      alert('Failed to add trial visit');
     } finally {
       setLoadingVisits(false);
     }
@@ -796,28 +811,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
     }
   }, [trial]);
 
-  // Initialize trial schedule fields when entering edit mode
-  useEffect(() => {
-    if (trial && editMode === trial.id) {
-      // Initialize trial schedule fields from existing data
-      // Use subscriptionStartDate (the actual subscription start) instead of nextTrialStartDate
-      if ((trial as any).subscriptionStartDate) {
-        const parts = (trial as any).subscriptionStartDate.split('/');
-        if (parts.length === 3) {
-          setTrialStartDate(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
-        }
-      }
-      if ((trial as any).subscriptionEndDate) {
-        const parts = (trial as any).subscriptionEndDate.split('/');
-        if (parts.length === 3) {
-          setTrialEndDate(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
-        }
-      }
-      if (trial.assignedMitraId) {
-        setSelectedTrialMitra(trial.assignedMitraId);
-      }
-    }
-  }, [trial, editMode]);
+  // Note: Trial schedule initialization removed - now using (+) Add Trial Date button instead
 
   // Load districts and villages when trial data is first loaded (only once per city/district)
   useEffect(() => {
@@ -1180,16 +1174,11 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                                 disabled={isDisabled}
                               >
                                 <option value="">Select day...</option>
-                                {dayOptions
-                                  .filter(day =>
-                                    day.value === currentValue ||
-                                    !Object.values(selectedDays).includes(day.value)
-                                  )
-                                  .map((day) => (
-                                    <option key={day.value} value={day.value}>
-                                      {day.label}
-                                    </option>
-                                  ))}
+                                {dayOptions.map((day) => (
+                                  <option key={day.value} value={day.value}>
+                                    {day.label}
+                                  </option>
+                                ))}
                               </select>
                             </div>
                           );
@@ -1530,102 +1519,11 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                   </div>
                 </div>
 
-                {/* Trial Schedule */}
+                {/* Trial Status */}
                 <div>
-                  <h4 className="text-md font-medium text-gray-900 mb-4">Trial Schedule</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <h4 className="text-md font-medium text-gray-900 mb-4">Trial Status</h4>
+                  <div className="grid grid-cols-1 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Start Date *
-                      </label>
-                      <input
-                        type="date"
-                        value={trialStartDate}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                        onChange={(e) => setTrialStartDate(e.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        End Date (Optional)
-                      </label>
-                      <input
-                        type="date"
-                        value={trialEndDate}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                        onChange={(e) => setTrialEndDate(e.target.value)}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Leave empty for 30 days default</p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Trial Day (1x per week) *
-                      </label>
-                      <select
-                        value={selectedTrialDay}
-                        onChange={(e) => setSelectedTrialDay(e.target.value)}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                      >
-                        <option value="">Select day...</option>
-                        {dayOptions.map((day) => (
-                          <option key={day.value} value={day.value}>
-                            {day.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="md:col-span-3">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Assigned Mitra *
-                      </label>
-                      <select
-                        value={selectedTrialMitra}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                        onChange={(e) => setSelectedTrialMitra(e.target.value)}
-                      >
-                        <option value="">Select Mitra...</option>
-                        {allMitras.map((mitra) => (
-                          <option key={mitra.id} value={mitra.id}>
-                            {mitra.name} - {mitra.phone || 'No phone'}
-                          </option>
-                        ))}
-                      </select>
-                      {allMitras.length === 0 && (
-                        <div className="text-xs text-red-500 mt-1">No mitra available. Please add mitras first.</div>
-                      )}
-                      {allMitras.length > 0 && (
-                        <div className="text-xs text-gray-500 mt-1">{allMitras.length} mitras available</div>
-                      )}
-                    </div>
-
-                    <div className="md:col-span-3">
-                      <button
-                        onClick={saveTrialSchedule}
-                        disabled={loadingVisits || !trialStartDate || !selectedTrialDay || !selectedTrialMitra}
-                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {loadingVisits ? (
-                          <>
-                            <Icons.spinner className="w-4 h-4 mr-2 animate-spin" />
-                            Generating Schedule...
-                          </>
-                        ) : (
-                          <>
-                            <Icons.check className="w-4 h-4 mr-2" />
-                            Generate Visit Schedule
-                          </>
-                        )}
-                      </button>
-                      <p className="text-xs text-gray-500 mt-2">
-                        This will create visit records for every {selectedTrialDay || '[selected day]'} between the start and end dates.
-                        {trialVisits.length > 0 && ` Current schedule has ${trialVisits.length} visit(s).`}
-                      </p>
-                    </div>
-
-                    <div className="md:col-span-3">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Status
                       </label>
@@ -1648,9 +1546,86 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                 </div>
 
                 {/* Attendance Tracking */}
-                {trialVisits.length > 0 && (
-                  <div>
-                    <h4 className="text-md font-medium text-gray-900 mb-4">Attendance Record</h4>
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-md font-medium text-gray-900">Trial Visits</h4>
+                    <button
+                      onClick={() => setShowAddTrialForm(!showAddTrialForm)}
+                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                    >
+                      <Icons.plus className="w-4 h-4 mr-1" />
+                      Add Trial Date
+                    </button>
+                  </div>
+
+                  {/* Add Trial Form */}
+                  {showAddTrialForm && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                      <h5 className="text-sm font-medium text-gray-900 mb-3">Schedule New Trial Visit</h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Trial Date *
+                          </label>
+                          <input
+                            type="date"
+                            value={newTrialDate}
+                            onChange={(e) => setNewTrialDate(e.target.value)}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Assigned Mitra *
+                          </label>
+                          <select
+                            value={newTrialMitra}
+                            onChange={(e) => setNewTrialMitra(e.target.value)}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                          >
+                            <option value="">Select Mitra...</option>
+                            {allMitras.map((mitra) => (
+                              <option key={mitra.id} value={mitra.id}>
+                                {mitra.name} - {mitra.phone || 'No phone'}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="flex justify-end space-x-2 mt-4">
+                        <button
+                          onClick={() => {
+                            setShowAddTrialForm(false);
+                            setNewTrialDate('');
+                            setNewTrialMitra('');
+                          }}
+                          className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={addTrialVisit}
+                          disabled={loadingVisits || !newTrialDate || !newTrialMitra}
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {loadingVisits ? (
+                            <>
+                              <Icons.spinner className="w-4 h-4 mr-2 animate-spin" />
+                              Adding...
+                            </>
+                          ) : (
+                            <>
+                              <Icons.check className="w-4 h-4 mr-2" />
+                              Add Trial Visit
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Visits List */}
+                  {trialVisits.length > 0 && (
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="space-y-3">
                         {trialVisits.map((visit, index) => {
@@ -1784,14 +1759,17 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                           );
                         })}
                       </div>
-                      {trialVisits.length === 0 && (
-                        <div className="text-center text-gray-500 py-4">
-                          No visits scheduled yet. Generate a visit schedule above.
-                        </div>
-                      )}
                     </div>
-                  </div>
-                )}
+                  )}
+
+                  {trialVisits.length === 0 && !showAddTrialForm && (
+                    <div className="text-center text-gray-500 py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                      <Icons.beaker className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm">No trial visits scheduled yet.</p>
+                      <p className="text-xs text-gray-400 mt-1">Click "Add Trial Date" to schedule your first visit.</p>
+                    </div>
+                  )}
+                </div>
 
                 {updateLoading === trial.id && (
                   <div className="flex items-center justify-center text-sm text-gray-600 py-2">

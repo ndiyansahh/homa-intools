@@ -873,16 +873,11 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                             disabled={isDisabled}
                           >
                             <option value="">Select day...</option>
-                            {dayOptions
-                              .filter(day => 
-                                day.value === currentValue || 
-                                !Object.values(formData.selectedDays).includes(day.value)
-                              )
-                              .map((day) => (
-                                <option key={day.value} value={day.value}>
-                                  {day.label}
-                                </option>
-                              ))}
+                            {dayOptions.map((day) => (
+                              <option key={day.value} value={day.value}>
+                                {day.label}
+                              </option>
+                            ))}
                           </select>
                         </div>
                       );
