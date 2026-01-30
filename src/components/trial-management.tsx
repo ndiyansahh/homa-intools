@@ -85,7 +85,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [creating, setCreating] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  
+
   // Form state
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -102,18 +102,24 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     selected_mitra: '',
   });
 
+  // Additional trial dates state (for Feedback 3b: unlimited trial dates)
+  const [additionalTrialDates, setAdditionalTrialDates] = useState<{
+    date: string; // yyyy-MM-dd format
+    mitraId: string;
+  }[]>([]);
+
   // Region dropdown states
   const [cities, setCities] = useState<City[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [villages, setVillages] = useState<Village[]>([]);
   const [mitras, setMitras] = useState<Mitra[]>([]);
-  
+
   // Loading states
   const [loadingCities, setLoadingCities] = useState(false);
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [loadingVillages, setLoadingVillages] = useState(false);
   const [loadingMitras, setLoadingMitras] = useState(false);
-  
+
   // Error states
   const [formError, setFormError] = useState<string>('');
 
@@ -141,13 +147,13 @@ export default function TrialManagement({ session }: TrialManagementProps) {
       setLoadingCities(true);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-      
+
       const response = await fetch('/api/regions/cities', {
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (response.ok) {
         const result = await response.json();
         setCities(result.success ? result.data : []);
@@ -172,13 +178,13 @@ export default function TrialManagement({ session }: TrialManagementProps) {
       setLoadingDistricts(true);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-      
+
       const response = await fetch(`/api/regions/districts?city_id=${encodeURIComponent(cityId)}`, {
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (response.ok) {
         const result = await response.json();
         setDistricts(result.success ? result.data : []);
@@ -203,13 +209,13 @@ export default function TrialManagement({ session }: TrialManagementProps) {
       setLoadingVillages(true);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-      
+
       const response = await fetch(`/api/regions/villages?district_id=${encodeURIComponent(districtId)}`, {
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (response.ok) {
         const result = await response.json();
         setVillages(result.success ? result.data : []);
@@ -473,7 +479,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     try {
       setCreating(true);
       setFormError('');
-      
+
       // Validate required fields
       if (!formData.customer_name.trim()) {
         setFormError('Customer name is required');
@@ -520,14 +526,64 @@ export default function TrialManagement({ session }: TrialManagementProps) {
         return;
       }
 
+      // Get city and district names from IDs
+      const selectedCity = cities.find(c => c.id === formData.city_id);
+      const selectedDistrict = districts.find(d => d.id === formData.district_id);
+      const selectedVillage = villages.find(v => v.id === formData.village_id);
+      const selectedMitra = mitras.find(m => m.id === formData.selected_mitra);
+
+      if (!selectedCity || !selectedDistrict || !selectedMitra) {
+        setFormError('Invalid selection. Please refresh and try again.');
+        return;
+      }
+
+      // Convert date from yyyy-MM-dd (HTML input) to dd/MM/yyyy (API format)
+      const [year, month, day] = formData.trial_date.split('-');
+      const trialStartFormatted = `${day}/${month}/${year}`;
+
+      // Build CreateTrialRequest payload
+      const requestPayload: CreateTrialRequest = {
+        customerName: formData.customer_name.trim(),
+        acquisition: 'HOMA', // Default to HOMA
+        address: formData.address.trim(),
+        district: selectedDistrict.name,
+        city: selectedCity.name,
+        village: selectedVillage?.name,
+        postalCode: formData.postal_code,
+        residentialType: formData.residential_type,
+        assignments: [
+          // First trial date
+          {
+            trialStart: trialStartFormatted,
+            assignedCleaner: selectedMitra.name,
+            status: 'Not Converted', // Default status
+          },
+          // Additional trial dates
+          ...additionalTrialDates
+            .filter(td => td.date && td.mitraId) // Only include valid dates
+            .map(td => {
+              const [y, m, d] = td.date.split('-');
+              const formattedDate = `${d}/${m}/${y}`;
+              const mitra = mitras.find(mi => mi.id === td.mitraId);
+
+              return {
+                trialStart: formattedDate,
+                assignedCleaner: mitra?.name || '',
+                status: 'Not Converted' as TrialStatus,
+              };
+            })
+        ],
+        notes: '', // Add notes if needed
+      };
+
       // Add timeout to form submission
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout for form submission
 
-      const response = await fetch('/api/trial', {
+      const response = await fetch('/api/trials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(requestPayload),
         signal: controller.signal
       });
 
@@ -554,6 +610,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
           // Reset dropdown states
           setDistricts([]);
           setVillages([]);
+          setAdditionalTrialDates([]); // Reset additional trial dates
           setFormError('');
           setShowForm(false);
 
@@ -627,562 +684,654 @@ export default function TrialManagement({ session }: TrialManagementProps) {
 
   return (
     <>
-    <div className="space-y-6">
-      {/* Create Trial Form */}
-      <div className="card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">Create New Trial</h2>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="btn-primary"
-          >
-            <Icons.plus className="w-4 h-4 mr-2" />
-            {showForm ? 'Cancel' : 'New Trial'}
-          </button>
-        </div>
+      <div className="space-y-6">
+        {/* Create Trial Form */}
+        <div className="card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Create New Trial</h2>
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="btn-primary"
+            >
+              <Icons.plus className="w-4 h-4 mr-2" />
+              {showForm ? 'Cancel' : 'New Trial'}
+            </button>
+          </div>
 
-        {showForm && (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Error Display */}
-            {formError && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-4">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-red-800">{formError}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Basic Customer Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Customer Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.customer_name}
-                  onChange={(e) => {
-                    setFormData(prev => ({ ...prev, customer_name: e.target.value }));
-                    if (formError && e.target.value.trim()) setFormError('');
-                  }}
-                  className={`input-field ${formError && !formData.customer_name.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
-                  placeholder="Enter customer name"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Contact *
-                </label>
-                <input
-                  type="tel"
-                  required
-                  value={formData.contact}
-                  onChange={(e) => {
-                    setFormData(prev => ({ ...prev, contact: e.target.value }));
-                    if (formError && e.target.value.trim()) setFormError('');
-                  }}
-                  className={`input-field ${formError && !formData.contact.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
-                  placeholder="+628123456789"
-                />
-              </div>
-            </div>
-
-            {/* Address Information */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Address *
-              </label>
-              <textarea
-                required
-                value={formData.address}
-                onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                className="input-field"
-                rows={3}
-                placeholder="Complete address..."
-              />
-            </div>
-
-            {/* Cascading Region Dropdowns */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  City *
-                </label>
-                <select
-                  required
-                  value={formData.city_id}
-                  onChange={(e) => handleCityChange(e.target.value)}
-                  className="input-field"
-                  disabled={loadingCities}
-                >
-                  <option value="">Select city...</option>
-                  {Array.isArray(cities) && cities.map((city) => (
-                    <option key={city.id} value={city.id}>
-                      {city.name}
-                    </option>
-                  ))}
-                </select>
-                {loadingCities && (
-                  <p className="text-xs text-gray-500 mt-1">Loading cities...</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  District *
-                </label>
-                <select
-                  required
-                  value={formData.district_id}
-                  onChange={(e) => handleDistrictChange(e.target.value)}
-                  className="input-field"
-                  disabled={!formData.city_id || loadingDistricts}
-                >
-                  <option value="">Select district...</option>
-                  {Array.isArray(districts) && districts.map((district) => (
-                    <option key={district.id} value={district.id}>
-                      {district.name}
-                    </option>
-                  ))}
-                </select>
-                {loadingDistricts && (
-                  <p className="text-xs text-gray-500 mt-1">Loading districts...</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Village *
-                </label>
-                <select
-                  required
-                  value={formData.village_id}
-                  onChange={(e) => handleVillageChange(e.target.value)}
-                  className="input-field"
-                  disabled={!formData.district_id || loadingVillages}
-                >
-                  <option value="">Select village...</option>
-                  {Array.isArray(villages) && villages.map((village) => (
-                    <option key={village.id} value={village.id}>
-                      {village.name}
-                    </option>
-                  ))}
-                </select>
-                {loadingVillages && (
-                  <p className="text-xs text-gray-500 mt-1">Loading villages...</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Postal Code *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.postal_code}
-                  readOnly
-                  className="input-field bg-gray-50"
-                  placeholder="Auto-filled"
-                />
-              </div>
-            </div>
-
-            {/* Residential Type */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Residential Type *
-              </label>
-              <select
-                required
-                value={formData.residential_type || 'House'}
-                onChange={(e) => setFormData(prev => ({ ...prev, residential_type: e.target.value as ResidentialType }))}
-                className="input-field"
-              >
-                <option value="House">House</option>
-                <option value="Apartment">Apartment</option>
-                <option value="Office Space">Office Space</option>
-              </select>
-            </div>
-
-            {/* Trial Schedule */}
-            <div className="border-t border-gray-200 pt-6">
-              <h3 className="text-md font-medium text-gray-900 mb-4">Trial Schedule</h3>
-
-              {/* Show warning if region not selected */}
-              {(!formData.city_id || !formData.district_id) && (
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm text-yellow-700">
-                        Please select City and District first to see available mitras for this region.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Show warning if no mitras available */}
-              {formData.city_id && formData.district_id && !loadingMitras && mitras.length === 0 && (
-                <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
+          {showForm && (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Error Display */}
+              {formError && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-4">
                   <div className="flex">
                     <div className="flex-shrink-0">
                       <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
                       </svg>
                     </div>
                     <div className="ml-3">
-                      <p className="text-sm text-red-700">
-                        No mitra available for <strong>{formData.city_id} - {formData.district_id}</strong>. Please select a different region or add a mitra that covers this area.
-                      </p>
+                      <p className="text-sm text-red-800">{formError}</p>
                     </div>
                   </div>
                 </div>
               )}
 
+              {/* Basic Customer Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Trial Date *
+                    Customer Name *
                   </label>
                   <input
-                    type="date"
+                    type="text"
                     required
-                    value={formData.trial_date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, trial_date: e.target.value }))}
-                    disabled={!formData.city_id || !formData.district_id || mitras.length === 0}
-                    className="input-field disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    value={formData.customer_name}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, customer_name: e.target.value }));
+                      if (formError && e.target.value.trim()) setFormError('');
+                    }}
+                    className={`input-field ${formError && !formData.customer_name.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
+                    placeholder="Enter customer name"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Select one date for the trial visit</p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Assigned Mitra *
+                    Contact *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={formData.contact}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, contact: e.target.value }));
+                      if (formError && e.target.value.trim()) setFormError('');
+                    }}
+                    className={`input-field ${formError && !formData.contact.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
+                    placeholder="+628123456789"
+                  />
+                </div>
+              </div>
+
+              {/* Address Information */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Address *
+                </label>
+                <textarea
+                  required
+                  value={formData.address}
+                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                  className="input-field"
+                  rows={3}
+                  placeholder="Complete address..."
+                />
+              </div>
+
+              {/* Cascading Region Dropdowns */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    City *
                   </label>
                   <select
                     required
-                    value={formData.selected_mitra}
-                    onChange={(e) => setFormData(prev => ({ ...prev, selected_mitra: e.target.value }))}
-                    disabled={!formData.city_id || !formData.district_id || loadingMitras || mitras.length === 0}
-                    className="input-field disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    value={formData.city_id}
+                    onChange={(e) => handleCityChange(e.target.value)}
+                    className="input-field"
+                    disabled={loadingCities}
                   >
-                    <option value="">
-                      {!formData.city_id || !formData.district_id
-                        ? 'Select region first...'
-                        : loadingMitras
-                          ? 'Loading mitras...'
-                          : mitras.length === 0
-                            ? 'No mitra available'
-                            : 'Select Mitra...'}
-                    </option>
-                    {Array.isArray(mitras) && mitras.map((mitra) => (
-                      <option key={mitra.id} value={mitra.id}>
-                        {mitra.name} - {mitra.phone || 'No phone'}
+                    <option value="">Select city...</option>
+                    {Array.isArray(cities) && cities.map((city) => (
+                      <option key={city.id} value={city.id}>
+                        {city.name}
                       </option>
                     ))}
                   </select>
-                  {loadingMitras && (
-                    <p className="text-xs text-blue-500 mt-1">Checking available mitras for {formData.city_id} - {formData.district_id}...</p>
-                  )}
-                  {!loadingMitras && formData.city_id && formData.district_id && mitras.length > 0 && (
-                    <p className="text-xs text-green-600 mt-1">✓ {mitras.length} mitra(s) available for this region</p>
+                  {loadingCities && (
+                    <p className="text-xs text-gray-500 mt-1">Loading cities...</p>
                   )}
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    District *
+                  </label>
+                  <select
+                    required
+                    value={formData.district_id}
+                    onChange={(e) => handleDistrictChange(e.target.value)}
+                    className="input-field"
+                    disabled={!formData.city_id || loadingDistricts}
+                  >
+                    <option value="">Select district...</option>
+                    {Array.isArray(districts) && districts.map((district) => (
+                      <option key={district.id} value={district.id}>
+                        {district.name}
+                      </option>
+                    ))}
+                  </select>
+                  {loadingDistricts && (
+                    <p className="text-xs text-gray-500 mt-1">Loading districts...</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Village *
+                  </label>
+                  <select
+                    required
+                    value={formData.village_id}
+                    onChange={(e) => handleVillageChange(e.target.value)}
+                    className="input-field"
+                    disabled={!formData.district_id || loadingVillages}
+                  >
+                    <option value="">Select village...</option>
+                    {Array.isArray(villages) && villages.map((village) => (
+                      <option key={village.id} value={village.id}>
+                        {village.name}
+                      </option>
+                    ))}
+                  </select>
+                  {loadingVillages && (
+                    <p className="text-xs text-gray-500 mt-1">Loading villages...</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Postal Code *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.postal_code}
+                    readOnly
+                    className="input-field bg-gray-50"
+                    placeholder="Auto-filled"
+                  />
+                </div>
               </div>
-              <p className="text-xs text-gray-500 mt-3">
-                This will create one visit record for the selected date.
-              </p>
-            </div>
 
-            <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={handleCancelForm}
-                disabled={creating}
-                className="btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={creating}
-                className="btn-primary"
-              >
-                {creating ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Creating...
-                  </>
-                ) : (
-                  'Create Trial'
-                )}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
+              {/* Residential Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Residential Type *
+                </label>
+                <select
+                  required
+                  value={formData.residential_type || 'House'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, residential_type: e.target.value as ResidentialType }))}
+                  className="input-field"
+                >
+                  <option value="House">House</option>
+                  <option value="Apartment">Apartment</option>
+                  <option value="Office Space">Office Space</option>
+                </select>
+              </div>
 
-      {/* Filters */}
-      <div className="card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <div>
-            <input
-              type="text"
-              placeholder="Search customers..."
-              value={filters.q}
-              onChange={(e) => setFilters(prev => ({ ...prev, q: e.target.value, page: 1 }))}
-              className="input-field"
-            />
-          </div>
-          <div>
-            <select
-              value={filters.acquisition || ''}
-              onChange={(e) => setFilters(prev => ({ ...prev, acquisition: e.target.value as AcquisitionType || undefined, page: 1 }))}
-              className="input-field"
-            >
-              <option value="">All Acquisition</option>
-              <option value="HOMA">HOMA</option>
-              <option value="Altrix">Altrix</option>
-            </select>
-          </div>
-          <div>
-            <input
-              type="text"
-              placeholder="Filter by city..."
-              value={filters.city}
-              onChange={(e) => setFilters(prev => ({ ...prev, city: e.target.value, page: 1 }))}
-              className="input-field"
-            />
-          </div>
-          <div>
-            <select
-              value={filters.residentialType || ''}
-              onChange={(e) => setFilters(prev => ({ ...prev, residentialType: e.target.value as ResidentialType || undefined, page: 1 }))}
-              className="input-field"
-            >
-              <option value="">All Types</option>
-              <option value="House">House</option>
-              <option value="Office Space">Office Space</option>
-              <option value="Apartment">Apartment</option>
-            </select>
-          </div>
-          <div>
-            <select
-              value={filters.status || ''}
-              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as TrialStatus || undefined, page: 1 }))}
-              className="input-field"
-            >
-              <option value="">All Statuses</option>
-              <option value="Converted">Converted</option>
-              <option value="Not Converted">Not Converted</option>
-              <option value="Stalling/Postpone">Stalling/Postpone</option>
-              <option value="Cancelled">Cancelled</option>
-            </select>
-          </div>
-          <div>
-            <input
-              type="text"
-              placeholder="Filter by cleaner..."
-              value={filters.cleaner}
-              onChange={(e) => setFilters(prev => ({ ...prev, cleaner: e.target.value, page: 1 }))}
-              className="input-field"
-            />
-          </div>
-        </div>
-      </div>
+              {/* Trial Schedule */}
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-md font-medium text-gray-900 mb-4">Trial Schedule</h3>
 
-      {/* Trials List */}
-      <div className="card">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <h2 className="text-xl font-semibold text-gray-900">Trials</h2>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="text-right">
-                <span className="text-sm text-gray-500">
-                  {pagination.total} total trials
-                </span>
-                {lastUpdated && (
-                  <div className="text-xs text-gray-400">
-                    Last updated: {lastUpdated.toLocaleTimeString()}
+                {/* Show warning if region not selected */}
+                {(!formData.city_id || !formData.district_id) && (
+                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-yellow-700">
+                          Please select City and District first to see available mitras for this region.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
+
+                {/* Show warning if no mitras available */}
+                {formData.city_id && formData.district_id && !loadingMitras && mitras.length === 0 && (
+                  <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-red-700">
+                          No mitra available for <strong>{formData.city_id} - {formData.district_id}</strong>. Please select a different region or add a mitra that covers this area.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Trial Date *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.trial_date}
+                      onChange={(e) => setFormData(prev => ({ ...prev, trial_date: e.target.value }))}
+                      disabled={!formData.city_id || !formData.district_id || mitras.length === 0}
+                      className="input-field disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Select one date for the trial visit</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Assigned Mitra *
+                    </label>
+                    <select
+                      required
+                      value={formData.selected_mitra}
+                      onChange={(e) => setFormData(prev => ({ ...prev, selected_mitra: e.target.value }))}
+                      disabled={!formData.city_id || !formData.district_id || loadingMitras || mitras.length === 0}
+                      className="input-field disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">
+                        {!formData.city_id || !formData.district_id
+                          ? 'Select region first...'
+                          : loadingMitras
+                            ? 'Loading mitras...'
+                            : mitras.length === 0
+                              ? 'No mitra available'
+                              : 'Select Mitra...'}
+                      </option>
+                      {Array.isArray(mitras) && mitras.map((mitra) => (
+                        <option key={mitra.id} value={mitra.id}>
+                          {mitra.name} - {mitra.phone || 'No phone'}
+                        </option>
+                      ))}
+                    </select>
+                    {loadingMitras && (
+                      <p className="text-xs text-blue-500 mt-1">Checking available mitras for {formData.city_id} - {formData.district_id}...</p>
+                    )}
+                    {!loadingMitras && formData.city_id && formData.district_id && mitras.length > 0 && (
+                      <p className="text-xs text-green-600 mt-1">✓ {mitras.length} mitra(s) available for this region</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Additional Trial Dates (Feedback 3b) */}
+                {additionalTrialDates.length > 0 && (
+                  <div className="space-y-4 mt-6">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium text-gray-700">Additional Trial Dates</h4>
+                      <span className="text-xs text-gray-500">{additionalTrialDates.length} additional date(s)</span>
+                    </div>
+
+                    {additionalTrialDates.map((trialDate, index) => (
+                      <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-sm font-medium text-gray-700">Trial Date #{index + 2}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAdditionalTrialDates(prev => prev.filter((_, i) => i !== index));
+                            }}
+                            className="text-red-600 hover:text-red-800 text-sm font-medium"
+                          >
+                            <Icons.x className="w-4 h-4 inline-block mr-1" />
+                            Remove
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Date *
+                            </label>
+                            <input
+                              type="date"
+                              required
+                              value={trialDate.date}
+                              onChange={(e) => {
+                                const updated = [...additionalTrialDates];
+                                updated[index].date = e.target.value;
+                                setAdditionalTrialDates(updated);
+                              }}
+                              className="input-field"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Assigned Mitra *
+                            </label>
+                            <select
+                              required
+                              value={trialDate.mitraId}
+                              onChange={(e) => {
+                                const updated = [...additionalTrialDates];
+                                updated[index].mitraId = e.target.value;
+                                setAdditionalTrialDates(updated);
+                              }}
+                              disabled={mitras.length === 0}
+                              className="input-field disabled:bg-gray-100 disabled:cursor-not-allowed"
+                            >
+                              <option value="">Select Mitra...</option>
+                              {Array.isArray(mitras) && mitras.map((mitra) => (
+                                <option key={mitra.id} value={mitra.id}>
+                                  {mitra.name} - {mitra.phone || 'No phone'}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add Date Button */}
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAdditionalTrialDates(prev => [...prev, { date: '', mitraId: '' }]);
+                    }}
+                    disabled={!formData.trial_date || !formData.selected_mitra}
+                    className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Icons.plus className="w-4 h-4 mr-2" />
+                    Add Another Trial Date
+                  </button>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {!formData.trial_date || !formData.selected_mitra
+                      ? 'Please fill in the first trial date and mitra before adding more'
+                      : 'You can add unlimited trial dates for this customer'}
+                  </p>
+                </div>
+
+                <p className="text-xs text-gray-500 mt-3">
+                  Total trial sessions: {1 + additionalTrialDates.length}
+                </p>
               </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={handleCancelForm}
+                  disabled={creating}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="btn-primary"
+                >
+                  {creating ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Trial'
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+
+        {/* Filters */}
+        <div className="card p-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div>
+              <input
+                type="text"
+                placeholder="Search customers..."
+                value={filters.q}
+                onChange={(e) => setFilters(prev => ({ ...prev, q: e.target.value, page: 1 }))}
+                className="input-field"
+              />
+            </div>
+            <div>
+              <select
+                value={filters.acquisition || ''}
+                onChange={(e) => setFilters(prev => ({ ...prev, acquisition: e.target.value as AcquisitionType || undefined, page: 1 }))}
+                className="input-field"
+              >
+                <option value="">All Acquisition</option>
+                <option value="HOMA">HOMA</option>
+                <option value="Altrix">Altrix</option>
+              </select>
+            </div>
+            <div>
+              <input
+                type="text"
+                placeholder="Filter by city..."
+                value={filters.city}
+                onChange={(e) => setFilters(prev => ({ ...prev, city: e.target.value, page: 1 }))}
+                className="input-field"
+              />
+            </div>
+            <div>
+              <select
+                value={filters.residentialType || ''}
+                onChange={(e) => setFilters(prev => ({ ...prev, residentialType: e.target.value as ResidentialType || undefined, page: 1 }))}
+                className="input-field"
+              >
+                <option value="">All Types</option>
+                <option value="House">House</option>
+                <option value="Office Space">Office Space</option>
+                <option value="Apartment">Apartment</option>
+              </select>
+            </div>
+            <div>
+              <select
+                value={filters.status || ''}
+                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as TrialStatus || undefined, page: 1 }))}
+                className="input-field"
+              >
+                <option value="">All Statuses</option>
+                <option value="Converted">Converted</option>
+                <option value="Not Converted">Not Converted</option>
+                <option value="Stalling/Postpone">Stalling/Postpone</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div>
+              <input
+                type="text"
+                placeholder="Filter by cleaner..."
+                value={filters.cleaner}
+                onChange={(e) => setFilters(prev => ({ ...prev, cleaner: e.target.value, page: 1 }))}
+                className="input-field"
+              />
             </div>
           </div>
         </div>
 
-        {loading ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Loading trials...</p>
-          </div>
-        ) : trials.length === 0 ? (
-          <div className="p-8 text-center">
-            <Icons.beaker className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Trials Found</h3>
-            <p className="text-gray-600">
-              {filters.q || filters.status || filters.cleaner
-                ? 'Try adjusting your filters to see more results.'
-                : 'Get started by creating your first trial.'}
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Customer Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Acquisition
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      District
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      City
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Residential Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {trials.map((trial) => (
-                    <React.Fragment key={trial.id}>
-                      <tr
-                        className="hover:bg-gray-50 cursor-pointer"
-                        onClick={() => {
-                          router.push(`/app/trials/${trial.id}`);
-                        }}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-blue-600 hover:text-blue-900">
-                            {trial.customerName}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {trial.assignedCleaners && trial.assignedCleaners.length > 0 ? trial.assignedCleaners.join(', ') : 'No cleaner assigned'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${acquisitionColors[trial.acquisition]}`}>
-                            {trial.acquisition}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {trial.district}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {trial.city}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${residentialColors[trial.residentialType]}`}>
-                            {trial.residentialType}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {trial.overallStatus ? (
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColors[trial.overallStatus]}`}>
-                              {trial.overallStatus}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-gray-500">-</span>
-                          )}
-                          {trial.nextTrialStartDate && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              Start: {trial.nextTrialStartDate}
-                              {trial.nextTrialEndDate && ` - End: ${trial.nextTrialEndDate}`}
-                            </div>
-                          )}
-                          {trial.ltv !== undefined && (
-                            <div className="text-xs text-blue-600 mt-1">
-                              LTV: {trial.ltv} months
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(trial.id);
-                            }}
-                            className="text-red-600 hover:text-red-900 ml-4"
-                          >
-                            <Icons.trash className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {pagination.totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                <div className="text-sm text-gray-700">
-                  Showing {((filters.page || 1) - 1) * (filters.limit || 10) + 1} to{' '}
-                  {Math.min((filters.page || 1) * (filters.limit || 10), pagination.total)} of{' '}
-                  {pagination.total} results
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setFilters(prev => ({ ...prev, page: Math.max(1, (prev.page || 1) - 1) }))}
-                    disabled={(filters.page || 1) <= 1}
-                    className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                  >
-                    Previous
-                  </button>
-                  <span className="text-sm text-gray-700">
-                    Page {filters.page || 1} of {pagination.totalPages}
+        {/* Trials List */}
+        <div className="card">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <h2 className="text-xl font-semibold text-gray-900">Trials</h2>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="text-right">
+                  <span className="text-sm text-gray-500">
+                    {pagination.total} total trials
                   </span>
-                  <button
-                    onClick={() => setFilters(prev => ({ ...prev, page: Math.min(pagination.totalPages, (prev.page || 1) + 1) }))}
-                    disabled={(filters.page || 1) >= pagination.totalPages}
-                    className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                  >
-                    Next
-                  </button>
+                  {lastUpdated && (
+                    <div className="text-xs text-gray-400">
+                      Last updated: {lastUpdated.toLocaleTimeString()}
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-          </>
-        )}
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-2 text-gray-600">Loading trials...</p>
+            </div>
+          ) : trials.length === 0 ? (
+            <div className="p-8 text-center">
+              <Icons.beaker className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Trials Found</h3>
+              <p className="text-gray-600">
+                {filters.q || filters.status || filters.cleaner
+                  ? 'Try adjusting your filters to see more results.'
+                  : 'Get started by creating your first trial.'}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Customer Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Acquisition
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        District
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        City
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Residential Type
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {trials.map((trial) => (
+                      <React.Fragment key={trial.id}>
+                        <tr
+                          className="hover:bg-gray-50 cursor-pointer"
+                          onClick={() => {
+                            router.push(`/app/trials/${trial.id}`);
+                          }}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-blue-600 hover:text-blue-900">
+                              {trial.customerName}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {trial.assignedCleaners && trial.assignedCleaners.length > 0 ? trial.assignedCleaners.join(', ') : 'No cleaner assigned'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${acquisitionColors[trial.acquisition]}`}>
+                              {trial.acquisition}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {trial.district}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {trial.city}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${residentialColors[trial.residentialType]}`}>
+                              {trial.residentialType}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {trial.overallStatus ? (
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColors[trial.overallStatus]}`}>
+                                {trial.overallStatus}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-gray-500">-</span>
+                            )}
+                            {trial.nextTrialStartDate && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                Start: {trial.nextTrialStartDate}
+                                {trial.nextTrialEndDate && ` - End: ${trial.nextTrialEndDate}`}
+                              </div>
+                            )}
+                            {trial.ltv !== undefined && (
+                              <div className="text-xs text-blue-600 mt-1">
+                                LTV: {trial.ltv} months
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(trial.id);
+                              }}
+                              className="text-red-600 hover:text-red-900 ml-4"
+                            >
+                              <Icons.trash className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                  <div className="text-sm text-gray-700">
+                    Showing {((filters.page || 1) - 1) * (filters.limit || 10) + 1} to{' '}
+                    {Math.min((filters.page || 1) * (filters.limit || 10), pagination.total)} of{' '}
+                    {pagination.total} results
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setFilters(prev => ({ ...prev, page: Math.max(1, (prev.page || 1) - 1) }))}
+                      disabled={(filters.page || 1) <= 1}
+                      className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm text-gray-700">
+                      Page {filters.page || 1} of {pagination.totalPages}
+                    </span>
+                    <button
+                      onClick={() => setFilters(prev => ({ ...prev, page: Math.min(pagination.totalPages, (prev.page || 1) + 1) }))}
+                      disabled={(filters.page || 1) >= pagination.totalPages}
+                      className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
     </>
   );
 }

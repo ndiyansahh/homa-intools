@@ -142,6 +142,10 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   const [newVisitDate, setNewVisitDate] = useState('');
   const [newVisitMitra, setNewVisitMitra] = useState('');
 
+  // Bulk attendance selection (Feedback 6a)
+  const [selectedVisits, setSelectedVisits] = useState<Set<string>>(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+
   useEffect(() => {
     fetchCustomer();
     fetchAvailableCleaners();
@@ -163,7 +167,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       setLoading(true);
       setError(null);
       const response = await fetch(`/api/customers/${customerId}`);
-      
+
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.data) {
@@ -307,6 +311,82 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
     } catch (error) {
       console.error('Error updating attendance:', error);
       alert('Failed to update attendance');
+    }
+  };
+
+  // Bulk attendance update (Feedback 6a)
+  const handleBulkMarkAttended = async () => {
+    if (selectedVisits.size === 0) {
+      alert('Please select at least one visit');
+      return;
+    }
+
+    if (!confirm(`Mark ${selectedVisits.size} visit(s) as attended?`)) {
+      return;
+    }
+
+    try {
+      setBulkActionLoading(true);
+      const visitIds = Array.from(selectedVisits);
+
+      // Call each update sequentially for now (can be optimized with bulk API later)
+      for (const visitId of visitIds) {
+        await fetch(`/api/trial/${customerId}/visits`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            visitId,
+            status: 'Done',
+            actualDate: new Date().toISOString().split('T')[0],
+          }),
+        });
+      }
+
+      setSelectedVisits(new Set()); // Clear selection
+      await fetchVisits(); // Refresh visits
+      alert(`Successfully marked ${visitIds.length} visit(s) as attended!`);
+    } catch (error) {
+      console.error('Error in bulk attendance update:', error);
+      alert('Failed to update some visits');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkMarkMissed = async () => {
+    if (selectedVisits.size === 0) {
+      alert('Please select at least one visit');
+      return;
+    }
+
+    if (!confirm(`Mark ${selectedVisits.size} visit(s) as missed (scheduled)?`)) {
+      return;
+    }
+
+    try {
+      setBulkActionLoading(true);
+      const visitIds = Array.from(selectedVisits);
+
+      for (const visitId of visitIds) {
+        await fetch(`/api/trial/${customerId}/visits`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            visitId,
+            status: 'Scheduled',
+            actualDate: null,
+          }),
+        });
+      }
+
+      setSelectedVisits(new Set());
+      await fetchVisits();
+      alert(`Successfully marked ${visitIds.length} visit(s) as missed!`);
+    } catch (error) {
+      console.error('Error in bulk attendance update:', error);
+      alert('Failed to update some visits');
+    } finally {
+      setBulkActionLoading(false);
     }
   };
 
@@ -976,9 +1056,9 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       const response = await fetch(`/api/customers/${customerId}/assign-cleaner`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          cleaner1: cleaner1 || undefined, 
-          cleaner2: cleaner2 || undefined 
+        body: JSON.stringify({
+          cleaner1: cleaner1 || undefined,
+          cleaner2: cleaner2 || undefined
         }),
       });
 
@@ -1013,8 +1093,8 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
         <Icons.close className="w-12 h-12 text-red-400 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Customer</h3>
         <p className="text-gray-600 mb-4">{error}</p>
-        <button 
-          onClick={() => router.back()} 
+        <button
+          onClick={() => router.back()}
           className="btn-secondary"
         >
           Go Back
@@ -1038,7 +1118,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
           <h1 className="text-2xl font-semibold text-gray-900">Customer Details</h1>
           <p className="text-sm text-gray-600">Customer: {customer.customerName}</p>
         </div>
-        
+
         {/* Action Buttons */}
         <div className="flex space-x-3">
           <button
@@ -1324,12 +1404,41 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
             {/* Attendance Record */}
             {visits.length > 0 && (
               <div className="pt-6 border-t border-gray-200">
-                <h4 className="text-md font-medium text-gray-900 mb-4">
-                  Attendance Record
-                  {(customer.subscriptionPackage as string) !== 'Trial' && (
-                    <span className="ml-2 text-xs text-gray-500">(Showing completed & scheduled visits)</span>
-                  )}
-                </h4>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h4 className="text-md font-medium text-gray-900">
+                      Attendance Record
+                      {(customer.subscriptionPackage as string) !== 'Trial' && (
+                        <span className="ml-2 text-xs text-gray-500">(Showing completed & scheduled visits)</span>
+                      )}
+                    </h4>
+                    {selectedVisits.size > 0 && (
+                      <p className="text-sm text-indigo-600 mt-1">
+                        {selectedVisits.size} visit(s) selected
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Bulk selection controls */}
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => {
+                        const selectableVisits = visits.filter(v => v.status !== 'Done' && v.status !== 'Cancelled');
+                        if (selectedVisits.size === selectableVisits.length) {
+                          setSelectedVisits(new Set());
+                        } else {
+                          setSelectedVisits(new Set(selectableVisits.map(v => v.id)));
+                        }
+                      }}
+                      disabled={visits.filter(v => v.status !== 'Done' && v.status !== 'Cancelled').length === 0}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {selectedVisits.size === visits.filter(v => v.status !== 'Done' && v.status !== 'Cancelled').length && selectedVisits.size > 0
+                        ? 'Deselect All'
+                        : 'Select All Scheduled'}
+                    </button>
+                  </div>
+                </div>
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="space-y-3">
                     {visits.map((visit) => {
@@ -1342,168 +1451,206 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                       const packageName = customer?.subscriptionPackage || visit.subscriptionPackage || 'N/A';
 
                       return (
-                        <div key={visit.id} className={`p-4 rounded border ${isCancelled ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-200'}`}>
+                        <div key={visit.id} className={`p-4 rounded border ${isCancelled ? 'bg-gray-100 border-gray-300' :
+                          selectedVisits.has(visit.id) ? 'bg-indigo-50 border-indigo-300 ring-1 ring-indigo-200' :
+                            'bg-white border-gray-200'
+                          }`}>
                           <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-3 mb-2">
-                                <span className="text-sm font-medium text-gray-900">
-                                  Visit #{visit.visitNumber}
-                                </span>
-                                {!isLocked && !isCancelled && isEditingThisDate ? (
-                                  <div className="flex items-center space-x-2">
-                                    <input
-                                      type="date"
-                                      value={editingDateValue}
-                                      onChange={(e) => setEditingDateValue(e.target.value)}
-                                      className="text-sm border border-gray-300 rounded px-2 py-1"
-                                    />
-                                    <button
-                                      onClick={() => saveEditedDate(visit.id)}
-                                      className="text-xs text-green-600 hover:text-green-800"
-                                    >
-                                      ✓ Save
-                                    </button>
-                                    <button
-                                      onClick={cancelEditingDate}
-                                      className="text-xs text-red-600 hover:text-red-800"
-                                    >
-                                      ✗ Cancel
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <span className={`text-sm ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-600'}`}>
-                                      {visit.scheduledDate} ({visit.scheduledDay})
-                                    </span>
-                                    {!isLocked && !isCancelled && (
+                            <div className="flex items-start space-x-3">
+                              {/* Bulk selection checkbox (Feedback 6a) */}
+                              {!isLocked && !isCancelled && (
+                                <input
+                                  type="checkbox"
+                                  checked={selectedVisits.has(visit.id)}
+                                  onChange={(e) => {
+                                    const updated = new Set(selectedVisits);
+                                    if (e.target.checked) {
+                                      updated.add(visit.id);
+                                    } else {
+                                      updated.delete(visit.id);
+                                    }
+                                    setSelectedVisits(updated);
+                                  }}
+                                  className="mt-1 w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                />
+                              )}
+
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-3 mb-2">
+                                  <span className="text-sm font-medium text-gray-900">
+                                    Visit #{visit.visitNumber}
+                                  </span>
+                                  {!isLocked && !isCancelled && isEditingThisDate ? (
+                                    <div className="flex items-center space-x-2">
+                                      <input
+                                        type="date"
+                                        value={editingDateValue}
+                                        onChange={(e) => setEditingDateValue(e.target.value)}
+                                        className="text-sm border border-gray-300 rounded px-2 py-1"
+                                      />
                                       <button
-                                        onClick={() => startEditingDate(visit)}
-                                        className="text-xs text-indigo-600 hover:text-indigo-800"
+                                        onClick={() => saveEditedDate(visit.id)}
+                                        className="text-xs text-green-600 hover:text-green-800"
                                       >
-                                        ✏️ Edit
+                                        ✓ Save
                                       </button>
-                                    )}
-                                  </>
-                                )}
-                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                  visit.status === 'Done'
+                                      <button
+                                        onClick={cancelEditingDate}
+                                        className="text-xs text-red-600 hover:text-red-800"
+                                      >
+                                        ✗ Cancel
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <span className={`text-sm ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-600'}`}>
+                                        {visit.scheduledDate} ({visit.scheduledDay})
+                                      </span>
+                                      {!isLocked && !isCancelled && (
+                                        <button
+                                          onClick={() => startEditingDate(visit)}
+                                          className="text-xs text-indigo-600 hover:text-indigo-800"
+                                        >
+                                          ✏️ Edit
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${visit.status === 'Done'
                                     ? 'bg-green-100 text-green-800'
                                     : visit.status === 'Cancelled'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                                }`}>
-                                  {visit.status}
-                                </span>
-                              </div>
-
-                              <div className="space-y-1">
-                                {packageName && (
-                                  <div className="text-xs text-gray-600 mb-1">
-                                    📦 Package: <span className="font-medium">{packageName}</span>
-                                  </div>
-                                )}
-
-                                <div className="flex items-center space-x-2 text-sm">
-                                  <span className="text-gray-600">👤 Mitra:</span>
-                                  <span className={`font-medium ${visit.status === 'Cancelled' ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
-                                    {visit.mitraName || 'Not assigned'}
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-yellow-100 text-yellow-800'
+                                    }`}>
+                                    {visit.status}
                                   </span>
-                                  {mitraChanged && (
-                                    <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
-                                      Changed
-                                    </span>
-                                  )}
                                 </div>
 
-                                {visit.actualDate && (
-                                  <div className="text-xs text-gray-500 space-y-0.5">
-                                    <div>✓ Completed on: {visit.actualDate}</div>
-                                    {visit.updatedBy && (
-                                      <div className="text-gray-400">
-                                        Updated by: {visit.updatedBy}
-                                      </div>
+                                <div className="space-y-1">
+                                  {packageName && (
+                                    <div className="text-xs text-gray-600 mb-1">
+                                      📦 Package: <span className="font-medium">{packageName}</span>
+                                    </div>
+                                  )}
+
+                                  <div className="flex items-center space-x-2 text-sm">
+                                    <span className="text-gray-600">👤 Mitra:</span>
+                                    <span className={`font-medium ${visit.status === 'Cancelled' ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                                      {visit.mitraName || 'Not assigned'}
+                                    </span>
+                                    {mitraChanged && (
+                                      <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                                        Changed
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {visit.actualDate && (
+                                    <div className="text-xs text-gray-500 space-y-0.5">
+                                      <div>✓ Completed on: {visit.actualDate}</div>
+                                      {visit.updatedBy && (
+                                        <div className="text-gray-400">
+                                          Updated by: {visit.updatedBy}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {visit.status === 'Cancelled' && (
+                                    <div className="text-xs text-red-600 font-medium">
+                                      ✕ This visit has been cancelled
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col items-end space-y-2 ml-4">
+                                {!isLocked && (
+                                  <div className="flex items-center space-x-2">
+                                    {!isCancelled && (
+                                      <button
+                                        onClick={() => openChangeMitraModal(visit)}
+                                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                                      >
+                                        Change Mitra
+                                      </button>
+                                    )}
+                                    {visit.status === 'Cancelled' ? (
+                                      <button
+                                        onClick={() => handleCancelVisit(visit.id, visit.status)}
+                                        className="text-xs text-green-600 hover:text-green-800 font-medium"
+                                      >
+                                        Mark as Scheduled
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={() => handleCancelVisit(visit.id, visit.status)}
+                                        className="text-xs text-red-600 hover:text-red-800 font-medium"
+                                      >
+                                        Cancel Visit
+                                      </button>
+                                    )}
+                                    {mitraChanged && !isCancelled && (
+                                      <button
+                                        onClick={() => openHistoryModal(visit)}
+                                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                      >
+                                        View History
+                                      </button>
                                     )}
                                   </div>
                                 )}
 
-                                {visit.status === 'Cancelled' && (
-                                  <div className="text-xs text-red-600 font-medium">
-                                    ✕ This visit has been cancelled
-                                  </div>
+                                {isLocked && mitraChanged && (
+                                  <button
+                                    onClick={() => openHistoryModal(visit)}
+                                    className="text-xs text-gray-600 hover:text-gray-800"
+                                  >
+                                    📋 View Change History
+                                  </button>
                                 )}
                               </div>
-                            </div>
-
-                            <div className="flex flex-col items-end space-y-2 ml-4">
-                              {!isLocked && (
-                                <div className="flex items-center space-x-2">
-                                  {!isCancelled && (
-                                    <button
-                                      onClick={() => openChangeMitraModal(visit)}
-                                      className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
-                                    >
-                                      Change Mitra
-                                    </button>
-                                  )}
-                                  {visit.status === 'Cancelled' ? (
-                                    <button
-                                      onClick={() => handleCancelVisit(visit.id, visit.status)}
-                                      className="text-xs text-green-600 hover:text-green-800 font-medium"
-                                    >
-                                      Mark as Scheduled
-                                    </button>
-                                  ) : (
-                                    <button
-                                      onClick={() => handleCancelVisit(visit.id, visit.status)}
-                                      className="text-xs text-red-600 hover:text-red-800 font-medium"
-                                    >
-                                      Cancel Visit
-                                    </button>
-                                  )}
-                                  {mitraChanged && !isCancelled && (
-                                    <button
-                                      onClick={() => openHistoryModal(visit)}
-                                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                                    >
-                                      View History
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-
-                              {visit.status !== 'Cancelled' && (
-                                <label className="flex items-center space-x-2 cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={visit.status === 'Done'}
-                                    onChange={(e) => updateVisitAttendance(visit.id, e.target.checked)}
-                                    disabled={isLocked}
-                                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-50"
-                                  />
-                                  <span className="text-sm text-gray-700">Attended</span>
-                                </label>
-                              )}
-
-                              {isLocked && mitraChanged && (
-                                <button
-                                  onClick={() => openHistoryModal(visit)}
-                                  className="text-xs text-gray-600 hover:text-gray-800"
-                                >
-                                  📋 View Change History
-                                </button>
-                              )}
                             </div>
                           </div>
                         </div>
                       );
                     })}
                   </div>
+
+                  {/* Empty state */}
                   {visits.length === 0 && (
                     <div className="text-center text-gray-500 py-4">
                       No visits scheduled yet.
                     </div>
                   )}
                 </div>
+
+                {/* Bulk Action Bar (Feedback 6a) */}
+                {selectedVisits.size > 0 && (
+                  <div className="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-indigo-900">
+                        {selectedVisits.size} visit(s) selected
+                      </span>
+                      <div className="flex items-center space-x-3">
+                        <button
+                          onClick={handleBulkMarkAttended}
+                          disabled={bulkActionLoading}
+                          className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {bulkActionLoading ? 'Processing...' : '✓ Mark as Attended'}
+                        </button>
+                        <button
+                          onClick={() => setSelectedVisits(new Set())}
+                          disabled={bulkActionLoading}
+                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          Clear Selection
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1877,8 +2024,8 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                 {loadingSchedule
                   ? 'Rescheduling...'
                   : hasCancelledVisits
-                  ? `Reschedule ${visits.filter(v => v.status === 'Cancelled').length} Visit${visits.filter(v => v.status === 'Cancelled').length !== 1 ? 's' : ''}`
-                  : 'No Cancelled Visits'
+                    ? `Reschedule ${visits.filter(v => v.status === 'Cancelled').length} Visit${visits.filter(v => v.status === 'Cancelled').length !== 1 ? 's' : ''}`
+                    : 'No Cancelled Visits'
                 }
               </button>
             </div>

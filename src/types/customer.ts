@@ -1,7 +1,7 @@
 export type AcquisitionType = 'HOMA' | 'Altrix';
 export type ResidentialType = 'House' | 'Office Space' | 'Apartment';
 export type SubscriptionStatus = 'Active' | 'Inactive' | 'Suspended' | 'Cancelled' | 'Trial' | 'Trial Scheduled' | 'Expired';
-export type SubscriptionPackage = 
+export type SubscriptionPackage =
   | 'Monthly Subscription of Regular Cleaning (3 hours per visit; 2 visits per week)'
   | 'Monthly Subscription of Frequent Cleaning (3 hours per visit; 3 visits per week)'
   | 'Monthly Subscription of Special Partnership (3 hours per visit; 1 visit per week)'
@@ -66,6 +66,7 @@ export interface CustomerListItem {
   subscriptionStatus: SubscriptionStatus;
   monthlyFee: number;
   city: string;
+  invoiceId?: string; // Invoice number format: INV/Cleaning/YYYY.MM.DD-#### (7a)
   createdAt: string;
   updatedAt: string;
 }

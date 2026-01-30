@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { customerDB, mitraDB, visitDB } from '@/lib/schema';
-import { sql, and, or, ilike, eq, desc, count } from 'drizzle-orm';
+import { customerDB, mitraDB, visitDB, invoiceDB } from '@/lib/schema';
+import { sql, and, or, ilike, eq, desc, count, isNull, max } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/logger';
 import type { CustomerListItem, CustomersResponse, CustomerApiError, CreateCustomerRequest } from '@/types/customer';
@@ -9,7 +9,7 @@ import type { CustomerListItem, CustomersResponse, CustomerApiError, CreateCusto
 export async function GET(request: NextRequest): Promise<NextResponse<CustomersResponse | CustomerApiError>> {
   try {
     const session = await getSession();
-    
+
     if (!session && process.env.NODE_ENV !== 'development') {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
@@ -26,12 +26,12 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
     }
 
     const { searchParams } = new URL(request.url);
-    
+
     // Parse query parameters
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '10')));
     const offset = (page - 1) * limit;
-    
+
     // Filter parameters
     const search = searchParams.get('q') || searchParams.get('search') || '';
     const status = searchParams.get('status') || '';
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
 
     // Build where conditions for database query
     const conditions = [];
-    
+
     // Search in customer name, address, or contact
     if (search) {
       conditions.push(
@@ -52,22 +52,22 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
         )
       );
     }
-    
+
     // Status filter - map to subscriptionStatus
     if (status) {
       conditions.push(ilike(customerDB.subscriptionStatus, `%${status}%`));
     }
-    
+
     // City filter
     if (city) {
       conditions.push(ilike(customerDB.city, `%${city}%`));
     }
-    
+
     // Subscription package filter
     if (subscriptionPackage) {
       conditions.push(ilike(customerDB.subscriptionPackage, `%${subscriptionPackage}%`));
     }
-    
+
     // Assigned mitra filter - filter by primary or backup mitra
     if (assignedMitra) {
       conditions.push(
@@ -77,10 +77,10 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
         )
       );
     }
-    
+
     // Add soft delete condition (only show non-deleted customers)
     conditions.push(or(eq(customerDB.isDeleted, false), sql`${customerDB.isDeleted} IS NULL`));
-    
+
     // Exclude only active Trial customers - Converted trials should appear here
     conditions.push(sql`${customerDB.subscriptionStatus} != 'Trial' OR ${customerDB.subscriptionStatus} IS NULL`);
 
@@ -91,10 +91,10 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
       .select({ count: count() })
       .from(customerDB)
       .where(whereClause);
-    
+
     const total = countResult[0]?.count || 0;
 
-    // Get paginated customers from database
+    // Get paginated customers from database with latest invoice
     const result = await db
       .select({
         id: customerDB.id,
@@ -106,20 +106,40 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
         ltv: customerDB.ltv,
         createdAt: customerDB.createdAt,
         updatedAt: customerDB.updatedAt,
+        invoiceNumber: invoiceDB.invoiceNumber, // 7a: Invoice ID Display
       })
       .from(customerDB)
+      .leftJoin(
+        invoiceDB,
+        and(
+          eq(invoiceDB.customerId, customerDB.id),
+          or(eq(invoiceDB.isDeleted, false), isNull(invoiceDB.isDeleted))
+        )
+      )
       .where(whereClause)
-      .orderBy(desc(customerDB.createdAt))
+      .orderBy(desc(customerDB.createdAt), desc(invoiceDB.createdAt)) // Prioritize most recent invoice
       .limit(limit)
       .offset(offset);
 
-    const customers: CustomerListItem[] = result.map(customer => ({
+    // De-duplicate customers (LEFT JOIN may return multiple rows if customer has multiple invoices)
+    // Keep the first row per customer which has the most recent invoice due to ORDER BY
+    const seenCustomers = new Set<string>();
+    const uniqueResults = result.filter(customer => {
+      if (seenCustomers.has(customer.id)) {
+        return false;
+      }
+      seenCustomers.add(customer.id);
+      return true;
+    });
+
+    const customers: CustomerListItem[] = uniqueResults.map(customer => ({
       id: customer.id,
       customerName: customer.customerName,
       subscriptionPackage: customer.subscriptionPackage || '',
       subscriptionStatus: customer.subscriptionStatus as any || 'Active',
       monthlyFee: Number(customer.monthlyFee) || 0,
       city: customer.city,
+      invoiceId: customer.invoiceNumber || undefined, // 7a: Invoice ID Display
       ltv: customer.ltv || 0,
       createdAt: customer.createdAt?.toISOString() || new Date().toISOString(),
       updatedAt: customer.updatedAt?.toISOString() || new Date().toISOString(),
@@ -197,7 +217,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           .from(mitraDB)
           .where(eq(mitraDB.mitraName, (body as any).cleaner1))
           .limit(1);
-        
+
         if (primaryMitra.length > 0) {
           assignedMitraId = primaryMitra[0].id;
         }
@@ -209,7 +229,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           .from(mitraDB)
           .where(eq(mitraDB.mitraName, (body as any).cleaner2))
           .limit(1);
-        
+
         if (backupMitra.length > 0) {
           backupMitraId = backupMitra[0].id;
         }

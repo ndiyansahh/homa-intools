@@ -273,7 +273,7 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
 
   const getMonthName = (month: number) => {
     const months = ['January', 'February', 'March', 'April', 'May', 'June',
-                   'July', 'August', 'September', 'October', 'November', 'December'];
+      'July', 'August', 'September', 'October', 'November', 'December'];
     return months[month - 1] || '';
   };
 
@@ -475,14 +475,33 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        {payout.bonusEligible && ['ADMIN', 'OWNER'].includes(session.role) && (
+                        <div className="flex items-center justify-center space-x-2">
+                          {/* PDF Download Button */}
                           <button
-                            onClick={() => handleEditBonus(payout)}
-                            className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+                            onClick={() => {
+                              const link = document.createElement('a');
+                              link.href = `/api/payouts/${payout.id}/pdf`;
+                              link.download = `payout-slip-${payout.payoutId?.replace(/\//g, '-') || payout.id}.pdf`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }}
+                            className="text-gray-600 hover:text-gray-900 text-sm"
+                            title="Download PDF Slip"
                           >
-                            Edit Lainnya
+                            <Icons.download className="h-4 w-4" />
                           </button>
-                        )}
+
+                          {/* Edit Lainnya Button */}
+                          {payout.bonusEligible && ['ADMIN', 'OWNER'].includes(session.role) && (
+                            <button
+                              onClick={() => handleEditBonus(payout)}
+                              className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+                            >
+                              Edit Lainnya
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

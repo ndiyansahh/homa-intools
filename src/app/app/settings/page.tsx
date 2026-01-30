@@ -28,6 +28,21 @@ export default async function SettingsPage() {
         {/* Quick Links */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <Link
+            href="/app/packages"
+            className="block p-6 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center mb-3">
+              <div className="p-2 bg-indigo-100 rounded-lg">
+                <Icons.box className="h-6 w-6 text-indigo-600" />
+              </div>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Subscription Packages</h3>
+            <p className="text-sm text-gray-600">
+              Manage pricing plans and visit frequencies for customers
+            </p>
+          </Link>
+
+          <Link
             href="/app/payouts?tab=rates"
             className="block p-6 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
