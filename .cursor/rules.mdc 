@@ -1,0 +1,242 @@
+# Cursor AI Rules for HOMA Project
+
+**Last Updated:** 2025-01-29
+**Project:** HOMA Internal Management System
+
+---
+
+## 🎯 MANDATORY READ ORDER
+
+When starting work, ALWAYS read in this sequence:
+
+1. **docs/01-active-context.md** ⭐ (START HERE - MUST READ)
+   - Current sprint status
+   - Active work items
+   - Today's priorities
+   - Critical constraints
+
+2. **docs/02-project-overview.md** (Project basics)
+   - Tech stack
+   - Architecture
+   - File structure
+
+3. **docs/03-development-log.md** (Recent changes)
+   - What changed this week
+   - Decisions made
+   - Known issues
+
+---
+
+## 📚 Feature-Specific Documentation
+
+Before working on a feature, read its documentation:
+
+| Feature | Document |
+|---------|----------|
+| Payout System | `docs/features/payout-system.md` |
+| Trial Management | `docs/features/trial-management.md` |
+| Attendance | `docs/features/attendance.md` |
+| Customer Management | `docs/features/customer-management.md` |
+| Invoice System | `docs/features/invoice-system.md` |
+
+---
+
+## 🚨 CRITICAL CONSTRAINTS (NEVER VIOLATE)
+
+### 1. Timezone
+- **ALWAYS use Asia/Jakarta timezone**
+- Use `src/lib/date-utils.ts` for all date operations
+- Never use browser local timezone
+- Never use `new Date()` without timezone conversion
+
+### 2. Payout Calculation
+- **Formula:** `(actual_visits / scheduled_visits) × monthly_rate`
+- **Logic:** `src/lib/payout-calculator.ts`
+- **Must be pro-rated** by month
+- See: `docs/features/payout-system.md#calculation-logic`
+
+### 3. Data Integrity
+- **No breaking changes** to existing customer data
+- **Backward compatible migrations** only
+- Always test with existing data
+- Check `docs/technical/database-schema.md`
+
+### 4. Role-Based Access
+- ADMIN: Full access to all features
+- OWNER: All features except settings
+- STAFF: Read-only access
+- Middleware: `middleware.ts`
+
+---
+
+## 💻 Coding Standards
+
+### TypeScript
+- Strict mode enabled
+- No `any` types (use `unknown` + type guards)
+- Export types separately
+- Use interfaces for objects
+
+### React/Next.js
+- Server Components by default
+- Client Components only when needed (`'use client'`)
+- Use App Router conventions
+- RSC-first architecture
+
+### Styling
+- Tailwind CSS only
+- No inline styles
+- Use utility classes
+- Mobile-first responsive
+
+### API Routes
+- Location: `src/app/api/`
+- Use Next.js route handlers
+- JWT authentication required
+- Error handling with proper status codes
+
+---
+
+## 📁 Key File Locations
+
+### Business Logic
+```
+src/lib/
+├── payout-calculator.ts      ⭐ Payout calculation
+├── payout-adjustment.ts       ⭐ Adjustment logic
+├── date-utils.ts              ⭐ Timezone utilities
+├── auth.ts                    Authentication
+└── db/                        Database utilities
+```
+
+### Critical Routes
+```
+src/app/
+├── api/
+│   ├── auth/                  Authentication APIs
+│   ├── payouts/               Payout APIs
+│   ├── trials/                Trial APIs
+│   └── customers/             Customer APIs
+└── app/
+    ├── payouts/               Payout UI
+    ├── trial/                 Trial UI
+    └── customers/             Customer UI
+```
+
+### Database
+```
+drizzle/
+└── schema.ts                  Database schema
+```
+
+---
+
+## 🎨 UI Components Pattern
+```typescript
+// Server Component (default)
+export default function Page() {
+  return <div>Content</div>
+}
+
+// Client Component (when needed)
+'use client'
+export default function InteractiveForm() {
+  const [state, setState] = useState()
+  return <form>...</form>
+}
+```
+
+---
+
+## 🔍 When to Check Documentation
+
+**Before coding:**
+- Read feature doc
+- Check ADRs for related decisions
+- Review current sprint status
+
+**During coding:**
+- Reference technical docs
+- Check database schema
+- Verify API endpoints
+
+**After coding:**
+- Update feature doc if behavior changed
+- Update `docs/03-development-log.md`
+- Update `docs/client/feedback-tracking.md` if completing client request
+
+---
+
+## ⚠️ Common Pitfalls to Avoid
+
+1. **Timezone mistakes**
+   - ❌ `new Date()`
+   - ✅ `toJakartaTime(new Date())`
+
+2. **Breaking existing data**
+   - ❌ Direct schema changes
+   - ✅ Migrations with backward compatibility
+
+3. **Ignoring role-based access**
+   - ❌ Hardcoded admin checks
+   - ✅ Use middleware + role checks
+
+4. **Incorrect payout calculation**
+   - ❌ Simple multiplication
+   - ✅ Pro-rate with visit ratio
+
+---
+
+## 📝 Commit Message Format
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation only
+- `refactor`: Code refactoring
+- `test`: Adding tests
+- `chore`: Maintenance
+
+**Example:**
+```
+feat(payouts): implement configurable rates
+
+- Add admin UI for rate configuration
+- Support Basic/Regular/Frequent packages
+- Update payout calculation logic
+
+docs: update feedback-tracking.md (1b completed)
+```
+
+---
+
+## 🔗 Quick Reference
+
+- **Client Feedback:** `docs/client/feedback-tracking.md`
+- **Current Sprint:** `docs/phases/current-sprint.md`
+- **Architecture Decisions:** `docs/adrs/`
+- **Database Schema:** `docs/technical/database-schema.md`
+
+---
+
+## 🤖 For Cursor Composer
+
+When asked to implement a feature:
+1. Read `docs/01-active-context.md` first
+2. Check if feature exists in `docs/features/`
+3. Read relevant ADRs in `docs/adrs/`
+4. Verify with current sprint status
+5. Follow coding standards above
+6. Test with demo credentials
+7. Update documentation after implementation
+
+---
+
+**Remember:** Documentation = Source of truth. Always check docs before coding!
