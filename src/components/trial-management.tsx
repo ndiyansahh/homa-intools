@@ -252,41 +252,11 @@ export default function TrialManagement({ session }: TrialManagementProps) {
       if (response.ok) {
         const data = await response.json();
         // API returns {items: [], page, total} structure for paginated requests
-        let mitrasArray = Array.isArray(data) ? data : (data.items && Array.isArray(data.items) ? data.items : []);
+        const mitrasArray = Array.isArray(data) ? data : (data.items && Array.isArray(data.items) ? data.items : []);
 
-        // Filter by region if customer city and district are provided
-        if (customerCity && customerDistrict) {
-          mitrasArray = mitrasArray.filter((mitra: any) => {
-            // Check city assignment
-            if (!mitra.cityAssignment || mitra.cityAssignment !== customerCity) {
-              return false;
-            }
-
-            // Check district assignment
-            if (!mitra.locationAssignment) {
-              return true; // If no specific districts, assume covers all
-            }
-
-            try {
-              // locationAssignment might be already parsed or still a string
-              let districts = mitra.locationAssignment;
-
-              // If it's a string, parse it
-              if (typeof districts === 'string') {
-                districts = JSON.parse(districts);
-              }
-
-              if (Array.isArray(districts)) {
-                return districts.includes(customerDistrict);
-              }
-            } catch (e) {
-              console.error('Error parsing mitra locationAssignment:', e);
-              return false;
-            }
-
-            return false;
-          });
-        }
+        // Area filter removed per client feedback
+        // ("Tidak perlu ada limitasi area mitra")
+        // All active mitras are now shown regardless of customer location
 
         setMitras(mitrasArray);
       } else {
@@ -305,9 +275,11 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     }
   };
 
-  // Load cities on component mount
+  // Load cities and mitras on component mount
   useEffect(() => {
     fetchCities();
+    // Fetch all active mitras immediately (no area restriction per Feedback Feb 1, 2026)
+    fetchMitras();
 
     // Cleanup function to reset loading states if component unmounts
     return () => {
@@ -318,7 +290,8 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     };
   }, []);
 
-  // Fetch mitras when city and district are selected
+  // Fetch mitras logic removed from here as it should not depend on city/district
+  /* 
   useEffect(() => {
     if (formData.city_id && formData.district_id) {
       fetchMitras(formData.city_id, formData.district_id);
@@ -327,6 +300,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
       setMitras([]);
     }
   }, [formData.city_id, formData.district_id]);
+  */
 
   // Handle cascading dropdown changes
   const handleCityChange = (cityId: string) => {
@@ -341,7 +315,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
     }));
     setDistricts([]);
     setVillages([]);
-    setMitras([]);
+    // setMitras([]); // Do not reset mitras (global list)
     setFormError(''); // Clear any validation errors
     if (cityId) {
       fetchDistricts(cityId);
@@ -516,15 +490,15 @@ export default function TrialManagement({ session }: TrialManagementProps) {
         return;
       }
 
-      // Validate trial date not in past
-      const trialDate = new Date(formData.trial_date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      if (trialDate < today) {
-        setFormError('Trial date cannot be in the past');
-        return;
-      }
+      // Backdate validation removed per client feedback
+      // ("Tidak perlu ada limitasi backdate di create trial form")
+      // const trialDate = new Date(formData.trial_date);
+      // const today = new Date();
+      // today.setHours(0, 0, 0, 0);
+      // if (trialDate < today) {
+      //   setFormError('Trial date cannot be in the past');
+      //   return;
+      // }
 
       // Get city and district names from IDs
       const selectedCity = cities.find(c => c.id === formData.city_id);
@@ -556,6 +530,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
           {
             trialStart: trialStartFormatted,
             assignedCleaner: selectedMitra.name,
+            assignedMitraId: selectedMitra.id, // Include mitra ID for DB storage
             status: 'Not Converted', // Default status
           },
           // Additional trial dates
@@ -569,6 +544,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
               return {
                 trialStart: formattedDate,
                 assignedCleaner: mitra?.name || '',
+                assignedMitraId: td.mitraId, // Include mitra ID for DB storage
                 status: 'Not Converted' as TrialStatus,
               };
             })

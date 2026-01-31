@@ -109,7 +109,13 @@ export async function POST(
       visitNumber: maxVisitNumber + 1,
       scheduledDate: visitDate,
       scheduledDay: dayName,
-      status: 'Scheduled',
+      status: 'Done', // Default status changed to 'Done' per Chris request (Feb 1, 2026)
+
+      // Auto-fill completion details for 'Done' status
+      actualDate: visitDate,
+      completedAt: new Date(),
+      updatedBy: session.email || 'Admin',
+
       durationHours: 3, // Default 3 hours
     };
 

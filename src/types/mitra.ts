@@ -2,6 +2,7 @@ export type MitraGender = 'Pria' | 'Wanita';
 export type MitraPartnershipType = 'Full Time' | 'Part Time';
 export type MitraStatus = 'Active' | 'Inactive' | 'Exit' | 'Banned' | 'Active-Flag';
 export type MitraBonusCommission = 'Eligible' | 'Not Eligible';
+export type MitraSubscriptionType = 'Basic' | 'Regular' | 'Frequent';
 
 // Jabodetabek cities for assignment
 export type MitraCityAssignment = 'Jakarta' | 'Bogor' | 'Depok' | 'Tangerang' | 'Bekasi' | 'Jakarta Pusat' | 'Jakarta Barat' | 'Jakarta Timur' | 'Jakarta Selatan' | 'Jakarta Utara';
@@ -15,15 +16,15 @@ export interface MitraData {
   gender: string; // Legacy field name for compatibility
   bornDate: string; // Legacy field name for compatibility
   phone: string; // Legacy field name for compatibility
-  
+
   // Legacy fields (for backward compatibility)
   address?: string;
-  
+
   // Banking information
   bankAccount: string; // Legacy field name for compatibility
   bankHoldersName: string; // Legacy field name for compatibility
   bankAccountNumber: string; // Legacy field name for compatibility
-  
+
   // Assignment details
   cityAssignment: string; // Legacy field name for compatibility
   locationAssignment: string; // Legacy field name for compatibility (comma-separated)
@@ -31,7 +32,12 @@ export interface MitraData {
   tenure: string; // Legacy field name for compatibility (string)
   exitDate?: string; // dd/mm/yyyy format, optional
   bonus: string; // Legacy field name for compatibility
-  
+
+  // Subscription and rate fields
+  subscriptionType?: MitraSubscriptionType; // Basic, Regular, Frequent
+  payoutRate?: string; // Monthly payout rate in IDR (formatted)
+  bonusRate?: string; // Bonus rate in IDR (only when bonus eligible)
+
   status: MitraStatus;
   createdAt: string;
   updatedAt: string;
@@ -58,8 +64,13 @@ export interface CreateMitraRequest {
   mitraExitDate?: string; // dd/mm/yyyy format, optional
   mitraBonusCommission: MitraBonusCommission; // Eligible, Not Eligible
 
-  // Payout rate (Feature 1a-1c)
-  monthlyBaseRate?: number; // Monthly payout rate in Rupiah
+  // Subscription and payout rate
+  subscriptionType?: MitraSubscriptionType; // Basic, Regular, Frequent (default: Regular)
+  payoutRate?: number; // Monthly payout rate in Rupiah (maps to monthlyBaseRate)
+  bonusRate?: number; // Bonus rate in Rupiah (only when bonus eligible)
+
+  // Legacy field (kept for backward compatibility)
+  monthlyBaseRate?: number; // Alias for payoutRate
 
   status?: MitraStatus; // Optional, defaults to Active
 
@@ -88,6 +99,10 @@ export interface MitraListItem {
   locationAssignment: string;
   baseRate?: string;
   monthlyBaseRate?: string;
+  subscriptionType?: MitraSubscriptionType;
+  payoutRate?: string;
+  bonusRate?: string;
+  bonusCommission?: MitraBonusCommission;
 }
 
 export interface MitraResponse {

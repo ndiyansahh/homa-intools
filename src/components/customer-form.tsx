@@ -99,15 +99,15 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
   // Subscription packages state
   const [subscriptionPackages, setSubscriptionPackages] = useState<SubscriptionPackage[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
-  
+
   // Visit preview state
   const [previewVisits, setPreviewVisits] = useState<VisitPreview[]>([]);
-  
+
   // Mitra availability state
   const [availableMitras, setAvailableMitras] = useState<any[]>([]);
   const [loadingMitras, setLoadingMitras] = useState(false);
   const [mitraAvailabilityMessage, setMitraAvailabilityMessage] = useState('');
-  
+
   // Day options
   const dayOptions = [
     { value: 'Monday', label: 'Monday' },
@@ -166,9 +166,9 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
       const response = await fetch('/api/regions/cities');
       if (response.ok) {
         const data = await response.json();
-        setCities(data.data.map((city: any) => ({ 
-          value: typeof city === 'string' ? city : city.name || city.id, 
-          label: typeof city === 'string' ? city : city.name || city.id 
+        setCities(data.data.map((city: any) => ({
+          value: typeof city === 'string' ? city : city.name || city.id,
+          label: typeof city === 'string' ? city : city.name || city.id
         })));
       }
     } catch (error) {
@@ -183,15 +183,15 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
       console.log('Fetching districts for city:', city);
       setLoadingRegions(true);
       const response = await fetch(`/api/regions/districts?city_id=${encodeURIComponent(city)}`);
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log('Districts API response:', data);
-        
+
         if (data.success && data.data) {
-          const mappedDistricts = data.data.map((district: any) => ({ 
-            value: typeof district === 'string' ? district : district.name || district.id, 
-            label: typeof district === 'string' ? district : district.name || district.id 
+          const mappedDistricts = data.data.map((district: any) => ({
+            value: typeof district === 'string' ? district : district.name || district.id,
+            label: typeof district === 'string' ? district : district.name || district.id
           }));
           console.log('Mapped districts:', mappedDistricts);
           setDistricts(mappedDistricts);
@@ -285,10 +285,10 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
     const visits: VisitPreview[] = [];
     const start = new Date(startDate);
     const selectedDaysList = [selectedDays.day1, selectedDays.day2, selectedDays.day3].filter(Boolean);
-    
+
     // Calculate total weeks based on quantity (1 qty = 1 month = ~4 weeks)
     const totalWeeks = formData.qtyPackage * 4;
-    
+
     // Generate visits for the entire subscription period
     let visitNumber = 1;
     for (let week = 0; week < totalWeeks; week++) {
@@ -297,7 +297,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
           const dayIndex = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].indexOf(dayName);
           const visitDate = new Date(start);
           visitDate.setDate(start.getDate() + (week * 7) + ((dayIndex - start.getDay() + 7) % 7));
-          
+
           // Only include future dates
           if (visitDate >= start) {
             visits.push({
@@ -310,7 +310,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
         }
       }
     }
-    
+
     setPreviewVisits(visits); // Show all visits for the subscription period
   };
 
@@ -332,7 +332,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
   const handleDayChange = (dayKey: 'day1' | 'day2' | 'day3', value: string) => {
     const newSelectedDays = { ...formData.selectedDays, [dayKey]: value };
     setFormData(prev => ({ ...prev, selectedDays: newSelectedDays }));
-    
+
     // Regenerate preview if we have a start date
     if (formData.firstDateSubscription) {
       generateVisitPreview(formData.firstDateSubscription, newSelectedDays);
@@ -342,28 +342,28 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
   // Calculate LTV using same formula as trial page
   const calculateLTV = (startDate: string, quantity: number): number => {
     if (!startDate || !quantity) return 0;
-    
+
     try {
       const start = new Date(startDate);
       const end = new Date(start);
-      
+
       // Calculate end date based on quantity (1 qty = 1 month)
       end.setMonth(start.getMonth() + quantity);
-      
+
       // Add 1 day for inclusive calculation (like Excel DATEDIF)
       end.setDate(end.getDate() + 1);
-      
+
       const yearDiff = end.getFullYear() - start.getFullYear();
       const monthDiff = end.getMonth() - start.getMonth();
       const dayDiff = end.getDate() - start.getDate();
-      
+
       let months = yearDiff * 12 + monthDiff;
-      
+
       // If day difference is negative, subtract a month
       if (dayDiff < 0) {
         months -= 1;
       }
-      
+
       return Math.max(0, months);
     } catch (error) {
       console.error('Error calculating LTV:', error);
@@ -374,12 +374,12 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
   // Handle date change
   const handleDateChange = (date: string) => {
     const newLTV = calculateLTV(date, formData.qtyPackage || 1);
-    setFormData(prev => ({ 
-      ...prev, 
+    setFormData(prev => ({
+      ...prev,
       firstDateSubscription: date,
       ltv: newLTV
     }));
-    
+
     // Regenerate preview if we have selected days
     if (formData.selectedDays.day1 || formData.selectedDays.day2 || formData.selectedDays.day3) {
       generateVisitPreview(date, formData.selectedDays);
@@ -389,12 +389,12 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
   // Handle quantity change
   const handleQuantityChange = (quantity: number) => {
     const newLTV = calculateLTV(formData.firstDateSubscription || '', quantity);
-    setFormData(prev => ({ 
-      ...prev, 
+    setFormData(prev => ({
+      ...prev,
       qtyPackage: quantity,
       ltv: newLTV
     }));
-    
+
     // Regenerate preview if we have selected days and date
     if ((formData.selectedDays.day1 || formData.selectedDays.day2 || formData.selectedDays.day3) && formData.firstDateSubscription) {
       generateVisitPreview(formData.firstDateSubscription, formData.selectedDays);
@@ -412,7 +412,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
     try {
       setLoadingMitras(true);
       setMitraAvailabilityMessage('Checking mitra availability...');
-      
+
       // Get the selected days pattern
       const selectedDaysList = [formData.selectedDays.day1, formData.selectedDays.day2, formData.selectedDays.day3]
         .filter(Boolean) as string[];
@@ -422,7 +422,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
         setMitraAvailabilityMessage('No days selected');
         return;
       }
-      
+
       // Calculate end date based on quantity (months)
       const startDate = new Date(formData.firstDateSubscription);
       const endDate = new Date(startDate);
@@ -439,8 +439,9 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
           dayPattern: selectedDaysList,
           startDate: startDate.toISOString().split('T')[0], // 'yyyy-mm-dd'
           endDate: endDate.toISOString().split('T')[0], // 'yyyy-mm-dd'
-          city: formData.city, // Add city for coverage area filtering
-          district: formData.district, // Add district for coverage area filtering
+          // Region filter disabled per client request (Feb 1, 2026)
+          // city: formData.city, 
+          // district: formData.district,
         }),
       });
 
@@ -449,7 +450,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
       }
 
       const data = await response.json();
-      
+
       if (!data.success) {
         throw new Error(data.message || 'API returned unsuccessful response');
       }
@@ -484,7 +485,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
       } else {
         setMitraAvailabilityMessage(`${availableMitras.length} mitra(s) available for all ${previewVisits.length} scheduled visits over ${formData.qtyPackage} month(s).`);
       }
-      
+
     } catch (error) {
       console.error('Error checking mitra availability:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -507,7 +508,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.customerName.trim()) {
       alert('Please enter customer name');
       return;
@@ -545,11 +546,11 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
 
     try {
       setLoading(true);
-      
+
       // Calculate monthly fee based on selected package and quantity
       const selectedPackage = subscriptionPackages.find(pkg => pkg.id === formData.subscriptionPackageId);
       const monthlyFee = selectedPackage ? selectedPackage.priceNumeric * formData.qtyPackage : 0;
-      
+
       // Convert date format untuk API
       const requestData = {
         ...formData,
@@ -634,7 +635,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
             <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2">
               Customer Information
             </h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -721,7 +722,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
             <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2">
               Location Information
             </h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -820,7 +821,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
             <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2">
               Subscription Details
             </h3>
-            
+
             {/* Step 1: Select Subscription Package */}
             <div className="space-y-4">
               <div>
@@ -859,7 +860,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                       const dayKey = `day${dayNum}` as 'day1' | 'day2' | 'day3';
                       const currentValue = formData.selectedDays[dayKey] || '';
                       const isDisabled = dayNum > requiredVisitsPerWeek;
-                      
+
                       return (
                         <div key={dayKey}>
                           <label className="block text-xs font-medium text-gray-600 mb-1">
@@ -987,7 +988,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
             <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2">
               Mitra (Cleaner) Assignment
             </h3>
-            
+
             {/* Mitra Availability Status */}
             {previewVisits.length > 0 && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -1020,7 +1021,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                 </div>
               </div>
             )}
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1035,8 +1036,8 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                 >
                   <option value="">
                     {loadingMitras ? 'Checking availability...' :
-                     availableMitras.length === 0 ? 'No mitras available' :
-                     'Select mitra...'}
+                      availableMitras.length === 0 ? 'No mitras available' :
+                        'Select mitra...'}
                   </option>
                   {availableMitras.map((mitra, index) => (
                     <option key={`mitra1-${mitra.id}-${index}`} value={mitra.name}>
@@ -1078,7 +1079,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
             <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2">
               Additional Information
             </h3>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Notes

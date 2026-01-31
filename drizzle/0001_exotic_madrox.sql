@@ -107,10 +107,10 @@ CREATE TABLE IF NOT EXISTS "user_db" (
 	CONSTRAINT "user_db_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
-ALTER TABLE "attendance_record_db" ADD COLUMN "updated_by" varchar(255);--> statement-breakpoint
-ALTER TABLE "attendance_schedule_db" ADD COLUMN "updated_by" varchar(255);--> statement-breakpoint
-ALTER TABLE "mitra_db" ADD COLUMN "monthly_base_rate" numeric(10, 2) DEFAULT '0';--> statement-breakpoint
-ALTER TABLE "visit_db" ADD COLUMN "updated_by" varchar(255);--> statement-breakpoint
+-- ALTER TABLE "attendance_record_db" ADD COLUMN "updated_by" varchar(255);--> statement-breakpoint
+-- ALTER TABLE "attendance_schedule_db" ADD COLUMN "updated_by" varchar(255);--> statement-breakpoint
+-- ALTER TABLE "mitra_db" ADD COLUMN "monthly_base_rate" numeric(10, 2) DEFAULT '0';--> statement-breakpoint
+-- ALTER TABLE "visit_db" ADD COLUMN "updated_by" varchar(255);--> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "mitra_rate_config_db" ADD CONSTRAINT "mitra_rate_config_db_mitra_id_mitra_db_id_fk" FOREIGN KEY ("mitra_id") REFERENCES "public"."mitra_db"("id") ON DELETE no action ON UPDATE no action;
 EXCEPTION

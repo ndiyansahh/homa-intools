@@ -26,7 +26,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    
+
     try {
       // Try to get mitra from database first
       const result = await db
@@ -56,6 +56,10 @@ export async function GET(
           joinDate: mitraDB.joinDate,
           createdAt: mitraDB.createdAt,
           updatedAt: mitraDB.updatedAt,
+          // New fields
+          subscriptionType: mitraDB.subscriptionType,
+          monthlyBaseRate: mitraDB.monthlyBaseRate,
+          bonusRate: mitraDB.bonusRate,
         })
         .from(mitraDB)
         .where(
@@ -68,7 +72,7 @@ export async function GET(
 
       if (result.length > 0) {
         const dbMitra = result[0];
-        
+
         // Convert database result to expected format
         const mitraData: MitraData = {
           id: dbMitra.id,
@@ -103,8 +107,12 @@ export async function GET(
           createdAt: dbMitra.createdAt?.toISOString() || new Date().toISOString(),
           updatedAt: dbMitra.updatedAt?.toISOString() || new Date().toISOString(),
           isDeleted: false,
+          // Subscription and rate fields
+          subscriptionType: (dbMitra.subscriptionType as any) || 'Regular',
+          payoutRate: dbMitra.monthlyBaseRate || '0',
+          bonusRate: dbMitra.bonusRate || '0',
         };
-        
+
         console.log(`✅ Found mitra in database: ${mitraData.name} (${mitraData.mitraCode})`);
         return NextResponse.json(mitraData);
       }
@@ -218,7 +226,39 @@ export async function PUT(
     if (body.mitraBonusCommission) updateData.mitraBonusCommission = body.mitraBonusCommission;
     if (body.status) updateData.status = body.status;
     if (body.address) updateData.address = body.address;
-    if (body.monthlyBaseRate !== undefined) updateData.monthlyBaseRate = body.monthlyBaseRate;
+
+    // Handle payout rate (payoutRate or monthlyBaseRate)
+    if (body.payoutRate !== undefined) {
+      updateData.monthlyBaseRate = typeof body.payoutRate === 'number' ? body.payoutRate.toString() : body.payoutRate;
+    } else if (body.monthlyBaseRate !== undefined) {
+      updateData.monthlyBaseRate = typeof body.monthlyBaseRate === 'number' ? body.monthlyBaseRate.toString() : body.monthlyBaseRate;
+    }
+
+    // Handle subscription type
+    if (body.subscriptionType) {
+      if (!['Basic', 'Regular', 'Frequent'].includes(body.subscriptionType)) {
+        return NextResponse.json({
+          error: 'Subscription type must be "Basic", "Regular", or "Frequent"'
+        }, { status: 400 });
+      }
+      updateData.subscriptionType = body.subscriptionType;
+    }
+
+    // Handle bonus rate (only when bonus eligible)
+    if (body.bonusRate !== undefined) {
+      const bonusCommission = body.mitraBonusCommission || existingMitra[0].mitraBonusCommission;
+      if (bonusCommission === 'Not Eligible') {
+        return NextResponse.json({
+          error: 'Bonus rate can only be set when Bonus Commission is "Eligible"'
+        }, { status: 400 });
+      }
+      updateData.bonusRate = typeof body.bonusRate === 'number' ? body.bonusRate.toString() : body.bonusRate;
+    }
+
+    // If changing bonus commission to 'Not Eligible', reset bonus rate
+    if (body.mitraBonusCommission === 'Not Eligible') {
+      updateData.bonusRate = '0';
+    }
 
     // Update the mitra in database
     await db

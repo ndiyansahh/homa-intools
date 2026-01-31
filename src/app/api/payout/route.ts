@@ -206,6 +206,7 @@ export async function POST(request: NextRequest) {
         bonusCommission: mitraDB.mitraBonusCommission,
         baseRate: mitraDB.baseRate, // DEPRECATED - kept for backward compatibility
         monthlyBaseRate: mitraDB.monthlyBaseRate, // NEW - monthly rate
+        bonusRate: mitraDB.bonusRate, // NEW - bonus rate
       })
       .from(mitraDB)
       .where(eq(mitraDB.isActive, true));
@@ -316,32 +317,8 @@ export async function POST(request: NextRequest) {
         for (const [cycleKey, { cycle: billingCycle, visits: cycleVisits }] of billingCycleMap.entries()) {
           console.log(`   📅   Billing cycle: ${billingCycle.start.toISOString().split('T')[0]} to ${billingCycle.end.toISOString().split('T')[0]}`);
 
-        // Step 3d: Get rate configuration for this mitra + subscription package combo
-        const rateConfigs = await db
-          .select({
-            monthlyRate: mitraRateConfigDB.monthlyRate,
-          })
-          .from(mitraRateConfigDB)
-          .where(
-            and(
-              eq(mitraRateConfigDB.mitraId, mitra.id),
-              eq(mitraRateConfigDB.isActive, true),
-              lte(mitraRateConfigDB.effectiveFrom, lastDayOfMonth),
-              isNull(mitraRateConfigDB.effectiveTo),
-              subscriptionPackageId
-                ? eq(mitraRateConfigDB.subscriptionPackageId, subscriptionPackageId)
-                : isNull(mitraRateConfigDB.subscriptionPackageId)
-            )
-          )
-          .limit(1);
-
-        // Fallback chain: specific config → default config → mitra base rate
-        let monthlyRate = 0;
-        if (rateConfigs.length > 0) {
-          monthlyRate = Number(rateConfigs[0].monthlyRate);
-        } else {
-          // Try default config (subscriptionPackageId = NULL)
-          const defaultConfig = await db
+          // Step 3d: Get rate configuration for this mitra + subscription package combo
+          const rateConfigs = await db
             .select({
               monthlyRate: mitraRateConfigDB.monthlyRate,
             })
@@ -352,23 +329,47 @@ export async function POST(request: NextRequest) {
                 eq(mitraRateConfigDB.isActive, true),
                 lte(mitraRateConfigDB.effectiveFrom, lastDayOfMonth),
                 isNull(mitraRateConfigDB.effectiveTo),
-                isNull(mitraRateConfigDB.subscriptionPackageId)
+                subscriptionPackageId
+                  ? eq(mitraRateConfigDB.subscriptionPackageId, subscriptionPackageId)
+                  : isNull(mitraRateConfigDB.subscriptionPackageId)
               )
             )
             .limit(1);
 
-          if (defaultConfig.length > 0) {
-            monthlyRate = Number(defaultConfig[0].monthlyRate);
+          // Fallback chain: specific config → default config → mitra base rate
+          let monthlyRate = 0;
+          if (rateConfigs.length > 0) {
+            monthlyRate = Number(rateConfigs[0].monthlyRate);
           } else {
-            // Final fallback: mitra base rate
-            monthlyRate = Number(mitra.monthlyBaseRate) || Number(mitra.baseRate) || 0;
-          }
-        }
+            // Try default config (subscriptionPackageId = NULL)
+            const defaultConfig = await db
+              .select({
+                monthlyRate: mitraRateConfigDB.monthlyRate,
+              })
+              .from(mitraRateConfigDB)
+              .where(
+                and(
+                  eq(mitraRateConfigDB.mitraId, mitra.id),
+                  eq(mitraRateConfigDB.isActive, true),
+                  lte(mitraRateConfigDB.effectiveFrom, lastDayOfMonth),
+                  isNull(mitraRateConfigDB.effectiveTo),
+                  isNull(mitraRateConfigDB.subscriptionPackageId)
+                )
+              )
+              .limit(1);
 
-        if (monthlyRate === 0) {
-          console.log(`   ⚠️  No rate configured for ${customerName} (${subscriptionPackage}), skipping`);
-          continue;
-        }
+            if (defaultConfig.length > 0) {
+              monthlyRate = Number(defaultConfig[0].monthlyRate);
+            } else {
+              // Final fallback: mitra base rate
+              monthlyRate = Number(mitra.monthlyBaseRate) || Number(mitra.baseRate) || 0;
+            }
+          }
+
+          if (monthlyRate === 0) {
+            console.log(`   ⚠️  No rate configured for ${customerName} (${subscriptionPackage}), skipping`);
+            continue;
+          }
 
           // Step 3e: Count scheduled visits for this customer in THIS BILLING CYCLE
           // FIXED BUG #1: Removed mitraId filter - denominator should be total scheduled visits
@@ -424,8 +425,10 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+
       const bonusEligible = mitra.bonusCommission === 'Eligible';
-      let bonusAmount = 0; // Default 0, can be edited later
+      // Use configured bonus rate as default if eligible
+      let bonusAmount = (bonusEligible && mitra.bonusRate) ? Number(mitra.bonusRate) : 0;
 
       // Feature 8b: Check for pending adjustments for this mitra
       const pendingAdjustments = await db

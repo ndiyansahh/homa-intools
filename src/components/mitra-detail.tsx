@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MitraData } from '@/types/mitra';
+import { MitraData, MitraSubscriptionType, MitraBonusCommission } from '@/types/mitra';
 import { Icons } from './icons';
 
 interface MitraDetailProps {
@@ -27,6 +27,18 @@ const partnershipColors = {
 const bonusColors = {
   'Eligible': 'bg-green-100 text-green-800',
   'Not Eligible': 'bg-red-100 text-red-800',
+};
+
+// Helper functions for number formatting with thousands separator
+const formatNumberWithSeparator = (value: string | number): string => {
+  if (!value && value !== 0) return '';
+  const num = typeof value === 'string' ? value.replace(/,/g, '') : String(value);
+  const numericValue = num.replace(/[^0-9]/g, '');
+  return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+};
+
+const parseFormattedNumber = (value: string): number => {
+  return parseInt(value.replace(/,/g, ''), 10) || 0;
 };
 
 export default function MitraDetailView({ mitraId, onClose, onUpdate }: MitraDetailProps) {
@@ -352,35 +364,82 @@ export default function MitraDetailView({ mitraId, onClose, onUpdate }: MitraDet
             </div>
           </div>
 
-          {/* Lainnya Status & Base Rate */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Lainnya Status</h3>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <select
-                  value={formData.bonus || ''}
-                  onChange={(e) => handleChange('bonus', e.target.value)}
-                  className="input-field"
-                >
-                  <option value="">Select Lainnya Status</option>
-                  <option value="Eligible">Eligible</option>
-                  <option value="Not Eligible">Not Eligible</option>
-                </select>
-              </div>
-            </div>
+          {/* Subscription, Payout & Bonus Rate Section */}
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Subscription & Rate Information</h3>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Subscription Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Subscription Type</label>
+                  <select
+                    value={(formData as any).subscriptionType || 'Regular'}
+                    onChange={(e) => handleChange('subscriptionType' as any, e.target.value)}
+                    className="input-field mt-1"
+                  >
+                    <option value="Basic">Basic</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Frequent">Frequent</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Basic: 1 visit/week | Regular: 2 visits/week | Frequent: 3 visits/week
+                  </p>
+                </div>
 
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Base Rate</h3>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <input
-                  type="number"
-                  value={(formData as any).baseRate || ''}
-                  onChange={(e) => handleChange('baseRate' as any, e.target.value)}
-                  className="input-field"
-                  placeholder="Base rate per visit"
-                  min="0"
-                  step="1000"
-                />
+                {/* Payout Rate */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Payout Rate (IDR)</label>
+                  <input
+                    type="text"
+                    value={formatNumberWithSeparator((formData as any).payoutRate || 0)}
+                    onChange={(e) => {
+                      const numericValue = parseFormattedNumber(e.target.value);
+                      handleChange('payoutRate' as any, numericValue);
+                    }}
+                    className="input-field mt-1"
+                    placeholder="500,000"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Enter payout rate per month</p>
+                </div>
+
+                {/* Bonus Commission */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Bonus Commission</label>
+                  <select
+                    value={formData.bonus || ''}
+                    onChange={(e) => {
+                      const newValue = e.target.value;
+                      handleChange('bonus', newValue);
+                      // Reset bonus rate when not eligible
+                      if (newValue === 'Not Eligible') {
+                        handleChange('bonusRate' as any, 0);
+                      }
+                    }}
+                    className="input-field mt-1"
+                  >
+                    <option value="">Select Bonus Commission</option>
+                    <option value="Eligible">Eligible</option>
+                    <option value="Not Eligible">Not Eligible</option>
+                  </select>
+                </div>
+
+                {/* Bonus Rate - Only shown when Bonus Commission is Eligible */}
+                {formData.bonus === 'Eligible' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Bonus Rate (IDR)</label>
+                    <input
+                      type="text"
+                      value={formatNumberWithSeparator((formData as any).bonusRate || 0)}
+                      onChange={(e) => {
+                        const numericValue = parseFormattedNumber(e.target.value);
+                        handleChange('bonusRate' as any, numericValue);
+                      }}
+                      className="input-field mt-1"
+                      placeholder="500,000"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Enter bonus rate per month</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

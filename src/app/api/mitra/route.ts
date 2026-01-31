@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { mitraDB, attendanceScheduleDB } from '@/lib/schema';
 import { sql, and, or, ilike, eq, desc, count, not, inArray } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
-import { CreateMitraRequest, MitraListItem, MitraResponse, MitraData, MitraGender, MitraPartnershipType, MitraStatus, MitraBonusCommission, MitraCityAssignment } from '@/types/mitra';
+import { CreateMitraRequest, MitraListItem, MitraResponse, MitraData, MitraGender, MitraPartnershipType, MitraStatus, MitraBonusCommission, MitraCityAssignment, MitraSubscriptionType } from '@/types/mitra';
 import { logAuditEvent } from '@/lib/logger';
 
 // Simple interface for available mitra response
@@ -85,7 +85,7 @@ async function getAvailableMitra(availableDate: string | null): Promise<NextResp
     console.error('❌ CRITICAL: Database error in getAvailableMitra:', dbError);
 
     // NO FALLBACK TO MOCK DATA - Return empty array with error indicator
-    return NextResponse.json([],{
+    return NextResponse.json([], {
       status: 500,
       statusText: 'Database error',
       headers: {
@@ -110,11 +110,11 @@ const generateMitraCode = async (): Promise<string> => {
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const yearMonth = `${year}${month}`;
-  
+
   try {
     // Count existing mitras in database created in the same month for sequence number
     console.log(`🔍 Generating mitraCode for ${yearMonth}...`);
-    
+
     const countResult = await db
       .select({ count: count() })
       .from(mitraDB)
@@ -124,16 +124,16 @@ const generateMitraCode = async (): Promise<string> => {
           or(eq(mitraDB.isDeleted, false), sql`${mitraDB.isDeleted} IS NULL`)
         )
       );
-    
+
     const monthlyCount = countResult[0]?.count || 0;
     console.log(`📊 Found ${monthlyCount} existing mitras for ${yearMonth}`);
-    
+
     const sequence = String(monthlyCount + 1).padStart(6, '0');
     const newCode = `MITRA-${yearMonth}-${sequence}`;
-    
+
     console.log(`✅ Generated mitraCode: ${newCode}`);
     return newCode;
-    
+
   } catch (error) {
     console.error('❌ Database error in mitraCode generation:', error);
 
@@ -172,30 +172,30 @@ export async function POST(request: NextRequest) {
 
     // Validate NIK format (exactly 16 digits)
     if (!/^\d{16}$/.test(body.mitraNIK)) {
-      return NextResponse.json({ 
-        error: 'NIK must be exactly 16 digits' 
+      return NextResponse.json({
+        error: 'NIK must be exactly 16 digits'
       }, { status: 400 });
     }
 
     // Validate phone format (10-12 digits)
     if (!body.mitraPhone?.trim() || !/^\d{10,12}$/.test(body.mitraPhone)) {
-      return NextResponse.json({ 
-        error: 'Phone must be 10-12 digits' 
+      return NextResponse.json({
+        error: 'Phone must be 10-12 digits'
       }, { status: 400 });
     }
 
     // Validate gender enum
     if (!body.mitraGender || !['Pria', 'Wanita'].includes(body.mitraGender)) {
-      return NextResponse.json({ 
-        error: 'Gender must be either "Pria" or "Wanita"' 
+      return NextResponse.json({
+        error: 'Gender must be either "Pria" or "Wanita"'
       }, { status: 400 });
     }
 
     // Validate date format (mm/dd/yyyy)
     const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
     if (!body.mitraDOB || !dateRegex.test(body.mitraDOB)) {
-      return NextResponse.json({ 
-        error: 'Invalid birth date format. Use mm/dd/yyyy format' 
+      return NextResponse.json({
+        error: 'Invalid birth date format. Use mm/dd/yyyy format'
       }, { status: 400 });
     }
 
@@ -207,21 +207,21 @@ export async function POST(request: NextRequest) {
       const today = new Date();
       const age = today.getFullYear() - birthDate.getFullYear();
       const monthDiff = today.getMonth() - birthDate.getMonth();
-      
+
       // Adjust age if birthday hasn't occurred this year
-      const actualAge = (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) 
-        ? age - 1 
+      const actualAge = (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate()))
+        ? age - 1
         : age;
-      
+
       if (actualAge < 17) {
-        return NextResponse.json({ 
-          error: 'Mitra must be at least 17 years old for employment eligibility' 
+        return NextResponse.json({
+          error: 'Mitra must be at least 17 years old for employment eligibility'
         }, { status: 400 });
       }
-      
+
       if (actualAge > 80) {
-        return NextResponse.json({ 
-          error: 'Please verify the date of birth. Age appears to be over 80 years.' 
+        return NextResponse.json({
+          error: 'Please verify the date of birth. Age appears to be over 80 years.'
         }, { status: 400 });
       }
     }
@@ -229,23 +229,52 @@ export async function POST(request: NextRequest) {
     // Validate exit date format (dd/mm/yyyy) if provided
     const exitDateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
     if (body.mitraExitDate && !exitDateRegex.test(body.mitraExitDate)) {
-      return NextResponse.json({ 
-        error: 'Invalid exit date format. Use dd/mm/yyyy format' 
+      return NextResponse.json({
+        error: 'Invalid exit date format. Use dd/mm/yyyy format'
       }, { status: 400 });
     }
 
     // Validate partnership type
     if (!body.mitraPartnership || !['Full Time', 'Part Time'].includes(body.mitraPartnership)) {
-      return NextResponse.json({ 
-        error: 'Partnership type must be "Full Time" or "Part Time"' 
+      return NextResponse.json({
+        error: 'Partnership type must be "Full Time" or "Part Time"'
       }, { status: 400 });
     }
 
     // Validate lainnya commission
     if (!body.mitraBonusCommission || !['Eligible', 'Not Eligible'].includes(body.mitraBonusCommission)) {
       return NextResponse.json({
-        error: 'Lainnya commission must be "Eligible" or "Not Eligible"'
+        error: 'Bonus commission must be "Eligible" or "Not Eligible"'
       }, { status: 400 });
+    }
+
+    // Validate subscription type if provided
+    if (body.subscriptionType && !['Basic', 'Regular', 'Frequent'].includes(body.subscriptionType)) {
+      return NextResponse.json({
+        error: 'Subscription type must be "Basic", "Regular", or "Frequent"'
+      }, { status: 400 });
+    }
+
+    // Validate payout rate is a positive number if provided
+    const payoutRateValue = body.payoutRate ?? body.monthlyBaseRate;
+    if (payoutRateValue !== undefined && (typeof payoutRateValue !== 'number' || payoutRateValue < 0)) {
+      return NextResponse.json({
+        error: 'Payout rate must be a non-negative number'
+      }, { status: 400 });
+    }
+
+    // Validate bonus rate (only allowed when bonus eligible)
+    if (body.bonusRate !== undefined) {
+      if (typeof body.bonusRate !== 'number' || body.bonusRate < 0) {
+        return NextResponse.json({
+          error: 'Bonus rate must be a non-negative number'
+        }, { status: 400 });
+      }
+      if (body.mitraBonusCommission === 'Not Eligible') {
+        return NextResponse.json({
+          error: 'Bonus rate can only be set when Bonus Commission is "Eligible"'
+        }, { status: 400 });
+      }
     }
 
     // Validate required banking information
@@ -264,22 +293,22 @@ export async function POST(request: NextRequest) {
     // Validate city assignment
     const validCities: MitraCityAssignment[] = ['Jakarta', 'Bogor', 'Depok', 'Tangerang', 'Bekasi', 'Jakarta Pusat', 'Jakarta Barat', 'Jakarta Timur', 'Jakarta Selatan', 'Jakarta Utara'];
     if (!body.mitraCityAssignment || !validCities.includes(body.mitraCityAssignment)) {
-      return NextResponse.json({ 
-        error: `City assignment must be one of: ${validCities.join(', ')}` 
+      return NextResponse.json({
+        error: `City assignment must be one of: ${validCities.join(', ')}`
       }, { status: 400 });
     }
 
     // Validate location assignment (array of districts)
     if (!body.mitraLocationAssignment || !Array.isArray(body.mitraLocationAssignment) || body.mitraLocationAssignment.length === 0) {
-      return NextResponse.json({ 
-        error: 'Location assignment must be a non-empty array of districts' 
+      return NextResponse.json({
+        error: 'Location assignment must be a non-empty array of districts'
       }, { status: 400 });
     }
 
     // Validate tenure is a number
     if (body.mitraTenure !== undefined && (typeof body.mitraTenure !== 'number' || body.mitraTenure < 0)) {
-      return NextResponse.json({ 
-        error: 'Tenure must be a non-negative number' 
+      return NextResponse.json({
+        error: 'Tenure must be a non-negative number'
       }, { status: 400 });
     }
 
@@ -305,14 +334,14 @@ export async function POST(request: NextRequest) {
       // Create mitra in database with new comprehensive schema
       const newMitraData = {
         mitraName: body.mitraName.trim(),
-        
+
         // Core identification
         mitraCode: mitraCode,
         mitraNIK: body.mitraNIK.trim(),
         mitraGender: body.mitraGender,
         mitraDOB: body.mitraDOB,
         mitraPhone: body.mitraPhone.trim(),
-        
+
         // Legacy contact and address (for backward compatibility)
         contact: body.mitraPhone.trim(), // Legacy field
         address: body.address?.trim() || '',
@@ -320,12 +349,12 @@ export async function POST(request: NextRequest) {
         district: body.mitraLocationAssignment[0] || '', // First district as legacy
         village: null,
         postalCode: null,
-        
+
         // Banking information
         mitraBankAccount: body.mitraBankAccount.trim(),
         mitraBankHolderName: body.mitraBankHolderName.trim(),
         mitraBankAccountNumber: body.mitraBankAccountNumber.trim(),
-        
+
         // Assignment details
         mitraCityAssignment: body.mitraCityAssignment,
         mitraLocationAssignment: JSON.stringify(body.mitraLocationAssignment),
@@ -333,25 +362,30 @@ export async function POST(request: NextRequest) {
         mitraTenure: body.mitraTenure || 0,
         mitraExitDate: body.mitraExitDate || null,
         mitraBonusCommission: body.mitraBonusCommission,
-        
+
         // Legacy mitra details
         mitraType: 'Cleaner',
         status: body.status || 'Active',
-        
+
         // Financial details
         baseRate: '50000.00', // Default base rate
         commissionRate: '10.00', // Default commission rate
         totalEarnings: '0',
         totalVisits: 0,
-        
+
         // Performance metrics
         rating: '0',
         totalReviews: 0,
-        
+
         // Metadata
         mitraNotes: null,
         isActive: true,
         isDeleted: false,
+
+        // Subscription and rate fields (NEW)
+        subscriptionType: body.subscriptionType || 'Regular',
+        monthlyBaseRate: (payoutRateValue ?? 0).toString(),
+        bonusRate: body.mitraBonusCommission === 'Eligible' && body.bonusRate ? body.bonusRate.toString() : '0',
       };
 
       const result = await db
@@ -384,10 +418,10 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: true,
-        data: { 
-          id: newMitraId, 
+        data: {
+          id: newMitraId,
           mitraName: newMitraName,
           mitraCode: mitraCode,
           mitraNIK: body.mitraNIK,
@@ -428,12 +462,12 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const availableDate = searchParams.get('available_date');
-    
+
     // Check if this is a simple mitra list request (for available cleaners)
     if (availableDate !== null || searchParams.size === 0 || (searchParams.size === 1 && availableDate)) {
       return await getAvailableMitra(availableDate);
     }
-    
+
     // Original complex filtering logic for full mitra management
     const q = searchParams.get('q') || '';
     const status = searchParams.get('status') || '';
@@ -521,6 +555,8 @@ export async function GET(request: NextRequest) {
         createdAt: mitraDB.createdAt,
         baseRate: mitraDB.baseRate,
         monthlyBaseRate: mitraDB.monthlyBaseRate,
+        subscriptionType: mitraDB.subscriptionType,
+        bonusRate: mitraDB.bonusRate,
       })
       .from(mitraDB)
       .where(whereClause)
@@ -545,6 +581,10 @@ export async function GET(request: NextRequest) {
       locationAssignment: mitra.mitraLocationAssignment ? (typeof mitra.mitraLocationAssignment === 'string' ? mitra.mitraLocationAssignment : JSON.stringify(mitra.mitraLocationAssignment)) : (mitra.district || ''),
       baseRate: mitra.baseRate || '0',
       monthlyBaseRate: mitra.monthlyBaseRate || '0',
+      subscriptionType: (mitra.subscriptionType as MitraSubscriptionType) || 'Regular',
+      payoutRate: mitra.monthlyBaseRate || '0',
+      bonusRate: mitra.bonusRate || '0',
+      bonusCommission: (mitra.mitraBonusCommission as MitraBonusCommission) || 'Eligible',
     }));
 
     const totalPages = Math.ceil(total / limit);

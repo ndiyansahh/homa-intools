@@ -233,7 +233,11 @@ export async function createSubscriptionWithDayPattern(params: {
       visitNumber: index + 1,
       scheduledDate: date.toISOString().split('T')[0],
       scheduledDay: date.toLocaleDateString('en-US', { weekday: 'long' }),
-      status: "Scheduled",
+      // Feedback Feb 1: Default to Done (completed) so admin doesn't need to mark attendance
+      // Visits are still editable (change mitra, date, cancel)
+      status: "Done",
+      // Set completedAt for payout calculation to work correctly
+      completedAt: date,
       durationHours: 3,
       createdAt: new Date(),
       updatedAt: new Date()

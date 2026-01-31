@@ -82,7 +82,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const body = await request.json();
     const { packageName, price } = body;
 
-    if (!packageName || !price) {
+    // Allow price to be 0
+    if (!packageName || price === undefined || price === null) {
       return NextResponse.json(
         { success: false, message: 'Package name and price are required' },
         { status: 400 }

@@ -1,21 +1,21 @@
-# Client Feedback Tracking (Jan 3, 2026 Meeting)
+# Client Feedback Tracking (Jan 3, 2026 Meeting + Feb 1 Hotfix)
 
 **Meeting Date:** January 3, 2026  
 **Attendees:** Client, Handi (Developer)  
-**Last Updated:** January 30, 2026 (Sprint 5 Complete)
+**Last Updated:** February 1, 2026 (Trial + Customer + Payout + Packages Hotfixes)
 
 ---
 
 ## Overview
 
-This document tracks all feedback items from the January 3, 2026 client review meeting. It serves as the **single source of truth** for client requirements and implementation status.
+This document tracks all feedback items from the January 3, 2026 client review meeting plus subsequent feedback. It serves as the **single source of truth** for client requirements and implementation status.
 
-**Total Items:** 10 main items, 15 sub-items  
+**Total Items:** 16 main items, 27 sub-items  
 **Completion Status:**
-- ✅ Completed: 13/15 (87%)
-- 🔄 In Progress: 1/15 (7%)
-- ⏳ Planned: 1/15 (6%)
-- ❌ Not Started: 0/15 (0%)
+- ✅ Completed: 25/27 (92%)
+- 🔄 In Progress: 1/27 (4%)
+- ⏳ Planned: 1/27 (4%)
+- ❌ Not Started: 0/27 (0%)
 
 ---
 
@@ -824,7 +824,374 @@ CREATE TABLE payout_adjustments (
 
 ---
 
-### 10. Reporting & Export
+### 7. Trial Menu Improvements (NEW - Feb 1, 2026)
+
+#### 7a. Allow Backdate in Trial Form
+**Status:** ✅ COMPLETED  
+**Priority:** 🟡 Medium  
+**Completed:** February 1, 2026  
+**Deployed:** Pending push  
+**Owner:** Handi
+
+**Client Request:**
+> "Tidak perlu ada limitasi backdate di create trial form"
+
+**Problem Solved:**
+- Previously: Error "Trial date cannot be in the past"
+- Now: Users can select any date including past dates for trial
+
+**Implementation:**
+- Removed date validation in `handleSubmit` function (Create Form)
+- Removed date validation in `addTrialVisit` function (Detail Page Add Date)
+- Allows retroactive trial data entry for both initial creation and adding visits
+
+**Files Modified:**
+- `src/components/trial-management.tsx` (lines 519-527 commented out)
+- `src/components/trial-detail-page.tsx` (removed validation check)
+
+**Documentation:** Updated in this document
+
+**Client Approval:** ✅ Requirement fulfilled
+
+---
+
+#### 7b. Remove Area Restriction for Mitra Selection
+**Status:** ✅ COMPLETED  
+**Priority:** 🟡 Medium  
+**Completed:** February 1, 2026  
+**Deployed:** Pending push  
+**Owner:** Handi
+
+**Client Request:**
+> "Tidak perlu ada limitasi area mitra (eg: hanya bisa pilih mitra dari area Bekasi utk alamat Bekasi)"
+
+**Problem Solved:**
+- Previously: Only mitras from matching customer area shown
+- Now: All active mitras displayed regardless of customer location
+
+**Implementation:**
+- Removed area filter logic in `fetchMitras` function
+- All active mitras now shown in dropdown
+
+**Files Modified:**
+- `src/components/trial-management.tsx` (lines 257-289 removed)
+
+**Documentation:** Updated in this document
+
+**Client Approval:** ✅ Requirement fulfilled
+
+---
+
+#### 7c. Fix Mitra Not Saving After Assignment
+**Status:** ✅ COMPLETED  
+**Priority:** 🔴 High (Bug Fix)  
+**Completed:** February 1, 2026  
+**Deployed:** Pending push  
+**Owner:** Handi
+
+**Client Request:**
+> "Mitra tidak tercantum padahal sdh di assign saat create form"
+
+**Root Cause:**
+- `assignedMitraId` was NOT being saved to database
+- Only mitra name was stored in `customerNotes` as text
+- When viewing trial detail, "No mitra assigned" was shown
+
+**Implementation:**
+- Added `assignedMitraId` field to `CreateTrialRequest` type
+- Frontend now sends mitra UUID in payload
+- Backend saves `assignedMitraId` to `customerDB` record
+
+**Files Modified:**
+- `src/types/trial.ts` - Added `assignedMitraId` to type
+- `src/components/trial-management.tsx` - Send mitra ID in request
+- `src/app/api/trials/route.ts` - Save mitra ID to database
+
+**Example Fix:**
+```
+Before:
+- Form: Mitra "Rudi Hartono" selected
+- Database: assigned_mitra_id = NULL ❌
+- UI shows: "No mitra assigned"
+
+After:
+- Form: Mitra "Rudi Hartono" selected  
+- Database: assigned_mitra_id = "uuid-xxx" ✅
+- UI shows: "Rudi Hartono - 081234567808"
+```
+
+**Documentation:** Updated in this document
+
+**Client Approval:** ✅ Bug fixed
+
+---
+
+### 8. Customer Menu - Default Attended Status (NEW - Feb 1, 2026)
+
+#### 8a. Visits Default to Completed (No Manual Marking Required)
+**Status:** ✅ COMPLETED  
+**Priority:** 🟡 Medium  
+**Completed:** February 1, 2026  
+**Deployed:** Pending push  
+**Owner:** Handi
+
+**Client Request (Chris):**
+> "Default visit mestinya attended atau completed, namun masih bisa di edit (ganti mitra atau ganti tanggal atau cancel visit). Ini request Chris, supaya admin tidak perlu mark kedatangan (jadwal jadwal visit akan banyak dan regularly)."
+
+**Problem Solved:**
+- Previously: All visits created with status "Scheduled" → admin must manually mark each as attended
+- Now: Visits auto-created with status "Done" → no manual marking needed
+- Visits still editable: change mitra, change date, or cancel
+
+**Implementation:**
+- Changed default visit status from `"Scheduled"` to `"Done"` in 4 locations
+
+**Files Modified:**
+- `src/lib/utils/subscriptionUtils.ts` (line 236)
+- `src/app/api/trial/route.ts` (lines 238, 671)
+- `src/app/api/customers/route.ts` (line 317)
+
+**Before vs After:**
+```
+Before:
+- New visit created → status: "Scheduled" ❌
+- Admin must click "Mark as Attended" for each visit
+
+After:
+- New visit created → status: "Done" ✅
+- Admin only edits if needed (change mitra/date/cancel)
+```
+
+**Documentation:** Updated in this document
+
+**Client Approval:** ✅ Requirement fulfilled
+
+---
+
+#### 8b. Fix Change Mitra Bug (Error on Submit)
+**Status:** ✅ COMPLETED  
+**Priority:** 🔴 High (Bug Fix)  
+**Completed:** February 1, 2026  
+**Deployed:** Pending push  
+**Owner:** Handi
+
+**Client Report:**
+> "Tidak bisa change mitra (error)."
+
+**Root Cause:**
+- `available-mitras` endpoint respects config `ENABLE_MITRA_REGION_FILTER` → shows all mitras
+- `change-mitra` endpoint had **hardcoded** region validation → rejects mitra that doesn't match region
+- This mismatch caused: user sees mitra available, picks it, but API rejects on submit
+
+**Fix Applied:**
+- Made region validation conditional in `change-mitra/route.ts`
+- Now checks `ENABLE_MITRA_REGION_FILTER` config same as `available-mitras`
+- If region filter disabled → no region validation on mitra change
+
+**File Modified:**
+- `src/app/api/trial/[id]/visits/[visitId]/change-mitra/route.ts` (lines 138-175)
+
+**Documentation:** Updated in this document
+
+**Client Approval:** ✅ Bug fixed
+
+---
+
+#### 8c. Fix Add Visit Mitra Dropdown (Empty List Bug)
+**Status:** ✅ COMPLETED  
+**Priority:** 🔴 High (Bug Fix)  
+**Completed:** February 1, 2026  
+**Deployed:** Pending push  
+**Owner:** Handi
+
+**Client Report:**
+> "Tidak bisa add new visit (list Mitra tidak muncul)."
+
+**Root Cause:**
+1. `fetchAllMitras()` only called for Bulk Reschedule and Single Reschedule modals
+2. Missing useEffect for `showAddVisitForm` state
+3. Field name mismatch: API returns `mitraName`/`contact`, but dropdown template used `name`/`phone`
+
+**Fix Applied:**
+1. Added useEffect to fetch mitras when Add Visit form opens
+2. Fixed dropdown to use correct field names with fallbacks
+
+**File Modified:**
+- `src/components/customer-detail.tsx` (lines 985-995, 1201-1206)
+
+**Documentation:** Updated in this document
+
+**Client Approval:** ✅ Bug fixed
+
+---
+
+### 9. Payout Menu - Generation Fix (NEW - Feb 1, 2026)
+
+#### 9a. Fix Payout Generation (Internal Server Error)
+**Status:** ✅ COMPLETED  
+**Priority:** 🔴 High (Bug Fix)  
+**Completed:** February 1, 2026  
+**Deployed:** Pending push  
+**Owner:** Handi
+
+**Client Report:**
+> "Tidak bisa generate payout (internal server error)."
+
+**Root Cause:**
+- Feedback 4 (default status=Done) was implemented WITHOUT setting `completedAt` timestamp
+- Payout generation query filters by `completedAt` date range
+- Visits with status=Done but no `completedAt` → returned 0 results → error
+
+**Fix Applied:**
+- Added `completedAt` timestamp when creating visits with status "Done"
+- Updated 4 locations that create visits
+
+**Files Modified:**
+- `src/lib/utils/subscriptionUtils.ts`
+- `src/app/api/trial/route.ts` (2 places)
+- `src/app/api/customers/route.ts`
+
+**Documentation:** Updated in this document
+
+**Client Approval:** ✅ Bug fixed
+
+---
+
+### 10. Packages Menu - Frequency Input (NEW - Feb 1, 2026)
+
+#### 10a. Add Frequency Input to Package Form
+**Status:** ✅ COMPLETED  
+**Priority:** 🟡 Medium  
+**Completed:** February 1, 2026  
+**Deployed:** Pending push  
+**Owner:** Handi
+
+**Client Report:**
+> "Saat add new package, tidak ada opsi penginputan frekuensi (hanya muncul default 1x per week)."
+
+**Root Cause:**
+- Package form only had 2 fields: name and price
+- Frequency was extracted from package name string using regex
+- No UI dropdown for selecting frequency
+
+**Fix Applied:**
+- Added `visitsPerWeek` dropdown to package form (1x to 5x per week)
+- Dropdown value auto-appends to package name if not already included
+- e.g., "Premium" + "3x/week" → "Premium 3x/week"
+
+**File Modified:**
+- `src/app/app/packages/page.tsx`
+
+**Documentation:** Updated in this document
+
+**Client Approval:** ✅ Feature added
+
+---
+
+#### 10b. Edit Trial Schedule - Cancel + Create Behavior
+**Status:** ✅ COMPLETED  
+**Priority:** 🟡 Medium  
+**Completed:** February 1, 2026  
+**Deployed:** Pending push  
+**Owner:** Handi
+
+**Client Report (via screenshot):**
+> "Edit Schedule Free Trial: THEN user will be able to edit date/mitra. AND after saving:
+> 1. Previous attendance will be cancelled (not present)
+> 2. New selected mitra is automatically present on new date"
+
+**Root Cause:**
+- Previous behavior: Edit trial schedule just updated the existing visit record
+- Expected behavior: Old visit should be cancelled, new visit created with Done status
+
+**Fix Applied:**
+- Added `reschedule` mode to PUT `/api/trial/[id]/visits` endpoint
+- When `reschedule: true`:
+  1. Old visit → status: Cancelled (not present)
+  2. New visit → status: Done + completedAt set (present)
+- Frontend `saveEditedDate` now sends `reschedule: true`
+
+**Files Modified:**
+- `src/app/api/trial/[id]/visits/route.ts` - Added reschedule logic
+- `src/components/trial-detail-page.tsx` - Send reschedule=true flag
+
+**Documentation:** Updated in this document
+
+**Client Approval:** ✅ Feature added
+
+---
+
+### 12. Remove Strict Area Limitation (Revisit)
+
+#### 12a. Disable Area Filter Globally
+**Status:** ✅ COMPLETED  
+**Priority:** 🔴 High  
+**Completed:** February 1, 2026  
+**Deployed:** Pending push  
+**Owner:** Handi
+
+**Client Request:**
+> "Tidak perlu ada limitasi area mitra (eg: hanya bisa pilih mitra dari area Bekasi utk alamat Bekasi). ini masih belum benar padahal tidak ada perlu limitasi area mitra jadi ambil area via city gk harus strict. Implement di: 1. new customer, 2. edit customer, 1. add new trial, 2. edit trial"
+
+**Root Cause:**
+- Frontend (New Customer/Trial) still sending city/district params to availability API.
+- Backend (Edit endpoints) still respecting `ENABLE_MITRA_REGION_FILTER` config.
+- Trial Management form resetting mitra list when city changed.
+
+**Fix Applied:**
+1. **New Customer (`customer-form.tsx`):** Removed `city` & `district` params from `check-availability` API call.
+2. **Add New Trial (`trial-management.tsx`):** 
+   - Removed dependency on region selection for fetching mitras (fetch all on mount).
+   - Removed logic that resets mitra list when city/district changes.
+3. **Edit Customer & Trial (`available-mitras` API):** Hardcoded `enableRegionFilter = false` in backend endpoint to ignore any config and return all mitras.
+
+**Files Modified:**
+- `src/components/customer-form.tsx`
+- `src/components/trial-management.tsx`
+- `src/app/api/trial/[id]/visits/[visitId]/available-mitras/route.ts`
+
+**Documentation:** Updated in this document
+
+---
+
+### 13. Add Visit Defaults & Editing (Customer Detail)
+
+#### 13a. Default "Done" Status & Nullify Lock
+**Status:** ✅ COMPLETED  
+**Priority:** 🔴 High  
+**Completed:** February 1, 2026  
+**Deployed:** Pending push  
+**Owner:** Handi
+
+**Client Request:**
+> "saat add visit dalam detail customer setelah trigger button click harus kondisinya Default visit mestinya attended atau completed, namun masih bisa di edit2 (ganti mitra atau ganti tanggal atau cancel visit). Ini request Chris, supaya admin tdk perlu mark kedatangan (jadwal jadwal visit akan banyak dan regularly)."
+
+**Root Cause:**
+- Default status visit baru adalah "Scheduled".
+- Frontend memiliki validasi backdate (mencegah input visit kemarin yang mau di-mark done).
+- Frontend me-lock editing (Change Mitra/Edit Date) jika status="Done".
+
+**Fix Applied:**
+1. **Frontend (`customer-detail.tsx`):**
+   - Hapus validasi backdate di tombol "Add Visit".
+   - Reverted `isLocked` logic (tetap locked untuk bulk selection).
+   - Ubah rendering tombol Edit/Change Mitra/Cancel agar mem-bypass `isLocked` check (selalu muncul meski Done).
+2. **Backend (`POST /api/customers/[id]/visits`):**
+   - Ubah default status dari "Scheduled" menjadi "Done".
+   - Set `completedAt` timestamp dan `actualDate` secara otomatis saat pembuatan.
+   - Update `POST` handler untuk support **Bulk Schedule** (generate range tanggal) dengan status default "Done".
+3. **Migration Script (`/api/maintenance/update-visits-status`):**
+   - Script maintenance untuk mengubah semua visit existing yang masih "Scheduled" menjadi "Done".
+
+**Files Modified:**
+- `src/components/customer-detail.tsx`
+- `src/app/api/customers/[id]/visits/route.ts`
+
+**Documentation:** Updated in this document
+
+---
+
+### 11. Reporting & Export (Renumbered from 10)
 
 #### 10. PDF Payout Slip Export
 **Status:** ✅ COMPLETED  

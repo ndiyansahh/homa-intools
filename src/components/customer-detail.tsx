@@ -521,7 +521,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           visitId: selectedVisitForReschedule.id,
-          status: 'Scheduled',
+          status: 'Done', // Feedback 13: Rescheduled visit should be Done by default
           scheduledDate: singleRescheduleDate,
           scheduledDay: dayName,
           actualMitraId: singleRescheduleMitra,
@@ -984,6 +984,16 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
     }
   }, [availableMitras, showGenerateSchedule, customer, visits]);
 
+  // Fetch mitras when Add Visit form opens (Feedback 6 - Bug Fix)
+  useEffect(() => {
+    if (showAddVisitForm) {
+      console.log('Add Visit form opened - fetching mitras...');
+      if (allMitras.length === 0) {
+        fetchAllMitras();
+      }
+    }
+  }, [showAddVisitForm]);
+
   // Single visit reschedule modal initialization
   useEffect(() => {
     if (showSingleRescheduleModal && selectedVisitForReschedule) {
@@ -1191,7 +1201,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                 <option value="">Select Mitra...</option>
                 {allMitras.map((mitra) => (
                   <option key={mitra.id} value={mitra.id}>
-                    {mitra.name} - {mitra.phone || 'No phone'}
+                    {mitra.mitraName || mitra.name} - {mitra.contact || mitra.phone || 'No contact'}
                   </option>
                 ))}
               </select>
@@ -1215,7 +1225,8 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                   return;
                 }
 
-                // Validate date is not in the past
+                // Validate date is not in the past - REMOVED per request (allow backdate & default to Done)
+                /*
                 const selectedDate = new Date(newVisitDate);
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
@@ -1224,6 +1235,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                   alert('Visit date cannot be in the past');
                   return;
                 }
+                */
 
                 try {
                   const response = await fetch(`/api/customers/${customerId}/visits`, {
@@ -1506,7 +1518,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                                       <span className={`text-sm ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-600'}`}>
                                         {visit.scheduledDate} ({visit.scheduledDay})
                                       </span>
-                                      {!isLocked && !isCancelled && (
+                                      {!isCancelled && (
                                         <button
                                           onClick={() => startEditingDate(visit)}
                                           className="text-xs text-indigo-600 hover:text-indigo-800"
@@ -1565,7 +1577,8 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                               </div>
 
                               <div className="flex flex-col items-end space-y-2 ml-4">
-                                {!isLocked && (
+                                {/* Allow editing/cancelling Done visits (Feedback 13/Chris) */}
+                                {true && (
                                   <div className="flex items-center space-x-2">
                                     {!isCancelled && (
                                       <button

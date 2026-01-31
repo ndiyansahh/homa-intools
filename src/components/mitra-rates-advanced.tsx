@@ -12,6 +12,7 @@ interface Mitra {
   status: string;
   monthlyBaseRate?: string;
   baseRate?: string;
+  subscriptionType?: string;
 }
 
 interface MitraRatesAdvancedProps {
@@ -204,11 +205,10 @@ export default function MitraRatesAdvanced({ session }: MitraRatesAdvancedProps)
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            mitra.status === 'Active'
+                          className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${mitra.status === 'Active'
                               ? 'bg-green-100 text-green-800'
                               : 'bg-gray-100 text-gray-800'
-                          }`}
+                            }`}
                         >
                           {mitra.status}
                         </span>

@@ -2,7 +2,7 @@
 
 **Project:** HOMA Internal Management System
 **Tech Stack:** Next.js 14 + TypeScript + Drizzle + Neon Postgres
-**Last Updated:** 2026-01-31
+**Last Updated:** 2026-02-01
 
 ---
 
@@ -73,20 +73,25 @@ Next.js 14 (App Router)
 
 ## 🎯 Current Focus
 
-**Sprint:** Sprint 5 (Feb 5-17, 2026)
-**Status:** ✅ Complete (100%)
+**Sprint:** Sprint 5 Hotfixes (Feb 1, 2026)
+**Status:** ✅ 8 Hotfixes Completed
 **Branch:** staging
 
-**Completed Work:**
-1. ✅ Trial form refactor (3a, 3b) - Done
-2. ✅ Bulk attendance actions (6a) - Done
-3. ✅ PDF payout slip (10) - Done
+**Today's Hotfixes (Feb 1, 2026):**
+1. ✅ 7a - Allow backdate in trial form
+2. ✅ 7b - Remove area restriction for mitra
+3. ✅ 7c - Fix mitra not saving after assignment
+4. ✅ 8a - Default visit status to "Done"
+5. ✅ 8b - Fix change mitra error
+6. ✅ 8c - Fix add visit mitra dropdown empty
+7. ✅ 9a - Fix payout generation error
+8. ✅ 10a - Add frequency input to package form
 
 **Next Steps:**
-- Deploy Sprint 5 to production
+- Deploy hotfixes to production
 - Sprint 6 Planning (Rate Config UI 8a)
 
-See: `docs/phases/current-sprint.md`
+See: `docs/clients/feedback-tracking.md`
 
 ---
 

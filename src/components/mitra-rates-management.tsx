@@ -11,6 +11,7 @@ interface Mitra {
   status: string;
   monthlyBaseRate: string;
   baseRate: string;
+  subscriptionType?: string;
 }
 
 interface MitraRatesManagementProps {
@@ -247,9 +248,8 @@ export default function MitraRatesManagement({ session }: MitraRatesManagementPr
                       <div className="text-sm text-gray-500">{mitra.mitraCode}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        mitra.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${mitra.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
                         {mitra.status}
                       </span>
                     </td>

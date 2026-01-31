@@ -1,9 +1,9 @@
 # HOMA API Documentation
 
-**Version:** 1.1  
+**Version:** 1.2  
 **Base URL:** `https://homa-intools.vercel.app/api` (Production)  
 **Base URL:** `http://localhost:3000/api` (Development)  
-**Last Updated:** January 31, 2026
+**Last Updated:** February 1, 2026
 
 ---
 
@@ -2048,14 +2048,21 @@ X-RateLimit-Reset: 1640995200
 - All core endpoints documented
 - Authentication, Customers, Visits, Attendance, Payouts
 
-### Version 1.1 (Sprint 5 - Planned Feb 17, 2026)
+### Version 1.1 (Sprint 5 - Feb 17, 2026)
 - New trial endpoints (single date, add date)
 - Bulk attendance endpoint
 - PDF export endpoint
 
-### Version 1.2 (Sprint 6 - Planned Mar 3, 2026)
+### Version 1.2 (Feb 1, 2026 Hotfix)
+- Trial: Backdate support, no area restriction, mitra ID saving
+- Customer: Default visit status "Done" with completedAt
+- Customer: Region filter respects config in change-mitra API
+- Payout: Fixed generation error (added completedAt to visits)
+- Packages: Added visitsPerWeek selection to form
+
+### Version 1.3 (Sprint 6 - Planned Mar 3, 2026)
 - Configurable packages endpoints
-- Same-day scheduling support
+- Rate config UI
 
 ---
 
@@ -2067,7 +2074,7 @@ X-RateLimit-Reset: 1640995200
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** February 7, 2026  
+**Document Version:** 1.2  
+**Last Updated:** February 1, 2026  
 **Maintained By:** Handi (Developer)  
 **API Version:** v1 (stable)

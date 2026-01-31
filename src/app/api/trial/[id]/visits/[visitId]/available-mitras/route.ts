@@ -93,7 +93,9 @@ export async function GET(
       .where(eq(mitraDB.status, 'Active'));
 
     // Check if region filter is enabled (Feedback 2a)
-    const enableRegionFilter = await getConfig(CONFIG_KEYS.ENABLE_MITRA_REGION_FILTER, false);
+    // Disabled per client feedback Feb 1 2026 - No strict area limitation
+    // const enableRegionFilter = await getConfig(CONFIG_KEYS.ENABLE_MITRA_REGION_FILTER, false);
+    const enableRegionFilter = false;
 
     // Filter mitras by region coverage (only if enabled)
     let regionFilteredMitras = allMitras;
@@ -173,11 +175,13 @@ export async function GET(
 
       return {
         id: mitra.id,
+        mitraId: mitra.id, // Alias for frontend compatibility
         mitraName: mitra.mitraName,
         mitraCode: mitra.mitraCode,
         contact: mitra.contact,
         currentHours,
         availableHours,
+        availableSlots: Math.floor(availableHours / 3), // Calculated slots (3 hours per slot)
         isAvailable,
       };
     });

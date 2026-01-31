@@ -137,22 +137,28 @@ export async function POST(
 
     const { id } = await params;
     const body = await request.json();
-    const { trialDate, mitraId } = body;
+    const { trialDate, mitraId, startDate, endDate, selectedDay } = body;
 
-    if (!trialDate || !mitraId) {
+    // Determine operation mode
+    const isSingleVisit = trialDate && mitraId;
+    const isBulkSchedule = startDate && selectedDay && mitraId;
+
+    if (!isSingleVisit && !isBulkSchedule) {
       return NextResponse.json(
-        { success: false, message: 'Trial date and mitra are required' },
+        { success: false, message: 'Invalid request. Provide trialDate for single visit, or startDate+selectedDay for bulk schedule.' },
         { status: 400 }
       );
     }
 
-    // Validate date format
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(trialDate)) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid date format. Use YYYY-MM-DD' },
-        { status: 400 }
-      );
+    if (isSingleVisit) {
+      // Validate date format
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(trialDate)) {
+        return NextResponse.json(
+          { success: false, message: 'Invalid date format. Use YYYY-MM-DD' },
+          { status: 400 }
+        );
+      }
     }
 
     // Get customer info
@@ -167,7 +173,7 @@ export async function POST(
 
     if (customer.length === 0) {
       return NextResponse.json(
-        { success: false, message: 'Trial customer not found' },
+        { success: false, message: 'Customer not found' },
         { status: 404 }
       );
     }
@@ -196,45 +202,109 @@ export async function POST(
       .from(visitDB)
       .where(eq(visitDB.customerId, id));
 
-    const maxVisitNumber = existingVisits.length > 0
+    let maxVisitNumber = existingVisits.length > 0
       ? Math.max(...existingVisits.map(v => v.visitNumber))
       : 0;
 
-    // Calculate the day name from the trial date
-    const trialDateObj = new Date(trialDate);
-    const dayName = trialDateObj.toLocaleDateString('en-US', { weekday: 'long' });
+    // HANDLE SINGLE VISIT (Trial/Manual Add)
+    if (isSingleVisit) {
+      // Calculate the day name from the trial date
+      const trialDateObj = new Date(trialDate);
+      const dayName = trialDateObj.toLocaleDateString('en-US', { weekday: 'long' });
 
-    // Create single visit record
-    const visitRecord = {
-      customerId: id,
-      mitraId: mitraId, // Kept for backward compatibility
-      originalMitraId: mitraId, // Track original assignment
-      actualMitraId: mitraId, // Initially same as original, can be changed later
-      visitNumber: maxVisitNumber + 1,
-      scheduledDate: trialDate,
-      scheduledDay: dayName,
-      status: 'Scheduled',
-      durationHours: 3, // Default 3 hours for trial
-    };
+      // Create single visit record
+      const visitRecord = {
+        customerId: id,
+        mitraId: mitraId,
+        originalMitraId: mitraId,
+        actualMitraId: mitraId,
+        visitNumber: maxVisitNumber + 1,
+        scheduledDate: trialDate,
+        scheduledDay: dayName,
+        status: 'Done', // Feedback 13: Default to Done even for manual add
+        completedAt: new Date(trialDate), // Auto-complete
+        durationHours: 3,
+      };
 
-    await db.insert(visitDB).values([visitRecord]);
+      await db.insert(visitDB).values([visitRecord]);
 
-    console.log(`✅ Created trial visit #${visitRecord.visitNumber} for ${customer[0].customerName} on ${trialDate} with ${mitra[0].mitraName}`);
+      console.log(`✅ Created single visit #${visitRecord.visitNumber} for ${customer[0].customerName} on ${trialDate}`);
 
-    return NextResponse.json({
-      success: true,
-      message: `Trial visit scheduled successfully for ${trialDate}`,
-      data: {
-        visit: visitRecord,
-        visitNumber: visitRecord.visitNumber,
-        mitraName: mitra[0].mitraName,
-      },
-    });
+      return NextResponse.json({
+        success: true,
+        message: `Visit scheduled successfully for ${trialDate}`,
+        data: {
+          visit: visitRecord,
+        },
+      });
+    }
+
+    // HANDLE BULK SCHEDULE (Feedback 13)
+    if (isBulkSchedule) {
+      console.log(`🔄 Generating bulk schedule for ${customer[0].customerName} from ${startDate}`);
+
+      const start = new Date(startDate);
+      const end = endDate
+        ? new Date(endDate)
+        : new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000); // Default 30 days
+
+      const visitDates: { date: Date; day: string }[] = [];
+      const currentDate = new Date(start);
+
+      while (currentDate <= end) {
+        const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
+        if (dayName === selectedDay) {
+          visitDates.push({
+            date: new Date(currentDate),
+            day: dayName
+          });
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      if (visitDates.length === 0) {
+        return NextResponse.json(
+          { success: false, message: `No ${selectedDay}s found in the selected date range.` },
+          { status: 400 }
+        );
+      }
+
+      const visitRecords = visitDates.map((visit, index) => ({
+        customerId: id,
+        mitraId: mitraId,
+        originalMitraId: mitraId,
+        actualMitraId: mitraId,
+        visitNumber: maxVisitNumber + index + 1,
+        scheduledDate: visit.date.toISOString().split('T')[0],
+        scheduledDay: visit.day,
+        status: 'Done', // Feedback 13: Default all generated visits to Done
+        completedAt: visit.date, // Auto-complete
+        durationHours: 3,
+      }));
+
+      await db.insert(visitDB).values(visitRecords);
+      console.log(`✅ Bulk created ${visitRecords.length} visits for ${customer[0].customerName}`);
+
+      return NextResponse.json({
+        success: true,
+        message: `Successfully scheduled ${visitRecords.length} visits`,
+        data: {
+          count: visitRecords.length,
+          visits: visitRecords
+        },
+      });
+    }
+
+    // Fallback return (should be unreachable due to initial check)
+    return NextResponse.json(
+      { success: false, message: 'Invalid request state' },
+      { status: 400 }
+    );
 
   } catch (error) {
-    console.error('Error creating trial visits:', error);
+    console.error('Error creating visits:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to create trial visits' },
+      { success: false, message: 'Failed to create visits' },
       { status: 500 }
     );
   }
@@ -261,8 +331,9 @@ export async function PUT(
       );
     }
 
+    const { id: customerId } = await params;
     const body = await request.json();
-    const { visitId, status, actualDate, visitNotes, scheduledDate, scheduledDay, actualMitraId } = body;
+    const { visitId, status, actualDate, visitNotes, scheduledDate, scheduledDay, actualMitraId, reschedule, newMitraId } = body;
 
     if (!visitId) {
       return NextResponse.json(
@@ -285,6 +356,92 @@ export async function PUT(
       );
     }
 
+    const oldVisitData = oldVisit[0];
+
+    // ============================================================
+    // RESCHEDULE MODE (Feedback Feb 1, 2026)
+    // When reschedule=true: Cancel old visit + Create new visit with status Done
+    // ============================================================
+    if (reschedule && scheduledDate) {
+      console.log(`🔄 Reschedule mode: Cancel old visit ${visitId} and create new visit`);
+
+      // 1. Cancel old visit (mark as Cancelled = "not present")
+      await db
+        .update(visitDB)
+        .set({
+          status: 'Cancelled',
+          visitNotes: `Rescheduled to ${scheduledDate}. ${oldVisitData.visitNotes || ''}`.trim(),
+          updatedAt: new Date(),
+          updatedBy: session.email,
+        })
+        .where(eq(visitDB.id, visitId));
+
+      console.log(`❌ Cancelled old visit ${visitId}`);
+
+      // 2. Get mitra info for new visit
+      const mitraIdForNewVisit = newMitraId || actualMitraId || oldVisitData.actualMitraId || oldVisitData.mitraId;
+
+      // 3. Get next visit number
+      const existingVisits = await db
+        .select()
+        .from(visitDB)
+        .where(eq(visitDB.customerId, customerId));
+
+      const maxVisitNumber = existingVisits.length > 0
+        ? Math.max(...existingVisits.map(v => v.visitNumber))
+        : 0;
+
+      // 4. Calculate day name from new date
+      const newDateObj = new Date(scheduledDate);
+      const dayName = newDateObj.toLocaleDateString('en-US', { weekday: 'long' });
+
+      // 5. Create new visit with status Done (considered as "present")
+      const newVisitRecord = {
+        customerId: customerId,
+        mitraId: mitraIdForNewVisit,
+        originalMitraId: mitraIdForNewVisit,
+        actualMitraId: mitraIdForNewVisit,
+        visitNumber: maxVisitNumber + 1,
+        scheduledDate: scheduledDate,
+        scheduledDay: dayName,
+        status: 'Done', // Auto-mark as present (Feedback 8a)
+        completedAt: new Date(), // Set completedAt for payout (Feedback 9a)
+        durationHours: oldVisitData.durationHours || 3,
+        visitNotes: `Rescheduled from visit #${oldVisitData.visitNumber} (${oldVisitData.scheduledDate})`,
+      };
+
+      const [newVisit] = await db.insert(visitDB).values([newVisitRecord]).returning();
+
+      console.log(`✅ Created new visit #${newVisitRecord.visitNumber} on ${scheduledDate} with status Done`);
+
+      // 6. Log audit for reschedule
+      await logDetailedAudit({
+        userId: session.userId,
+        userEmail: session.email,
+        action: 'RESCHEDULE_VISIT',
+        entityType: 'visit',
+        entityId: visitId,
+        oldValue: { visitId, scheduledDate: oldVisitData.scheduledDate, status: oldVisitData.status },
+        newValue: { newVisitId: newVisit.id, scheduledDate, status: 'Done' },
+        ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+        userAgent: request.headers.get('user-agent') || undefined,
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Visit rescheduled successfully. Old visit cancelled, new visit created for ${scheduledDate}`,
+        data: {
+          oldVisitId: visitId,
+          newVisitId: newVisit.id,
+          newVisitNumber: newVisitRecord.visitNumber,
+        },
+      });
+    }
+
+    // ============================================================
+    // NORMAL UPDATE MODE (existing behavior)
+    // ============================================================
+
     // Check if completed visits should be locked (Feedback 6b)
     const lockCompletedVisits = await getConfig(CONFIG_KEYS.LOCK_COMPLETED_VISITS, false);
 
@@ -299,8 +456,6 @@ export async function PUT(
     if (!lockCompletedVisits && oldVisit[0].status === 'Done') {
       console.log(`⚠️  Editing completed visit ${visitId} - lock is DISABLED (Feedback 6b)`);
     }
-
-    const oldVisitData = oldVisit[0];
 
     // Update visit
     const updateData: any = {
@@ -398,3 +553,4 @@ export async function PUT(
     );
   }
 }
+

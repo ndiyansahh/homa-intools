@@ -135,8 +135,12 @@ export async function POST(
 
     const customer = customerResult[0];
 
-    // Validate region match (if assignment data exists)
-    if (newMitra.mitraCityAssignment || newMitra.mitraLocationAssignment) {
+    // Check if region filter is enabled (Feedback 2a)
+    // This must match behavior in available-mitras endpoint
+    const enableRegionFilter = await getConfig(CONFIG_KEYS.ENABLE_MITRA_REGION_FILTER, false);
+
+    // Validate region match ONLY if region filter is enabled
+    if (enableRegionFilter && (newMitra.mitraCityAssignment || newMitra.mitraLocationAssignment)) {
       // Check city match first
       if (newMitra.mitraCityAssignment !== customer.city) {
         return NextResponse.json(
@@ -168,6 +172,8 @@ export async function POST(
           console.warn('Failed to parse mitra location assignment:', error);
         }
       }
+    } else if (!enableRegionFilter) {
+      console.log(`⚠️  Region filter DISABLED - Allowing mitra change without region validation`);
     }
 
     // Get current sequence number for this visit
@@ -178,7 +184,10 @@ export async function POST(
 
     const sequenceNumber = Number(historyCount[0]?.count || 0) + 1;
 
-    const fromMitraId = visit.actualMitraId || visit.originalMitraId;
+    const fromMitraId = visit.actualMitraId || visit.originalMitraId || visit.mitraId;
+
+    // Check if session.userId is a valid UUID (demo users might have string IDs)
+    const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(session.userId);
 
     // Create history record
     await db.insert(visitMitraChangeHistoryDB).values({
@@ -187,7 +196,7 @@ export async function POST(
       toMitraId: newMitraId,
       changeReason: reason.trim(),
       sequenceNumber: sequenceNumber,
-      changedBy: session.id,
+      changedBy: isValidUuid ? session.userId : null,
     });
 
     // Update visit actualMitraId
@@ -238,7 +247,12 @@ export async function POST(
   } catch (error) {
     console.error('Error changing mitra:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to change mitra' },
+      {
+        success: false,
+        message: 'Failed to change mitra',
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      },
       { status: 500 }
     );
   }

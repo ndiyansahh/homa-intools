@@ -394,16 +394,17 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
       return;
     }
 
-    // Validate date is not in the past
+    // Validate date is not in the past - REMOVED per feedback 7a (allow backdate)
+    /*
     const selectedDate = new Date(newTrialDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
+  
     if (selectedDate < today) {
       alert('Trial date cannot be in the past');
       return;
     }
-
+    */
     try {
       setLoadingVisits(true);
       const response = await fetch(`/api/trial/${trial.id}/visits`, {
@@ -541,21 +542,32 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
     }
 
     try {
+      // Use reschedule mode: cancel old visit + create new with Done status
+      // Per client requirement (Feb 1, 2026):
+      // - Old visit → Cancelled (not present)
+      // - New visit → Done (present automatically)
       const response = await fetch(`/api/trial/${trial.id}/visits`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           visitId,
           scheduledDate: editingDateValue,
+          reschedule: true, // Enable cancel + create new behavior
+          newMitraId: editingDateMitraId, // Pass new mitra if changed
         }),
       });
 
       if (response.ok) {
+        const result = await response.json();
         setEditingDateVisitId(null);
         setEditingDateValue('');
         setEditingDateMitraId(null);
         setShowAvailabilityWarning(false);
         await fetchTrialVisits();
+        // Show success message with details
+        if (result.data?.newVisitNumber) {
+          console.log(`✅ Rescheduled: Old visit cancelled, new visit #${result.data.newVisitNumber} created`);
+        }
       } else {
         const error = await response.json();
         alert(error.message || 'Failed to update date');
@@ -1060,227 +1072,227 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
           {/* Content - Copy from TrialDetailView component */}
           {showConversionForm ? (
             /* Conversion Form - Same as TrialDetailView */
-              <div className="space-y-6">
-                <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <Icons.check className="h-5 w-5 text-blue-400" />
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm text-blue-700">
-                        Converting <strong>{trial.customerName}</strong> from trial to active customer
-                      </p>
-                    </div>
+            <div className="space-y-6">
+              <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <Icons.check className="h-5 w-5 text-blue-400" />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Subscription Package *
-                    </label>
-                    <select
-                      value={selectedPackageId}
-                      onChange={(e) => {
-                        const pkgId = e.target.value;
-                        const pkg = subscriptionPackages.find(p => p.id === pkgId);
-                        setSelectedPackageId(pkgId);
-                        setSelectedPackage(pkg?.subscriptionPackage || '');
-                        // Reset days when package changes
-                        setSelectedDays({ day1: '', day2: '', day3: '' });
-                      }}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                      disabled={loadingPackages}
-                    >
-                      <option value="">
-                        {loadingPackages ? 'Loading packages...' : 'Select Package'}
-                      </option>
-                      {subscriptionPackages && subscriptionPackages.length > 0 ? (
-                        subscriptionPackages.map((pkg) => (
-                          <option key={pkg.id} value={pkg.id}>
-                            {pkg.subscriptionPackage} - Rp {parseInt(pkg.priceNumeric || 0).toLocaleString('id-ID')}
-                          </option>
-                        ))
-                      ) : (
-                        !loadingPackages && <option disabled>No packages available</option>
-                      )}
-                    </select>
-                    {loadingPackages && (
-                      <div className="text-xs text-blue-500 mt-1">Loading subscription packages...</div>
-                    )}
-                    {!loadingPackages && subscriptionPackages.length === 0 && (
-                      <div className="text-xs text-red-500 mt-1">No subscription packages found</div>
-                    )}
-                    {!loadingPackages && subscriptionPackages.length > 0 && (
-                      <div className="text-xs text-green-500 mt-1">{subscriptionPackages.length} packages available</div>
-                    )}
+                  <div className="ml-3">
+                    <p className="text-sm text-blue-700">
+                      Converting <strong>{trial.customerName}</strong> from trial to active customer
+                    </p>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Duration (Months) *
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={quantity}
-                      onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                      disabled={!selectedPackageId}
-                    />
-                    {!selectedPackageId && (
-                      <p className="text-xs text-gray-500 mt-1">Please select a package first</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Start Date *
-                    </label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                      disabled={!selectedPackageId}
-                    />
-                    {!selectedPackageId && (
-                      <p className="text-xs text-gray-500 mt-1">Please select a package first</p>
-                    )}
-                  </div>
-
-                  {/* Service Days Selection - Only show if package is selected */}
-                  {selectedPackageId && requiredVisitsPerWeek > 0 && (
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Select Service Days ({selectedDaysCount}/{requiredVisitsPerWeek} selected) *
-                      </label>
-                      <div className="grid grid-cols-3 gap-4">
-                        {[1, 2, 3].slice(0, requiredVisitsPerWeek).map((dayNum) => {
-                          const dayKey = `day${dayNum}` as 'day1' | 'day2' | 'day3';
-                          const currentValue = selectedDays[dayKey] || '';
-                          const isDisabled = dayNum > requiredVisitsPerWeek;
-
-                          return (
-                            <div key={dayKey}>
-                              <label className="block text-xs font-medium text-gray-600 mb-1">
-                                Day {dayNum} {dayNum <= requiredVisitsPerWeek ? '*' : ''}
-                              </label>
-                              <select
-                                value={currentValue}
-                                onChange={(e) => handleDayChange(dayKey, e.target.value)}
-                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                                required={dayNum <= requiredVisitsPerWeek}
-                                disabled={isDisabled}
-                              >
-                                <option value="">Select day...</option>
-                                {dayOptions.map((day) => (
-                                  <option key={day.value} value={day.value}>
-                                    {day.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {selectedDaysCount !== requiredVisitsPerWeek && (
-                        <p className="text-xs text-red-500 mt-1">
-                          Please select exactly {requiredVisitsPerWeek} days for this package
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Status message - show when days/date selected but mitra not checked yet */}
-                  {selectedPackageId && requiredVisitsPerWeek > 0 && (
-                    <div className="md:col-span-2">
-                      {selectedDaysCount < requiredVisitsPerWeek && startDate && (
-                        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
-                          <p className="text-sm text-yellow-700">
-                            ⚠️ Please select all {requiredVisitsPerWeek} service days to check mitra availability.
-                            Currently selected: {selectedDaysCount}/{requiredVisitsPerWeek}
-                          </p>
-                        </div>
-                      )}
-
-                      {selectedDaysCount === requiredVisitsPerWeek && !startDate && (
-                        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
-                          <p className="text-sm text-yellow-700">
-                            ⚠️ Please select start date to check mitra availability
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Mitra selection - Only show after days are selected */}
-                  {selectedPackageId && selectedDaysCount === requiredVisitsPerWeek && startDate && (
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Assigned Mitra (Optional)
-                      </label>
-                      <select
-                        value={selectedMitra || trial.assignedMitraId || ''}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                        disabled={loadingMitras || mitras.length === 0}
-                        onChange={(e) => setSelectedMitra(e.target.value)}
-                      >
-                        <option value="">
-                          {loadingMitras ? 'Checking availability...' : mitras.length === 0 ? 'No mitras available' : 'Select Mitra (Optional)'}
-                        </option>
-                        {mitras.map((mitra) => (
-                          <option key={mitra.id} value={mitra.id}>
-                            {mitra.name}
-                          </option>
-                        ))}
-                      </select>
-                      {loadingMitras && (
-                        <div className="text-xs text-blue-500 mt-1">
-                          <Icons.spinner className="inline w-3 h-3 mr-1 animate-spin" />
-                          Checking mitra availability for selected days and dates...
-                        </div>
-                      )}
-                      {!loadingMitras && mitras.length === 0 && (
-                        <div className="text-xs text-red-500 mt-1">
-                          No mitra available for all scheduled visits. You can assign a mitra later.
-                        </div>
-                      )}
-                      {!loadingMitras && mitras.length > 0 && (
-                        <div className="text-xs text-green-500 mt-1">
-                          ✅ {mitras.length} mitra(s) available for all scheduled visits
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {selectedPackage && selectedDaysCount > 0 && (
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        📅 Visit Preview
-                      </label>
-                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-indigo-500 rounded-md p-4">
-                        <div className="grid grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <p className="text-gray-600 font-medium">Total Sessions</p>
-                            <p className="text-2xl font-bold text-indigo-600">{visitPreview.totalSessions} visits</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-600 font-medium">Schedule</p>
-                            <p className="text-sm text-gray-900">{visitPreview.schedule}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-600 font-medium">Duration</p>
-                            <p className="text-sm text-gray-900">{visitPreview.duration}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
-            ) : (
-              isEditMode ? (
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Subscription Package *
+                  </label>
+                  <select
+                    value={selectedPackageId}
+                    onChange={(e) => {
+                      const pkgId = e.target.value;
+                      const pkg = subscriptionPackages.find(p => p.id === pkgId);
+                      setSelectedPackageId(pkgId);
+                      setSelectedPackage(pkg?.subscriptionPackage || '');
+                      // Reset days when package changes
+                      setSelectedDays({ day1: '', day2: '', day3: '' });
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    disabled={loadingPackages}
+                  >
+                    <option value="">
+                      {loadingPackages ? 'Loading packages...' : 'Select Package'}
+                    </option>
+                    {subscriptionPackages && subscriptionPackages.length > 0 ? (
+                      subscriptionPackages.map((pkg) => (
+                        <option key={pkg.id} value={pkg.id}>
+                          {pkg.subscriptionPackage} - Rp {parseInt(pkg.priceNumeric || 0).toLocaleString('id-ID')}
+                        </option>
+                      ))
+                    ) : (
+                      !loadingPackages && <option disabled>No packages available</option>
+                    )}
+                  </select>
+                  {loadingPackages && (
+                    <div className="text-xs text-blue-500 mt-1">Loading subscription packages...</div>
+                  )}
+                  {!loadingPackages && subscriptionPackages.length === 0 && (
+                    <div className="text-xs text-red-500 mt-1">No subscription packages found</div>
+                  )}
+                  {!loadingPackages && subscriptionPackages.length > 0 && (
+                    <div className="text-xs text-green-500 mt-1">{subscriptionPackages.length} packages available</div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Duration (Months) *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={quantity}
+                    onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    disabled={!selectedPackageId}
+                  />
+                  {!selectedPackageId && (
+                    <p className="text-xs text-gray-500 mt-1">Please select a package first</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Start Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    disabled={!selectedPackageId}
+                  />
+                  {!selectedPackageId && (
+                    <p className="text-xs text-gray-500 mt-1">Please select a package first</p>
+                  )}
+                </div>
+
+                {/* Service Days Selection - Only show if package is selected */}
+                {selectedPackageId && requiredVisitsPerWeek > 0 && (
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Service Days ({selectedDaysCount}/{requiredVisitsPerWeek} selected) *
+                    </label>
+                    <div className="grid grid-cols-3 gap-4">
+                      {[1, 2, 3].slice(0, requiredVisitsPerWeek).map((dayNum) => {
+                        const dayKey = `day${dayNum}` as 'day1' | 'day2' | 'day3';
+                        const currentValue = selectedDays[dayKey] || '';
+                        const isDisabled = dayNum > requiredVisitsPerWeek;
+
+                        return (
+                          <div key={dayKey}>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              Day {dayNum} {dayNum <= requiredVisitsPerWeek ? '*' : ''}
+                            </label>
+                            <select
+                              value={currentValue}
+                              onChange={(e) => handleDayChange(dayKey, e.target.value)}
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                              required={dayNum <= requiredVisitsPerWeek}
+                              disabled={isDisabled}
+                            >
+                              <option value="">Select day...</option>
+                              {dayOptions.map((day) => (
+                                <option key={day.value} value={day.value}>
+                                  {day.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {selectedDaysCount !== requiredVisitsPerWeek && (
+                      <p className="text-xs text-red-500 mt-1">
+                        Please select exactly {requiredVisitsPerWeek} days for this package
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Status message - show when days/date selected but mitra not checked yet */}
+                {selectedPackageId && requiredVisitsPerWeek > 0 && (
+                  <div className="md:col-span-2">
+                    {selectedDaysCount < requiredVisitsPerWeek && startDate && (
+                      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
+                        <p className="text-sm text-yellow-700">
+                          ⚠️ Please select all {requiredVisitsPerWeek} service days to check mitra availability.
+                          Currently selected: {selectedDaysCount}/{requiredVisitsPerWeek}
+                        </p>
+                      </div>
+                    )}
+
+                    {selectedDaysCount === requiredVisitsPerWeek && !startDate && (
+                      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
+                        <p className="text-sm text-yellow-700">
+                          ⚠️ Please select start date to check mitra availability
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Mitra selection - Only show after days are selected */}
+                {selectedPackageId && selectedDaysCount === requiredVisitsPerWeek && startDate && (
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Assigned Mitra (Optional)
+                    </label>
+                    <select
+                      value={selectedMitra || trial.assignedMitraId || ''}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                      disabled={loadingMitras || mitras.length === 0}
+                      onChange={(e) => setSelectedMitra(e.target.value)}
+                    >
+                      <option value="">
+                        {loadingMitras ? 'Checking availability...' : mitras.length === 0 ? 'No mitras available' : 'Select Mitra (Optional)'}
+                      </option>
+                      {mitras.map((mitra) => (
+                        <option key={mitra.id} value={mitra.id}>
+                          {mitra.name}
+                        </option>
+                      ))}
+                    </select>
+                    {loadingMitras && (
+                      <div className="text-xs text-blue-500 mt-1">
+                        <Icons.spinner className="inline w-3 h-3 mr-1 animate-spin" />
+                        Checking mitra availability for selected days and dates...
+                      </div>
+                    )}
+                    {!loadingMitras && mitras.length === 0 && (
+                      <div className="text-xs text-red-500 mt-1">
+                        No mitra available for all scheduled visits. You can assign a mitra later.
+                      </div>
+                    )}
+                    {!loadingMitras && mitras.length > 0 && (
+                      <div className="text-xs text-green-500 mt-1">
+                        ✅ {mitras.length} mitra(s) available for all scheduled visits
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {selectedPackage && selectedDaysCount > 0 && (
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      📅 Visit Preview
+                    </label>
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-indigo-500 rounded-md p-4">
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-600 font-medium">Total Sessions</p>
+                          <p className="text-2xl font-bold text-indigo-600">{visitPreview.totalSessions} visits</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600 font-medium">Schedule</p>
+                          <p className="text-sm text-gray-900">{visitPreview.schedule}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600 font-medium">Duration</p>
+                          <p className="text-sm text-gray-900">{visitPreview.duration}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            isEditMode ? (
               /* Edit Form */
               <div className="space-y-6">
                 {/* Customer Information */}
@@ -1677,13 +1689,12 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                                         )}
                                       </>
                                     )}
-                                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                      visit.status === 'Done'
-                                        ? 'bg-green-100 text-green-800'
-                                        : visit.status === 'Cancelled'
+                                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${visit.status === 'Done'
+                                      ? 'bg-green-100 text-green-800'
+                                      : visit.status === 'Cancelled'
                                         ? 'bg-red-100 text-red-800'
                                         : 'bg-yellow-100 text-yellow-800'
-                                    }`}>
+                                      }`}>
                                       {visit.status}
                                     </span>
                                   </div>
@@ -1779,226 +1790,225 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                 )}
               </div>
             ) : (
-            /* View Mode - Read Only */
-            <>
-            {/* Basic Information */}
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
-                Basic Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Customer Name</label>
-                  <div className="mt-1 text-sm text-gray-900">{trial.customerName}</div>
-                </div>
+              /* View Mode - Read Only */
+              <>
+                {/* Basic Information */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                    Basic Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Customer Name</label>
+                      <div className="mt-1 text-sm text-gray-900">{trial.customerName}</div>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Acquisition</label>
-                  <div className="mt-1">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${acquisitionColors[trial.acquisition]}`}>
-                      {trial.acquisition}
-                    </span>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Acquisition</label>
+                      <div className="mt-1">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${acquisitionColors[trial.acquisition]}`}>
+                          {trial.acquisition}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Contact</label>
+                      <div className="mt-1 text-sm text-gray-900">{trial.contact || '-'}</div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Residential Type</label>
+                      <div className="mt-1">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${residentialColors[trial.residentialType]}`}>
+                          {trial.residentialType}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Contact</label>
-                  <div className="mt-1 text-sm text-gray-900">{trial.contact || '-'}</div>
-                </div>
+                {/* Location Information */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                    Location Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700">Address</label>
+                      <div className="mt-1 text-sm text-gray-900">{trial.address || '-'}</div>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Residential Type</label>
-                  <div className="mt-1">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${residentialColors[trial.residentialType]}`}>
-                      {trial.residentialType}
-                    </span>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Village</label>
+                      <div className="mt-1 text-sm text-gray-900">{trial.village || '-'}</div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">District</label>
+                      <div className="mt-1 text-sm text-gray-900">{trial.district || '-'}</div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">City</label>
+                      <div className="mt-1 text-sm text-gray-900">{trial.city || '-'}</div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Postal Code</label>
+                      <div className="mt-1 text-sm text-gray-900">{trial.postalCode || '-'}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Location Information */}
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
-                Location Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700">Address</label>
-                  <div className="mt-1 text-sm text-gray-900">{trial.address || '-'}</div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Village</label>
-                  <div className="mt-1 text-sm text-gray-900">{trial.village || '-'}</div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">District</label>
-                  <div className="mt-1 text-sm text-gray-900">{trial.district || '-'}</div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">City</label>
-                  <div className="mt-1 text-sm text-gray-900">{trial.city || '-'}</div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Postal Code</label>
-                  <div className="mt-1 text-sm text-gray-900">{trial.postalCode || '-'}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Subscription Information */}
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
-                Subscription Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {trial.ltv !== undefined && trial.ltv > 0 && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">LTV (months)</label>
-                    <div className="mt-1 text-sm font-medium text-blue-600">{trial.ltv} months</div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Status Customer</label>
-                  <div className="mt-1">
-                    {trial.overallStatus ? (
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColors[trial.overallStatus]}`}>
-                        {trial.overallStatus}
-                      </span>
-                    ) : (
-                      <span className="text-sm text-gray-500">-</span>
+                {/* Subscription Information */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                    Subscription Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {trial.ltv !== undefined && trial.ltv > 0 && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">LTV (months)</label>
+                        <div className="mt-1 text-sm font-medium text-blue-600">{trial.ltv} months</div>
+                      </div>
                     )}
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Status Customer</label>
+                      <div className="mt-1">
+                        {trial.overallStatus ? (
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColors[trial.overallStatus]}`}>
+                            {trial.overallStatus}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-500">-</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Subscription Package</label>
+                      <div className="mt-1 text-sm text-gray-900">
+                        {trial.subscriptionPackage || '-'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Subscription Start Date</label>
+                      <div className="mt-1 text-sm text-gray-900">
+                        {(trial as any).subscriptionStartDate || '-'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Monthly Fee</label>
+                      <div className="mt-1 text-sm text-gray-900">
+                        Rp {(trial as any).monthlyFee?.toLocaleString('id-ID') || '0'}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Subscription Package</label>
-                  <div className="mt-1 text-sm text-gray-900">
-                    {trial.subscriptionPackage || '-'}
+                {/* Mitra Information */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                    Mitra Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Default Assigned Mitra</label>
+                      <div className="mt-1 text-sm text-gray-900">
+                        {trial.assignedCleaner || 'No mitra assigned'}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Initial mitra for visit schedule. Can be changed per visit.</p>
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Subscription Start Date</label>
-                  <div className="mt-1 text-sm text-gray-900">
-                    {(trial as any).subscriptionStartDate || '-'}
-                  </div>
-                </div>
+                  {/* Attendance Record - View Mode (Read Only) */}
+                  {trialVisits.length > 0 && (
+                    <div className="pt-6 border-t border-gray-200">
+                      <h4 className="text-md font-medium text-gray-900 mb-4">Attendance Record</h4>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <div className="space-y-3">
+                          {trialVisits.map((visit) => {
+                            const mitraChanged = visit.originalMitraId && visit.actualMitraId && visit.originalMitraId !== visit.actualMitraId;
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Monthly Fee</label>
-                  <div className="mt-1 text-sm text-gray-900">
-                    Rp {(trial as any).monthlyFee?.toLocaleString('id-ID') || '0'}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Mitra Information */}
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
-                Mitra Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Default Assigned Mitra</label>
-                  <div className="mt-1 text-sm text-gray-900">
-                    {trial.assignedCleaner || 'No mitra assigned'}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">Initial mitra for visit schedule. Can be changed per visit.</p>
-                </div>
-              </div>
-
-              {/* Attendance Record - View Mode (Read Only) */}
-              {trialVisits.length > 0 && (
-                <div className="pt-6 border-t border-gray-200">
-                  <h4 className="text-md font-medium text-gray-900 mb-4">Attendance Record</h4>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="space-y-3">
-                  {trialVisits.map((visit) => {
-                    const mitraChanged = visit.originalMitraId && visit.actualMitraId && visit.originalMitraId !== visit.actualMitraId;
-
-                    return (
-                      <div key={visit.id} className="bg-white p-4 rounded border border-gray-200">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3 mb-2">
-                              <span className="text-sm font-medium text-gray-900">
-                                Visit #{visit.visitNumber}
-                              </span>
-                              <span className="text-sm text-gray-600">
-                                {visit.scheduledDate} ({visit.scheduledDay})
-                              </span>
-                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                visit.status === 'Done'
-                                  ? 'bg-green-100 text-green-800'
-                                  : visit.status === 'Cancelled'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-yellow-100 text-yellow-800'
-                              }`}>
-                                {visit.status}
-                              </span>
-                            </div>
-
-                            <div className="space-y-1">
-                              <div className="flex items-center space-x-2 text-sm">
-                                <span className="text-gray-600">👤 Mitra:</span>
-                                <span className="font-medium text-gray-900">
-                                  {visit.mitraName || 'Not assigned'}
-                                </span>
-                                {mitraChanged && (
-                                  <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
-                                    Changed
-                                  </span>
-                                )}
-                              </div>
-
-                              {visit.actualDate && (
-                                <div className="text-xs text-gray-500 space-y-0.5">
-                                  <div>✓ Completed on: {visit.actualDate}</div>
-                                  {visit.updatedBy && (
-                                    <div className="text-gray-400">
-                                      Updated by: {visit.updatedBy}
+                            return (
+                              <div key={visit.id} className="bg-white p-4 rounded border border-gray-200">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center space-x-3 mb-2">
+                                      <span className="text-sm font-medium text-gray-900">
+                                        Visit #{visit.visitNumber}
+                                      </span>
+                                      <span className="text-sm text-gray-600">
+                                        {visit.scheduledDate} ({visit.scheduledDay})
+                                      </span>
+                                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${visit.status === 'Done'
+                                        ? 'bg-green-100 text-green-800'
+                                        : visit.status === 'Cancelled'
+                                          ? 'bg-red-100 text-red-800'
+                                          : 'bg-yellow-100 text-yellow-800'
+                                        }`}>
+                                        {visit.status}
+                                      </span>
                                     </div>
-                                  )}
-                                </div>
-                              )}
 
-                              {visit.visitNotes && (
-                                <div className="text-xs text-gray-600 mt-2">
-                                  <span className="font-medium">Notes:</span> {visit.visitNotes}
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                                    <div className="space-y-1">
+                                      <div className="flex items-center space-x-2 text-sm">
+                                        <span className="text-gray-600">👤 Mitra:</span>
+                                        <span className="font-medium text-gray-900">
+                                          {visit.mitraName || 'Not assigned'}
+                                        </span>
+                                        {mitraChanged && (
+                                          <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                                            Changed
+                                          </span>
+                                        )}
+                                      </div>
 
-                          <div className="flex flex-col items-end space-y-2 ml-4">
-                            {mitraChanged && (
-                              <button
-                                onClick={() => openHistoryModal(visit)}
-                                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                              >
-                                📋 View Change History
-                              </button>
-                            )}
-                          </div>
+                                      {visit.actualDate && (
+                                        <div className="text-xs text-gray-500 space-y-0.5">
+                                          <div>✓ Completed on: {visit.actualDate}</div>
+                                          {visit.updatedBy && (
+                                            <div className="text-gray-400">
+                                              Updated by: {visit.updatedBy}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+
+                                      {visit.visitNotes && (
+                                        <div className="text-xs text-gray-600 mt-2">
+                                          <span className="font-medium">Notes:</span> {visit.visitNotes}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex flex-col items-end space-y-2 ml-4">
+                                    {mitraChanged && (
+                                      <button
+                                        onClick={() => openHistoryModal(visit)}
+                                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                      >
+                                        📋 View Change History
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
-                    );
-                  })}
+                    </div>
+                  )}
                 </div>
-              </div>
-                </div>
-              )}
-            </div>
-          </>
-          )
-        )}
+              </>
+            )
+          )}
         </div>
       </div>
 

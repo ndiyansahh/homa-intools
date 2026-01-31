@@ -52,6 +52,7 @@ export interface CreateTrialRequest {
     trialStart: string; // dd/mm/yyyy format
     trialEnd?: string; // dd/mm/yyyy format - optional for ongoing trials
     assignedCleaner: string;
+    assignedMitraId?: string; // UUID of the assigned mitra
     status?: TrialStatus;
     reasonForNotConverting?: string;
   }[];

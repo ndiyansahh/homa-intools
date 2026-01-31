@@ -314,7 +314,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             visitNumber: index + 1,
             scheduledDate: visit.date.toISOString().split('T')[0],
             scheduledDay: visit.day,
-            status: 'Scheduled',
+            status: 'Done', // Feedback 4: Auto-attended so admin doesn't need to mark
+            completedAt: visit.date, // For payout calculation
             durationHours: 3,
           }));
 

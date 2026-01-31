@@ -1,30 +1,44 @@
 # 01 - Active Context (Master File)
 
-**Last Updated:** 2026-01-31 03:04 WIB
-**Current Sprint:** Sprint 5 (Feb 5-17, 2026)
-**Status:** ✅ Complete
+**Last Updated:** 2026-02-01 02:45 WIB
+**Current Sprint:** Sprint 5 Hotfixes (Feb 1, 2026)
+**Status:** ✅ 8 Hotfixes Completed
 **Progress:** 100%
 
 ---
 
-## 🎯 CURRENT STATUS (Jan 30, 2026)
+## 🎯 CURRENT STATUS (Feb 1, 2026)
 
-### Sprint 5 - ✅ COMPLETED
+### Sprint 5 Hotfixes - ✅ COMPLETED (8 items)
 
-| Item | Description | Status |
-|------|-------------|--------|
-| 3a/3b | Trial Form Refactor | ✅ Done |
-| 6a | Bulk Attendance Actions | ✅ Done |
-| 10 | PDF Payout Slip Export | ✅ Done |
+| Item | Description | Menu | Status |
+|------|-------------|------|--------|
+| 7a | Allow backdate in trial form | Trial | ✅ Done |
+| 7b | Remove area restriction for mitra | Trial | ✅ Done |
+| 7c | Fix mitra not saving after assignment | Trial | ✅ Done |
+| 8a | Default visit status to "Done" | Customer | ✅ Done |
+| 8b | Fix change mitra error | Customer | ✅ Done |
+| 8c | Fix add visit mitra dropdown empty | Customer | ✅ Done |
+| 9a | Fix payout generation error | Payout | ✅ Done |
+| 10a | Add frequency input to package form | Packages | ✅ Done |
 
-# ## Additional Items Completed This Session
+### Files Modified Today (Feb 1, 2026)
+```
+# Trial Menu
+src/components/trial-management.tsx      # Backdate, area filter, mitra saving
+src/types/trial.ts                        # Added assignedMitraId
+src/app/api/trials/route.ts               # Save mitra ID
 
-| Item | Description | Status |
-|------|-------------|--------|
-| 4a | Configurable Packages | ✅ Already existed |
-| 5a | Same-Day Multiple Visits | ✅ Done (previous session) |
-| 7a | Invoice ID in Lists | ✅ Done |
-| ADR 0002 | JWT Auth System | ✅ Done |
+# Customer Menu  
+src/lib/utils/subscriptionUtils.ts        # Default Done + completedAt
+src/app/api/trial/route.ts                # Default Done + completedAt (2x)
+src/app/api/customers/route.ts            # Default Done + completedAt
+src/app/api/trial/[id]/visits/[visitId]/change-mitra/route.ts  # Region check fix
+src/components/customer-detail.tsx        # Add visit mitra fetch fix
+
+# Packages Menu
+src/app/app/packages/page.tsx             # Added frequency dropdown
+```
 
 ---
 
@@ -66,14 +80,14 @@ src/components/payout-management.tsx       # Added PDF button
 
 ## 📊 Project Status Dashboard
 
-### Client Feedback Progress (Jan 3 Meeting)
+### Client Feedback Progress (Jan 3 Meeting + Feb 1 Hotfixes)
 ```
-✅ Completed:  13/15 items (87%)
-🔄 In Progress: 1/15 items (7%)
-⏳ Planned:    1/15 items (6%)
+✅ Completed:  21/23 items (91%)
+🔄 In Progress: 1/23 items (4%)
+⏳ Planned:    1/23 items (4%)
 ```
 
-**Completed Items:** 1a, 1b, 1c, 2a, 2b, 3a, 3b, 4a, 5a, 6a, 7a, 9, 10
+**Completed Items:** 1a, 1b, 1c, 2a, 2b, 3a, 3b, 4a, 5a, 6a, 7a-7c, 8a-8c, 9a, 10a, 10
 **In Progress:** 8a (Rate Config UI)
 **Planned:** 8b (Adjustment Mechanism)
 
@@ -198,15 +212,16 @@ STAFF:  Read-only access
 
 ## 📝 Quick Notes
 
+- **Feb 1, 2026: 8 hotfixes completed for Trial/Customer/Payout/Packages menus**
 - Sprint 5 completed Jan 30, 2026
-- **JWT Auth (ADR 0002) implemented Jan 31** - lockout, force password change, RBAC
+- JWT Auth (ADR 0002) implemented Jan 31
 - PDF Payout Slip implemented (template received from client)
 - Logo replaceable at `/public/images/homa-logo.png`
-- All Sprint 5 items ready for staging verification
+- All hotfixes ready for staging verification
 - Next client demo: Feb 17, 2026
 
 ---
 
 **This is the MASTER file. Update daily during active sprints.**
 **Everything else is referenced from here.**
-**Last updated by: AI Assistant @ 2026-01-31 03:04 WIB**
+**Last updated by: AI Assistant @ 2026-02-01 02:45 WIB**

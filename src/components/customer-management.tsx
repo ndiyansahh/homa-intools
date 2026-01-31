@@ -119,10 +119,7 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
         {/* Add Customer Button */}
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Customer Database</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Manage customer subscriptions and track customer lifecycle
-            </p>
+
           </div>
           <button
             onClick={() => setShowForm(true)}

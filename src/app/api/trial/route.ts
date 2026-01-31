@@ -60,7 +60,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Validate required fields
     const requiredFields: (keyof CreateTrialRequest)[] = [
       'customer_name',
-      'contact', 
+      'contact',
       'address',
       'city_id',
       'district_id',
@@ -68,15 +68,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       'postal_code'
     ];
 
-    const missingFields = requiredFields.filter(field => 
+    const missingFields = requiredFields.filter(field =>
       !body[field] || (typeof body[field] === 'string' && !body[field].trim())
     );
 
     if (missingFields.length > 0) {
       return NextResponse.json(
-        { 
-          success: false, 
-          message: `Missing required fields: ${missingFields.join(', ')}` 
+        {
+          success: false,
+          message: `Missing required fields: ${missingFields.join(', ')}`
         },
         { status: 400 }
       );
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           );
         }
       }
-      
+
       // Region IDs from cascading dropdowns are actually the names themselves
       // Cities API returns { id: cityName, name: cityName }
       // Districts API returns { id: districtName, name: districtName }
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const cityName = body.city_id;
       const districtName = body.district_id;
       const villageName = body.village_id;
-      
+
       console.log('Trial customer data:', {
         input: { city_id: body.city_id, district_id: body.district_id, village_id: body.village_id },
         saving: { cityName, districtName, villageName }
@@ -235,7 +235,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             visitNumber: 1,
             scheduledDate: body.trial_date, // Use the trial date directly
             scheduledDay: dayName,
-            status: 'Scheduled',
+            status: 'Done', // Feedback 4: Auto-attended so admin doesn't need to mark
+            completedAt: trialDate, // For payout calculation
             durationHours: 3, // Default 3 hours for trial
           };
 
@@ -306,7 +307,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         severity: dbError.severity,
         stack: dbError.stack
       });
-      
+
       // Handle specific database errors
       if (dbError.code === '23505') { // PostgreSQL unique constraint violation
         return NextResponse.json(
@@ -314,7 +315,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           { status: 409 }
         );
       }
-      
+
       if (dbError.code === '23503') { // PostgreSQL foreign key constraint violation
         if (dbError.message?.includes('mitra_id')) {
           return NextResponse.json(
@@ -327,7 +328,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           { status: 400 }
         );
       }
-      
+
       // Handle custom error messages from transaction
       if (dbError.message?.includes('Mitra with ID')) {
         return NextResponse.json(
@@ -335,10 +336,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           { status: 400 }
         );
       }
-      
+
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           message: 'Failed to create trial customer - database error',
           error: process.env.NODE_ENV === 'development' ? dbError.message : undefined,
           details: process.env.NODE_ENV === 'development' ? {
@@ -354,8 +355,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch (error) {
     console.error('Trial customer creation API error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'Internal server error',
         error: process.env.NODE_ENV === 'development' ? String(error) : undefined
       },
@@ -469,50 +470,50 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
             .from(mitraDB)
             .where(eq(mitraDB.id, body.assigned_mitra))
             .limit(1);
-          
+
           if (mitraResult.length === 0) {
             throw new Error('Assigned mitra not found');
           }
-          
+
           if (mitraResult[0].status !== 'Active') {
             throw new Error('Assigned mitra is not active');
           }
-          
+
           assignedMitraId = body.assigned_mitra;
         }
 
         // 3. Prepare update data
         const updateData: any = {};
-        
+
         if (body.start_date) {
           updateData.subscriptionStart = body.start_date;
         }
-        
+
         if (body.end_date) {
           updateData.subscriptionEnd = body.end_date;
         }
-        
+
         if (assignedMitraId !== customer.assignedMitraId) {
           updateData.assignedMitraId = assignedMitraId;
         }
-        
+
         if (body.subscription_status) {
           updateData.subscriptionStatus = body.subscription_status;
         }
-        
+
         if (body.notes !== undefined) {
           updateData.customerNotes = body.notes;
         }
-        
+
         if (body.subscription_package) {
           updateData.subscriptionPackage = body.subscription_package;
         }
-        
+
         // Comment out until DB migration
         // if (body.total_sessions !== undefined) {
         //   updateData.totalSessions = body.total_sessions;
         // }
-        
+
         // if (body.chosen_days !== undefined) {
         //   updateData.chosenDays = JSON.stringify(body.chosen_days); // Store as JSON string
         // }
@@ -520,7 +521,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
         // Handle customer conversion logic
         if (body.convert_to_customer && body.subscription_package) {
           console.log('Converting trial to customer with package:', body.subscription_package);
-          
+
           // Fetch subscription package data for accurate pricing
           const packageResult = await tx
             .select()
@@ -553,18 +554,18 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
           updateData.monthlyFee = monthlyFee.toString();
           updateData.subscriptionPackageId = subscriptionPackageId; // Link to subscription package
           updateData.subscriptionStatus = 'Active'; // Set as active customer
-          
+
           // Set subscription dates and calculate LTV
           if (body.start_date) {
             updateData.subscriptionStart = body.start_date;
-            
+
             // Calculate subscription end date based on quantity (1 qty = 1 month)
             const quantity = body.qty_package || 1;
             const startDate = new Date(body.start_date);
             const endDate = new Date(startDate);
             endDate.setMonth(endDate.getMonth() + quantity);
             updateData.subscriptionEnd = endDate.toISOString().split('T')[0];
-            
+
             // Set LTV based on quantity (1 qty = 1 month)
             updateData.ltv = quantity;
             console.log('Calculated LTV for trial conversion (quantity-based):', updateData.ltv, 'months');
@@ -574,7 +575,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
           if (body.total_sessions !== undefined) {
             updateData.totalSessions = body.total_sessions;
           }
-          
+
           if (body.chosen_days !== undefined && Array.isArray(body.chosen_days)) {
             updateData.chosenDays = JSON.stringify(body.chosen_days); // Store as JSON string
           }
@@ -668,7 +669,8 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
                 visitNumber: maxVisitNumber + index + 1,
                 scheduledDate: visit.date.toISOString().split('T')[0],
                 scheduledDay: visit.day,
-                status: 'Scheduled',
+                status: 'Done', // Feedback 4: Auto-attended so admin doesn't need to mark
+                completedAt: visit.date, // For payout calculation
                 durationHours: 3, // Default 3 hours
               }));
 
@@ -727,7 +729,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
         constraint: dbError.constraint,
         severity: dbError.severity,
       });
-      
+
       // Handle specific database errors
       if (dbError.code === '23503') { // PostgreSQL foreign key constraint violation
         if (dbError.message?.includes('mitra_id')) {
@@ -741,7 +743,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
           { status: 400 }
         );
       }
-      
+
       // Handle custom error messages from transaction
       if (dbError.message?.includes('Customer not found')) {
         return NextResponse.json(
@@ -749,17 +751,17 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
           { status: 404 }
         );
       }
-      
+
       if (dbError.message?.includes('mitra')) {
         return NextResponse.json(
           { success: false, message: dbError.message },
           { status: 400 }
         );
       }
-      
+
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           message: 'Failed to update trial customer - database error',
           error: process.env.NODE_ENV === 'development' ? dbError.message : undefined,
           details: process.env.NODE_ENV === 'development' ? {
@@ -775,8 +777,8 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
   } catch (error) {
     console.error('Trial customer update API error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'Internal server error',
         error: process.env.NODE_ENV === 'development' ? String(error) : undefined
       },

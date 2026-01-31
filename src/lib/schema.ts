@@ -126,6 +126,10 @@ export const mitraDB = pgTable('mitra_db', {
   mitraExitDate: varchar('mitra_exit_date', { length: 10 }), // dd/mm/yyyy format
   mitraBonusCommission: varchar('mitra_bonus_commission', { length: 20 }).default('Eligible'), // Eligible, Not Eligible
 
+  // Subscription type and bonus rate (NEW - for dynamic pricing)
+  subscriptionType: varchar('subscription_type', { length: 20 }).default('Regular'), // Basic, Regular, Frequent
+  bonusRate: decimal('bonus_rate', { precision: 10, scale: 2 }).default('0'), // Bonus rate in IDR (only when bonus eligible)
+
   // Legacy mitra details (keeping for backward compatibility)
   mitraType: varchar('mitra_type', { length: 20 }).notNull().default('Cleaner'),
   status: varchar('status', { length: 20 }).default('Active'),

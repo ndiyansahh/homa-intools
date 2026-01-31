@@ -12,7 +12,7 @@ function calculateLTV(trialStart: string, trialEnd?: string): number {
     // Parse dd/mm/yyyy format
     const [startDay, startMonth, startYear] = trialStart.split('/').map(Number);
     const startDate = new Date(startYear, startMonth - 1, startDay);
-    
+
     let endDate: Date;
     if (trialEnd) {
       const [endDay, endMonth, endYear] = trialEnd.split('/').map(Number);
@@ -20,19 +20,19 @@ function calculateLTV(trialStart: string, trialEnd?: string): number {
     } else {
       endDate = new Date(); // Today's date
     }
-    
+
     // Calculate difference in months
     const yearDiff = endDate.getFullYear() - startDate.getFullYear();
     const monthDiff = endDate.getMonth() - startDate.getMonth();
     const dayDiff = endDate.getDate() - startDate.getDate();
-    
+
     let totalMonths = yearDiff * 12 + monthDiff;
-    
+
     // If end day is before start day, subtract a month
     if (dayDiff < 0) {
       totalMonths -= 1;
     }
-    
+
     return Math.max(0, totalMonths);
   } catch (error) {
     console.error('Error calculating LTV:', error);
@@ -175,6 +175,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         subscriptionEnd: trialEndDate ? trialEndDate.toISOString().split('T')[0] : null,
         subscriptionStatus: 'Trial',
         monthlyFee: '0', // Free trial
+        // Save assigned mitra ID if provided (fixes bug: mitra not showing after creation)
+        assignedMitraId: firstAssignment.assignedMitraId || null,
         customerNotes: `${body.notes || ''} - ${body.acquisition} acquisition - Residential: ${body.residentialType} - Assigned cleaner: ${firstAssignment.assignedCleaner}`,
         isDeleted: false,
       };
@@ -229,10 +231,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         severity: dbError.severity,
         stack: dbError.stack
       });
-      
+
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           message: 'Failed to create trial - database error',
           error: process.env.NODE_ENV === 'development' ? dbError.message : undefined,
           details: process.env.NODE_ENV === 'development' ? {
@@ -324,7 +326,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         .select({ count: count() })
         .from(customerDB)
         .where(whereClause);
-      
+
       total = countResult[0]?.count || 0;
 
       // Get trial customers with LEFT JOIN to mitraDB for cleaner information
@@ -353,13 +355,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         .offset(offset);
 
       console.log('Drizzle query successful, found', trialCustomers.length, 'results');
-      
+
       // Convert customer data to trial list format
       trials = trialCustomers.map((customer) => {
         // Determine acquisition from customer notes
-        const acquisition: 'HOMA' | 'Altrix' = 
+        const acquisition: 'HOMA' | 'Altrix' =
           customer.customerNotes?.toLowerCase().includes('altrix') ? 'Altrix' : 'HOMA';
-        
+
         // Infer residential type from subscription package or address (database column not yet migrated)
         let residentialType: 'House' | 'Office Space' | 'Apartment' = 'House';
         if ((customer as any).subscriptionPackage?.toLowerCase().includes('office')) {
@@ -425,7 +427,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         column: (dbError as any)?.column,
         stack: (dbError as any)?.stack
       });
-      
+
       // Return empty results with friendly message
       return NextResponse.json({
         success: true,

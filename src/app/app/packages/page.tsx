@@ -24,6 +24,7 @@ export default function PackageManagementPage() {
   // Form states
   const [packageName, setPackageName] = useState('');
   const [price, setPrice] = useState('');
+  const [visitsPerWeek, setVisitsPerWeek] = useState('1'); // Default 1x per week
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -57,8 +58,8 @@ export default function PackageManagementPage() {
     }
 
     const priceNum = parseFloat(price);
-    if (isNaN(priceNum) || priceNum <= 0) {
-      alert('Please enter a valid positive price');
+    if (isNaN(priceNum) || priceNum < 0) {
+      alert('Please enter a valid price (cannot be negative)');
       return;
     }
 
@@ -68,11 +69,18 @@ export default function PackageManagementPage() {
       const url = editingPackage ? `/api/packages/${editingPackage.id}` : '/api/packages';
       const method = editingPackage ? 'PUT' : 'POST';
 
+      // Combine package name with frequency if not already included
+      let finalPackageName = packageName.trim();
+      const freqPattern = /\d+x\/week|\d+x per week/i;
+      if (!freqPattern.test(finalPackageName)) {
+        finalPackageName = `${finalPackageName} ${visitsPerWeek}x/week`;
+      }
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          packageName: packageName.trim(),
+          packageName: finalPackageName,
           price: priceNum,
         }),
       });
@@ -97,6 +105,7 @@ export default function PackageManagementPage() {
     setEditingPackage(pkg);
     setPackageName(pkg.subscriptionPackage);
     setPrice(pkg.priceNumeric.toString());
+    setVisitsPerWeek(pkg.visitsPerWeek?.toString() || '1');
     setShowAddForm(true);
   };
 
@@ -129,6 +138,7 @@ export default function PackageManagementPage() {
   const resetForm = () => {
     setPackageName('');
     setPrice('');
+    setVisitsPerWeek('1');
     setEditingPackage(null);
     setShowAddForm(false);
   };
@@ -205,6 +215,27 @@ export default function PackageManagementPage() {
                     Display: Rp {parseFloat(price).toLocaleString('id-ID')}
                   </p>
                 )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Visits per Week *
+                </label>
+                <select
+                  value={visitsPerWeek}
+                  onChange={(e) => setVisitsPerWeek(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                  required
+                >
+                  <option value="1">1x per week</option>
+                  <option value="2">2x per week</option>
+                  <option value="3">3x per week</option>
+                  <option value="4">4x per week</option>
+                  <option value="5">5x per week</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  This will be appended to package name if not already included
+                </p>
               </div>
             </div>
 
