@@ -35,7 +35,7 @@ export default function PackageManagementPage() {
   const fetchPackages = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/packages');
+      const response = await fetch('/api/packages', { cache: 'no-store' });
       if (response.ok) {
         const result = await response.json();
         setPackages(result.data || []);
@@ -69,18 +69,11 @@ export default function PackageManagementPage() {
       const url = editingPackage ? `/api/packages/${editingPackage.id}` : '/api/packages';
       const method = editingPackage ? 'PUT' : 'POST';
 
-      // Combine package name with frequency if not already included
-      let finalPackageName = packageName.trim();
-      const freqPattern = /\d+x\/week|\d+x per week/i;
-      if (!freqPattern.test(finalPackageName)) {
-        finalPackageName = `${finalPackageName} ${visitsPerWeek}x/week`;
-      }
-
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          packageName: finalPackageName,
+          packageName: packageName.trim(),
           price: priceNum,
         }),
       });
@@ -171,101 +164,131 @@ export default function PackageManagementPage() {
         </button>
       </div>
 
-      {/* Add/Edit Form */}
+      {/* Add/Edit Form Modal */}
       {showAddForm && (
-        <div className="card p-6 mb-6 bg-blue-50 border-blue-200">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            {editingPackage ? 'Edit Package' : 'Add New Package'}
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Package Name *
-                </label>
-                <input
-                  type="text"
-                  value={packageName}
-                  onChange={(e) => setPackageName(e.target.value)}
-                  placeholder="e.g., Premium, Enterprise, Weekly 2x"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Tip: Include visit frequency in name (e.g., "Basic 2x/week")
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Monthly Price (Rp) *
-                </label>
-                <input
-                  type="number"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  placeholder="e.g., 500000"
-                  min="0"
-                  step="1000"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                  required
-                />
-                {price && !isNaN(parseFloat(price)) && (
-                  <p className="text-xs text-green-600 mt-1">
-                    Display: Rp {parseFloat(price).toLocaleString('id-ID')}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Visits per Week *
-                </label>
-                <select
-                  value={visitsPerWeek}
-                  onChange={(e) => setVisitsPerWeek(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                  required
-                >
-                  <option value="1">1x per week</option>
-                  <option value="2">2x per week</option>
-                  <option value="3">3x per week</option>
-                  <option value="4">4x per week</option>
-                  <option value="5">5x per week</option>
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  This will be appended to package name if not already included
-                </p>
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-3">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-gray-900">
+                {editingPackage ? 'Edit Package Details' : 'Create New Package'}
+              </h2>
               <button
-                type="button"
                 onClick={resetForm}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="text-gray-400 hover:text-gray-600 transition-colors"
               >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? (
-                  <>
-                    <Icons.spinner className="w-4 h-4 mr-2 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Icons.check className="w-4 h-4 mr-2" />
-                    {editingPackage ? 'Update Package' : 'Create Package'}
-                  </>
-                )}
+                <Icons.close className="w-6 h-6" />
               </button>
             </div>
-          </form>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="col-span-1 md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Package Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={packageName}
+                    onChange={(e) => setPackageName(e.target.value)}
+                    placeholder="e.g., Premium, Enterprise, Weekly 2x"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-2 flex items-center">
+                    <Icons.alert className="w-3 h-3 mr-1" />
+                    Tip: Include visit frequency in name (e.g., "Basic 2x/week")
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Monthly Price (Rp) *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-gray-400 text-sm">Rp</span>
+                    <input
+                      type="number"
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
+                      placeholder="e.g., 500000"
+                      min="0"
+                      step="1000"
+                      className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                      required
+                    />
+                  </div>
+                  {price && !isNaN(parseFloat(price)) && (
+                    <p className="text-xs font-medium text-green-600 mt-2 bg-green-50 px-2 py-1 rounded-md inline-block">
+                      Display: Rp {parseFloat(price).toLocaleString('id-ID')}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Visits per Week *
+                  </label>
+                  <select
+                    value={visitsPerWeek}
+                    onChange={(e) => {
+                      const newVal = e.target.value;
+                      setVisitsPerWeek(newVal);
+
+                      // Auto-sync package name if it contains a frequency pattern
+                      const freqPattern = /\d+x\/week|\d+\s*visits?\s*per\s*week/i;
+                      const newFreq = newVal === '0' ? '0x/week' : `${newVal}x/week`;
+
+                      if (freqPattern.test(packageName)) {
+                        setPackageName(packageName.replace(freqPattern, newFreq));
+                      } else if (packageName.trim() !== '') {
+                        setPackageName(`${packageName.trim()} ${newFreq}`);
+                      }
+                    }}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all appearance-none"
+                    style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%236B7280\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
+                    required
+                  >
+                    <option value="0">0x per week (Trial)</option>
+                    <option value="1">1x per week</option>
+                    <option value="2">2x per week</option>
+                    <option value="3">3x per week</option>
+                    <option value="4">4x per week</option>
+                    <option value="5">5x per week</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-2">
+                    This will be appended to package name if not already included
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="inline-flex items-center px-6 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg active:scale-95"
+                >
+                  {saving ? (
+                    <>
+                      <Icons.spinner className="w-4 h-4 mr-2 animate-spin" />
+                      Saving Changes...
+                    </>
+                  ) : (
+                    <>
+                      <Icons.check className="w-4 h-4 mr-2" />
+                      {editingPackage ? 'Update Package' : 'Create Package'}
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

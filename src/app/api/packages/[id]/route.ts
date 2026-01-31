@@ -4,6 +4,8 @@ import { subscriptionPackageDB, customerDB } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
@@ -33,6 +35,8 @@ export async function PUT(
     const body = await request.json();
     const { packageName, price } = body;
 
+    console.log(`[API PUT] Updating package ${id}:`, { packageName, price });
+
     if (!packageName || price === undefined) {
       return NextResponse.json(
         { success: false, message: 'Package name and price are required' },
@@ -57,6 +61,7 @@ export async function PUT(
       .limit(1);
 
     if (existingPackage.length === 0) {
+      console.error(`[API PUT] Package ${id} not found in DB`);
       return NextResponse.json(
         { success: false, message: 'Package not found' },
         { status: 404 }
@@ -72,6 +77,7 @@ export async function PUT(
         .limit(1);
 
       if (conflict.length > 0 && conflict[0].id !== id) {
+        console.warn(`[API PUT] Conflict: Name "${packageName}" already exists elsewhere`);
         return NextResponse.json(
           { success: false, message: 'Package with this name already exists' },
           { status: 409 }
@@ -81,6 +87,8 @@ export async function PUT(
 
     // Format price display
     const priceDisplay = `Rp ${priceNum.toLocaleString('id-ID')}`;
+
+    console.log(`[API PUT] Performing DB update for ${id}...`);
 
     // Update package
     const updated = await db
@@ -93,6 +101,14 @@ export async function PUT(
       })
       .where(eq(subscriptionPackageDB.id, id))
       .returning();
+
+    if (!updated || updated.length === 0) {
+      console.error(`[API PUT] DB Update returned empty result for ${id}`);
+      return NextResponse.json(
+        { success: false, message: 'Failed to update package - no rows affected' },
+        { status: 500 }
+      );
+    }
 
     console.log(`✅ Updated subscription package: ${packageName} - ${priceDisplay}`);
 

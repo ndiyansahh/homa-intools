@@ -9,12 +9,18 @@ import { eq, sql } from 'drizzle-orm';
 export function extractVisitsPerWeek(packageName: string): number {
   if (!packageName) return 0;
 
-  // Handle trial packages
+  // Try to match x/week pattern first (common in new UI)
+  const xMatch = packageName.match(/(\d+)x\/week/i);
+  if (xMatch) return parseInt(xMatch[1]);
+
+  // Try to match "visits per week" pattern (long format)
+  const visitsMatch = packageName.match(/(\d+)\s*visits?\s*per\s*week/i);
+  if (visitsMatch) return parseInt(visitsMatch[1]);
+
+  // Handle trial packages as fallback
   if (packageName.toLowerCase().includes('trial')) return 0;
 
-  // Extract number from pattern like "Monthly Subscription of Basic Cleaning (3 hours per visit; 1 visit per week)"
-  const match = packageName.match(/(\d+)\s*visits?\s*per\s*week/i);
-  return match ? parseInt(match[1]) : 1;
+  return 1;
 }
 
 // Generate schedule dates based on day pattern and start/end date
