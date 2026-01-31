@@ -10,6 +10,7 @@ export default async function CustomersPage() {
     userId: 'dev-user',
     role: 'ADMIN' as const,
     email: 'dev@homa.com',
+    mustChangePassword: false,
     loginTime: new Date().toISOString(),
   };
 
@@ -33,7 +34,7 @@ export default async function CustomersPage() {
             Manage customer subscriptions, view details, and track customer lifecycle.
           </p>
         </div>
-        
+
         <CustomerManagement session={currentSession} />
       </div>
     </div>
