@@ -116,47 +116,33 @@ export default function LoginForm() {
           <div className="absolute top-0 right-0 -mr-40 -mt-40 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
           <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-60 h-60 bg-white/5 rounded-full blur-2xl"></div>
 
-          <div className="relative z-10 flex flex-col justify-center px-12 w-full">
-            <div className="mb-8">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="w-12 h-12 bg-white/20 backdrop-blur-lg rounded-xl flex items-center justify-center">
-                  <span className="text-2xl"></span>
-                </div>
-                <h1 className="text-4xl font-bold text-white">HOMA</h1>
-              </div>
-              <h2 className="text-3xl font-light text-blue-100 mb-4 leading-tight">
-                Welcome to your<br />
-                <span className="font-semibold text-white">Internal Management System</span>
-              </h2>
-              <p className="text-blue-200 text-lg leading-relaxed max-w-md">
-                Streamline your business operations with our comprehensive dashboard and management tools.
-              </p>
-            </div>
+          <div className="relative z-10 flex flex-col justify-center items-center h-full px-12 w-full">
+            {/* Floating decorative elements */}
+            <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-white/30 rounded-full animate-pulse"></div>
+            <div className="absolute top-1/3 right-1/3 w-3 h-3 bg-white/20 rounded-full animate-pulse delay-75"></div>
+            <div className="absolute bottom-1/3 left-1/3 w-2 h-2 bg-white/25 rounded-full animate-pulse delay-150"></div>
 
-            <div className="space-y-4">
-              <div className="flex items-center space-x-3 text-blue-100">
-                <div className="w-6 h-6 bg-green-400 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-green-800" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
+            {/* Main branding */}
+            <div className="text-center">
+              <div className="flex items-center justify-center space-x-4 mb-8">
+                <div className="w-20 h-20 bg-white/10 backdrop-blur-xl rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl border border-white/20">
+                  <img src="/images/homa-logo-white.png" alt="HOMA Logo" className="w-16 h-16 object-contain" />
                 </div>
-                <span>Secure role-based access control</span>
               </div>
-              <div className="flex items-center space-x-3 text-blue-100">
-                <div className="w-6 h-6 bg-green-400 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-green-800" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <span>Real-time analytics and reporting</span>
-              </div>
-              <div className="flex items-center space-x-3 text-blue-100">
-                <div className="w-6 h-6 bg-green-400 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-green-800" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <span>Mobile-optimized interface</span>
+
+              <h1 className="text-5xl font-bold text-white mb-4 tracking-tight">
+                HOMA
+              </h1>
+
+              <p className="text-xl text-blue-100/80 font-light max-w-sm mx-auto leading-relaxed">
+                The smarter way to manage your cleaning service business
+              </p>
+
+              {/* Subtle divider */}
+              <div className="mt-12 flex items-center justify-center space-x-3">
+                <div className="w-8 h-px bg-white/30"></div>
+                <div className="w-2 h-2 bg-white/40 rounded-full"></div>
+                <div className="w-8 h-px bg-white/30"></div>
               </div>
             </div>
           </div>
@@ -168,8 +154,8 @@ export default function LoginForm() {
             {/* Mobile Logo */}
             <div className="lg:hidden text-center mb-8">
               <div className="flex items-center justify-center space-x-3 mb-4">
-                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-                  <span className="text-xl">🏠</span>
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden">
+                  <img src="/images/homa-logo.png" alt="HOMA Logo" className="w-full h-full object-contain" />
                 </div>
                 <h1 className="text-2xl font-bold text-gray-900">HOMA</h1>
               </div>
@@ -296,7 +282,7 @@ export default function LoginForm() {
 
             {/* Footer */}
             <div className="mt-6 text-center text-xs text-gray-500">
-              <p>© 2025 HOMA. Secure internal management system.</p>
+              <p>© 2026 HOMA. Cleaning Service Management System.</p>
             </div>
           </div>
         </div>

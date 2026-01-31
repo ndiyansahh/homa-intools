@@ -32,7 +32,7 @@ export default function Sidebar({ navigationItems, session, isOpen, onClose }: S
         menuItem: item.name,
       }
     });
-    
+
     if (onClose) {
       onClose();
     }
@@ -42,12 +42,12 @@ export default function Sidebar({ navigationItems, session, isOpen, onClose }: S
     <>
       {/* Mobile backdrop */}
       {isOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden"
           onClick={onClose}
         />
       )}
-      
+
       {/* Sidebar */}
       <div className={`
         fixed inset-y-0 left-0 z-50 w-72 lg:w-64 bg-white backdrop-blur-xl border-r border-gray-200/20 shadow-xl transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
@@ -56,14 +56,14 @@ export default function Sidebar({ navigationItems, session, isOpen, onClose }: S
         {/* Header */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200/50 bg-white/80 backdrop-blur-sm">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-              <Icons.home className="w-4 h-4 text-white" />
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden">
+              <img src="/images/homa-logo.png" alt="HOMA Logo" className="w-full h-full object-contain" />
             </div>
             <h1 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
               HOMA
             </h1>
           </div>
-          
+
           {/* Mobile close button */}
           <button
             onClick={onClose}
@@ -73,13 +73,13 @@ export default function Sidebar({ navigationItems, session, isOpen, onClose }: S
             <Icons.close className="w-5 h-5" />
           </button>
         </div>
-        
+
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-2" role="navigation" aria-label="Main navigation">
           {navigationItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
             const IconComponent = getIcon(item.icon);
-            
+
             return (
               <Link
                 key={item.name}
@@ -87,8 +87,8 @@ export default function Sidebar({ navigationItems, session, isOpen, onClose }: S
                 onClick={() => handleMenuClick(item)}
                 className={`
                   group flex items-center px-3 py-3 rounded-xl transition-all duration-200 relative
-                  ${isActive 
-                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-sm border border-blue-100' 
+                  ${isActive
+                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-sm border border-blue-100'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }
                 `}
@@ -97,17 +97,17 @@ export default function Sidebar({ navigationItems, session, isOpen, onClose }: S
                 {isActive && (
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-blue-500 to-indigo-500 rounded-r-full" />
                 )}
-                
+
                 <div className={`
                   flex items-center justify-center w-10 h-10 rounded-lg mr-3 transition-all duration-200
-                  ${isActive 
-                    ? 'bg-blue-100 text-blue-600' 
+                  ${isActive
+                    ? 'bg-blue-100 text-blue-600'
                     : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200 group-hover:text-gray-700'
                   }
                 `}>
                   <IconComponent className="w-5 h-5" />
                 </div>
-                
+
                 <div className="flex-1 min-w-0">
                   <div className={`font-semibold text-sm ${isActive ? 'text-blue-900' : 'text-gray-900'}`}>
                     {item.name}
@@ -122,7 +122,7 @@ export default function Sidebar({ navigationItems, session, isOpen, onClose }: S
             );
           })}
         </nav>
-        
+
         {/* User info footer */}
         <div className="border-t border-gray-200/50 p-4 bg-white/80 backdrop-blur-sm">
           <div className="flex items-center space-x-3">
@@ -138,11 +138,11 @@ export default function Sidebar({ navigationItems, session, isOpen, onClose }: S
               <div className="flex items-center mt-1">
                 <span className={`
                   inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                  ${session.role === 'ADMIN' 
-                    ? 'bg-purple-100 text-purple-800' 
+                  ${session.role === 'ADMIN'
+                    ? 'bg-purple-100 text-purple-800'
                     : session.role === 'OWNER'
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-blue-100 text-blue-800'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-blue-100 text-blue-800'
                   }
                 `}>
                   {session.role}
