@@ -1,6 +1,6 @@
 # 01 - Active Context (Master File)
 
-**Last Updated:** 2026-01-30 05:07 WIB
+**Last Updated:** 2026-01-31 03:04 WIB
 **Current Sprint:** Sprint 5 (Feb 5-17, 2026)
 **Status:** ✅ Complete
 **Progress:** 100%
@@ -23,7 +23,8 @@
 |------|-------------|--------|
 | 4a | Configurable Packages | ✅ Already existed |
 | 5a | Same-Day Multiple Visits | ✅ Done (previous session) |
-| 7a | Invoice ID in Lists | ✅ Done (previous session) |
+| 7a | Invoice ID in Lists | ✅ Done |
+| ADR 0002 | JWT Auth System | ✅ Done |
 
 ---
 
@@ -43,12 +44,22 @@ OWNER: owner@homa.com / owner123
 STAFF: staff@homa.com / staff123
 ```
 
-### Recent Files Modified (Jan 30)
+### Recent Files Modified (Jan 30-31)
 ```
-src/app/api/payouts/[id]/pdf/route.ts    # NEW - PDF export
-src/components/payout-management.tsx      # Added PDF button
-src/app/app/settings/page.tsx            # Added packages link
-public/images/homa-logo.png              # NEW - Logo for PDF
+# JWT Authentication (ADR 0002)
+src/lib/schema.ts                         # Added userDB table
+src/lib/auth.ts                           # mustChangePassword support
+src/lib/users.ts                          # Database-backed auth
+src/app/api/auth/login/route.ts           # Lockout handling
+src/app/api/auth/change-password/route.ts # NEW
+src/app/api/auth/users/route.ts           # NEW - Admin provisioning
+middleware.ts                             # RBAC + force change
+src/app/change-password/page.tsx          # NEW
+scripts/seed-users.ts                     # NEW
+
+# PDF Export
+src/app/api/payouts/[id]/pdf/route.ts     # PDF export
+src/components/payout-management.tsx       # Added PDF button
 ```
 
 ---
@@ -121,13 +132,14 @@ payout = (actual_visits / scheduled_visits) × monthly_rate
 
 ---
 
-### 4. Role-Based Access
+### 4. Role-Based Access (ADR 0002)
 ```
-ADMIN:  Full access (including settings, packages)
+ADMIN:  Full access (including settings, packages, user management)
 OWNER:  All features except settings
 STAFF:  Read-only access
 ```
 **Middleware:** `middleware.ts`
+**Docs:** `docs/adrs/0002-jwt-authentication.md`, `docs/features/login-auth.md`
 
 ---
 
@@ -158,9 +170,11 @@ STAFF:  Read-only access
 
 ## 🎯 Next Steps
 
-1. ⏳ Sprint 6 Planning (if any remaining items)
-2. ⏳ Rate Config UI (8a) - Demo Feb 10
-3. ⏳ Deploy Sprint 5 to production
+1. ✅ Run DB migration for `user_db` table
+2. ✅ Seed demo users (`npx tsx scripts/seed-users.ts`)
+3. ⏳ Sprint 6 Planning (if any remaining items)
+4. ⏳ Rate Config UI (8a) - Demo Feb 10
+5. ⏳ Deploy Sprint 5 to production
 
 ---
 
@@ -185,6 +199,7 @@ STAFF:  Read-only access
 ## 📝 Quick Notes
 
 - Sprint 5 completed Jan 30, 2026
+- **JWT Auth (ADR 0002) implemented Jan 31** - lockout, force password change, RBAC
 - PDF Payout Slip implemented (template received from client)
 - Logo replaceable at `/public/images/homa-logo.png`
 - All Sprint 5 items ready for staging verification
@@ -194,4 +209,4 @@ STAFF:  Read-only access
 
 **This is the MASTER file. Update daily during active sprints.**
 **Everything else is referenced from here.**
-**Last updated by: Handi @ 2026-01-30 05:07 WIB**
+**Last updated by: AI Assistant @ 2026-01-31 03:04 WIB**

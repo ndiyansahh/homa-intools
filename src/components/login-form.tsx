@@ -12,7 +12,7 @@ export default function LoginForm() {
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/app/dashboard';
@@ -48,9 +48,14 @@ export default function LoginForm() {
 
       if (response.ok) {
         const data: LoginResponse = await response.json();
-        setTimeout(() => {
-          window.location.href = redirectTo;
-        }, 100);
+        // ADR 0002: Redirect to change-password if required
+        if (data.mustChangePassword) {
+          window.location.href = '/change-password';
+        } else {
+          setTimeout(() => {
+            window.location.href = redirectTo;
+          }, 100);
+        }
       } else {
         const errorData: LoginError = await response.json();
 
@@ -58,6 +63,15 @@ export default function LoginForm() {
           setError('Invalid email or password');
         } else if (errorData.error === 'RATE_LIMITED') {
           setError('Too many login attempts. Please try again later.');
+        } else if (errorData.error === 'ACCOUNT_LOCKED') {
+          // ADR 0002: Show lockout message with time remaining
+          const lockedUntil = errorData.lockedUntil ? new Date(errorData.lockedUntil) : null;
+          if (lockedUntil) {
+            const minutes = Math.ceil((lockedUntil.getTime() - Date.now()) / 60000);
+            setError(`Account locked. Try again in ${minutes} minute${minutes > 1 ? 's' : ''}.`);
+          } else {
+            setError('Account locked. Please try again later.');
+          }
         } else {
           setError('An error occurred. Please try again.');
         }
@@ -92,16 +106,16 @@ export default function LoginForm() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       {/* Background Pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#f1f5f9_1px,transparent_1px),linear-gradient(to_bottom,#f1f5f9_1px,transparent_1px)] bg-[size:24px_24px] opacity-40"></div>
-      
+
       <div className="relative min-h-screen flex">
         {/* Left Side - Branding */}
         <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 to-indigo-700 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-600/90 to-indigo-700/90"></div>
-          
+
           {/* Background shapes */}
           <div className="absolute top-0 right-0 -mr-40 -mt-40 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
           <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-60 h-60 bg-white/5 rounded-full blur-2xl"></div>
-          
+
           <div className="relative z-10 flex flex-col justify-center px-12 w-full">
             <div className="mb-8">
               <div className="flex items-center space-x-3 mb-6">
@@ -118,7 +132,7 @@ export default function LoginForm() {
                 Streamline your business operations with our comprehensive dashboard and management tools.
               </p>
             </div>
-            
+
             <div className="space-y-4">
               <div className="flex items-center space-x-3 text-blue-100">
                 <div className="w-6 h-6 bg-green-400 rounded-full flex items-center justify-center">
@@ -186,7 +200,7 @@ export default function LoginForm() {
                       disabled={isLoading}
                     />
                   </div>
-                  
+
                   <div>
                     <label htmlFor="password" className="block text-sm font-medium text-gray-900 mb-2">
                       Password

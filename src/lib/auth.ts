@@ -9,11 +9,18 @@ const JWT_SECRET = new TextEncoder().encode(
 const COOKIE_NAME = 'session';
 const COOKIE_MAX_AGE = 24 * 60 * 60; // 24 hours in seconds
 
-export async function createSession(userId: string, role: UserRole, email: string) {
+// ADR 0002: Added mustChangePassword parameter
+export async function createSession(
+  userId: string,
+  role: UserRole,
+  email: string,
+  mustChangePassword: boolean = false
+) {
   const sessionData: SessionData = {
     userId,
     role,
     email,
+    mustChangePassword, // ADR 0002
     loginTime: new Date().toISOString(),
   };
 
@@ -82,4 +89,14 @@ export async function refreshSession() {
   });
 
   return newToken;
+}
+
+// For middleware - verify token without setting cookies
+export async function verifySession(token: string): Promise<SessionData | null> {
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    return payload as SessionData;
+  } catch {
+    return null;
+  }
 }

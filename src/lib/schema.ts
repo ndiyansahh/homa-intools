@@ -15,6 +15,24 @@ import {
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
+// User Table - Authentication (ADR 0002)
+export const userDB = pgTable('user_db', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  email: varchar('email', { length: 255 }).unique().notNull(),
+  passwordHash: text('password_hash').notNull(),
+  role: varchar('role', { length: 20 }).notNull().default('STAFF'), // ADMIN, OWNER, STAFF
+
+  // Security fields (ADR 0002)
+  mustChangePassword: boolean('must_change_password').default(true).notNull(),
+  failedLoginAttempts: integer('failed_login_attempts').default(0).notNull(),
+  lockedUntil: timestamp('locked_until', { mode: 'date' }),
+
+  // Metadata
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
 // Region Table - Master Data
 export const regionDB = pgTable('region_db', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -79,14 +97,14 @@ export const customerDB = pgTable('customer_db', {
 export const mitraDB = pgTable('mitra_db', {
   id: uuid('id').defaultRandom().primaryKey(),
   mitraName: varchar('mitra_name', { length: 255 }).notNull(),
-  
+
   // Core identification
   mitraCode: varchar('mitra_code', { length: 50 }).unique().notNull(), // MITRA-YEARMONTH-SEQUENCE
   mitraNIK: varchar('mitra_nik', { length: 16 }).unique().notNull(), // 16 digit national ID
   mitraGender: varchar('mitra_gender', { length: 10 }).notNull(), // Wanita, Pria
   mitraDOB: varchar('mitra_dob', { length: 10 }).notNull(), // mm/dd/yyyy format
   mitraPhone: varchar('mitra_phone', { length: 12 }).notNull(), // 10-12 digits
-  
+
   // Legacy contact and address (keeping for backward compatibility)
   contact: varchar('contact', { length: 20 }),
   address: text('address'),
@@ -94,12 +112,12 @@ export const mitraDB = pgTable('mitra_db', {
   district: varchar('district', { length: 100 }),
   village: varchar('village', { length: 100 }),
   postalCode: varchar('postal_code', { length: 10 }),
-  
+
   // Banking information
   mitraBankAccount: text('mitra_bank_account'), // Free text (e.g., "BCA")
   mitraBankHolderName: varchar('mitra_bank_holder_name', { length: 255 }), // Free text
   mitraBankAccountNumber: varchar('mitra_bank_account_number', { length: 50 }), // Bank account number
-  
+
   // Assignment details
   mitraCityAssignment: varchar('mitra_city_assignment', { length: 100 }), // Jabodetabek cities
   mitraLocationAssignment: text('mitra_location_assignment'), // JSON array of districts ["Sudirman", "Kuningan"]
@@ -107,22 +125,22 @@ export const mitraDB = pgTable('mitra_db', {
   mitraTenure: integer('mitra_tenure').default(0), // Free number (years/months)
   mitraExitDate: varchar('mitra_exit_date', { length: 10 }), // dd/mm/yyyy format
   mitraBonusCommission: varchar('mitra_bonus_commission', { length: 20 }).default('Eligible'), // Eligible, Not Eligible
-  
+
   // Legacy mitra details (keeping for backward compatibility)
   mitraType: varchar('mitra_type', { length: 20 }).notNull().default('Cleaner'),
   status: varchar('status', { length: 20 }).default('Active'),
-  
+
   // Financial details
   baseRate: decimal('base_rate', { precision: 10, scale: 2 }).default('0'), // DEPRECATED: Use monthlyBaseRate instead
   monthlyBaseRate: decimal('monthly_base_rate', { precision: 10, scale: 2 }).default('0'), // Monthly base rate (NEW)
   commissionRate: decimal('commission_rate', { precision: 5, scale: 2 }).default('10.00'),
   totalEarnings: decimal('total_earnings', { precision: 12, scale: 2 }).default('0'),
   totalVisits: integer('total_visits').default(0),
-  
+
   // Performance metrics
   rating: decimal('rating', { precision: 2, scale: 1 }).default('0'),
   totalReviews: integer('total_reviews').default(0),
-  
+
   // Metadata
   joinDate: date('join_date').defaultNow(),
   lastVisitDate: date('last_visit_date'),
@@ -137,31 +155,31 @@ export const mitraDB = pgTable('mitra_db', {
 export const invoiceDB = pgTable('invoice_db', {
   id: uuid('id').defaultRandom().primaryKey(),
   customerId: uuid('customer_id').references(() => customerDB.id).notNull(),
-  
+
   // Invoice number format: INV/Cleaning/yyyy.mm.dd-00000
   invoiceNumber: varchar('invoice_number', { length: 50 }).unique().notNull(), // Auto-generated: INV/Cleaning/2025.09.01-00450
   invoiceNo: integer('invoice_no').notNull(), // Sequence number from invoiceNumber (e.g., 450)
-  
+
   // Invoice date fields (populated from customerDB.subscriptionStart)
   invoiceStartDate: date('invoice_start_date').notNull(), // Reference from customerDB.subscriptionStart
   invoiceYears: integer('invoice_years').notNull(), // Year from invoiceStartDate
   invoiceMonths: integer('invoice_months').notNull(), // Month from invoiceStartDate  
   invoiceDays: integer('invoice_days').notNull(), // Day from invoiceStartDate
   invoiceSubscription: varchar('invoice_subscription', { length: 50 }).notNull().default('Cleaning'), // Hardcoded "Cleaning"
-  
+
   // Customer info (populated from customerDB)
   invoiceCustomerName: varchar('invoice_customer_name', { length: 255 }).notNull(), // from customerDB.customerName
   invoiceAddress: text('invoice_address').notNull(), // from customerDB.address
   invoicePhoneNumber: varchar('invoice_phone_number', { length: 20 }).notNull(), // from customerDB.contact
-  
+
   // Invoice line items (populated from customerDB)
   invoiceQty: integer('invoice_qty').notNull(), // from customerDB.subscriptionQTY
   invoicePricePerQty: decimal('invoice_price_per_qty', { precision: 10, scale: 2 }).notNull(), // from customerDB.subscriptionPerQTY
-  
+
   // Promo and discount
   invoicePromoCode: varchar('invoice_promo_code', { length: 50 }), // Free text
   invoicePromoDiscount: decimal('invoice_promo_discount', { precision: 10, scale: 2 }).default('0'), // Free amount Rp 0
-  
+
   // Legacy invoice details (keeping for backward compatibility)
   invoiceDate: timestamp('invoice_date').defaultNow(),
   dueDate: timestamp('due_date'),
@@ -169,12 +187,12 @@ export const invoiceDB = pgTable('invoice_db', {
   tax: decimal('tax', { precision: 10, scale: 2 }).default('0'),
   discount: decimal('discount', { precision: 10, scale: 2 }).default('0'),
   totalAmount: decimal('total_amount', { precision: 12, scale: 2 }).notNull(),
-  
+
   // Status
   status: varchar('status', { length: 20 }).default('Pending'), // Pending, Paid, Overdue, Cancelled
   paidAt: timestamp('paid_at'),
   paymentMethod: varchar('payment_method', { length: 50 }),
-  
+
   // Metadata
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow(),
@@ -211,24 +229,24 @@ export const attendanceRecordDB = pgTable('attendance_record_db', {
   customerId: uuid('customer_id').references(() => customerDB.id).notNull(),
   mitraId: uuid('mitra_id').references(() => mitraDB.id).notNull(),
   subscriptionPackageId: uuid('subscription_package_id').references(() => subscriptionPackageDB.id),
-  
+
   // Client info (denormalized for reporting) - populated from customerDB
   clientName: varchar('client_name', { length: 255 }).notNull(), // from customerDB.customerName
   address: text('address').notNull(), // from customerDB.address
   subscriptionPackage: text('subscription_package').notNull(), // from subscriptionPackageDB.packageName
-  
+
   // Date info - populated from customerDB subscription dates
   startDate: date('start_date').notNull(), // from customerDB.subscriptionStart
   endDate: date('end_date'), // from customerDB.subscriptionEnd
   newEndDate: date('new_end_date'), // For extensions
-  
+
   // Dynamic mitra info (populated from mitraDB based on assigned mitra)
   attendanceMitraCode: varchar('attendance_mitra_code', { length: 50 }).notNull(), // from mitraDB.mitraCode
   attendanceMitraName: varchar('attendance_mitra_name', { length: 255 }).notNull(), // from mitraDB.mitraName
-  
+
   // Day pattern from customerDB
   dayPattern: text('day_pattern'), // JSON: {"day1":"Monday","day2":"Friday","day3":null}
-  
+
   // Visit tracking information
   visitNumber: integer('visit_number').notNull(), // Sequential visit number for this customer (1, 2, 3, etc.)
   totalVisits: integer('total_visits').notNull(), // Total expected visits for the subscription
@@ -236,17 +254,17 @@ export const attendanceRecordDB = pgTable('attendance_record_db', {
   visitDay: varchar('visit_day', { length: 10 }).notNull(), // Day of week (Monday, Tuesday, etc.)
   visitWeek: integer('visit_week'), // Week number in the subscription period
   visitMonth: integer('visit_month'), // Month number in the subscription period
-  
+
   // Legacy cleaner assignments (kept for backward compatibility)
   cleaner1: varchar('cleaner1', { length: 100 }),
   cleaner2: varchar('cleaner2', { length: 100 }),
-  
+
   // Attendance details
   checkInTime: timestamp('check_in_time'),
   checkOutTime: timestamp('check_out_time'),
   actualDuration: integer('actual_duration'), // minutes
   workQuality: varchar('work_quality', { length: 20 }), // Excellent, Good, Fair, Poor
-  
+
   // Status and notes
   status: varchar('status', { length: 20 }).default('Scheduled'), // Scheduled, In-Progress, Completed, Cancelled
   notes: text('notes'),
@@ -262,11 +280,11 @@ export const attendanceRecordDB = pgTable('attendance_record_db', {
 export const mitraPayoutDB = pgTable('mitra_payout_db', {
   id: uuid('id').defaultRandom().primaryKey(),
   mitraId: uuid('mitra_id').references(() => mitraDB.id).notNull(),
-  
+
   // Payout period
   periodStart: timestamp('period_start').notNull(),
   periodEnd: timestamp('period_end').notNull(),
-  
+
   // Calculation details
   totalVisits: integer('total_visits').default(0),
   totalHours: decimal('total_hours', { precision: 8, scale: 2 }).default('0'),
@@ -275,7 +293,7 @@ export const mitraPayoutDB = pgTable('mitra_payout_db', {
   bonusAmount: decimal('bonus_amount', { precision: 10, scale: 2 }).default('0'),
   deductionAmount: decimal('deduction_amount', { precision: 10, scale: 2 }).default('0'),
   totalAmount: decimal('total_amount', { precision: 12, scale: 2 }).notNull(),
-  
+
   // Status
   status: varchar('status', { length: 20 }).default('Pending'), // Pending, Approved, Paid, Rejected
   approvedBy: varchar('approved_by', { length: 100 }),
@@ -283,7 +301,7 @@ export const mitraPayoutDB = pgTable('mitra_payout_db', {
   paidAt: timestamp('paid_at'),
   paymentMethod: varchar('payment_method', { length: 50 }),
   paymentReference: varchar('payment_reference', { length: 100 }),
-  
+
   // Metadata
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow(),
@@ -616,5 +634,8 @@ export type NewMitraRateConfig = typeof mitraRateConfigDB.$inferInsert;
 
 export type SystemConfig = typeof systemConfigDB.$inferSelect;
 export type NewSystemConfig = typeof systemConfigDB.$inferInsert;
+
+export type User = typeof userDB.$inferSelect;
+export type NewUser = typeof userDB.$inferInsert;
 
 // Trial types removed - trials are now just customers with subscription_status = 'Trial'

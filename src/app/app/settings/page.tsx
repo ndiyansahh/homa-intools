@@ -57,18 +57,23 @@ export default async function SettingsPage() {
             </p>
           </Link>
 
-          {/* Placeholder for future settings */}
-          <div className="block p-6 bg-gray-50 border border-gray-200 rounded-lg">
-            <div className="flex items-center mb-3">
-              <div className="p-2 bg-gray-200 rounded-lg">
-                <Icons.cog className="h-6 w-6 text-gray-400" />
+          {/* User Accounts - ADMIN only (ADR 0002) */}
+          {session.role === 'ADMIN' && (
+            <Link
+              href="/app/settings/users"
+              className="block p-6 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center mb-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Icons.users className="h-6 w-6 text-green-600" />
+                </div>
               </div>
-            </div>
-            <h3 className="text-lg font-medium text-gray-500 mb-2">Coming Soon</h3>
-            <p className="text-sm text-gray-400">
-              More settings will be available here
-            </p>
-          </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">User Accounts</h3>
+              <p className="text-sm text-gray-600">
+                Manage user accounts, roles, and access permissions
+              </p>
+            </Link>
+          )}
         </div>
       </div>
     </div>

@@ -2,7 +2,7 @@
 
 **Project:** HOMA Internal Management System
 **Tech Stack:** Next.js 14 + TypeScript + Drizzle + Neon Postgres
-**Last Updated:** 2025-01-29
+**Last Updated:** 2026-01-31
 
 ---
 
@@ -74,13 +74,17 @@ Next.js 14 (App Router)
 ## 🎯 Current Focus
 
 **Sprint:** Sprint 5 (Feb 5-17, 2026)
-**Status:** In Progress (35%)
+**Status:** ✅ Complete (100%)
 **Branch:** staging
 
-**Active Work:**
-1. Trial form refactor (3a, 3b) - 65%
-2. Remove attended button (6a) - Not started
-3. PDF payout slip (10) - Blocked (awaiting template)
+**Completed Work:**
+1. ✅ Trial form refactor (3a, 3b) - Done
+2. ✅ Bulk attendance actions (6a) - Done
+3. ✅ PDF payout slip (10) - Done
+
+**Next Steps:**
+- Deploy Sprint 5 to production
+- Sprint 6 Planning (Rate Config UI 8a)
 
 See: `docs/phases/current-sprint.md`
 
@@ -92,7 +96,7 @@ See: `docs/phases/current-sprint.md`
 |----------|------------------|
 | "How does payout calculation work?" | `docs/features/payout-system.md` |
 | "What's the current sprint status?" | `docs/phases/current-sprint.md` |
-| "Client feedback status?" | `docs/client/feedback-tracking.md` |
+| "Client feedback status?" | `docs/clients/feedback-tracking.md` |
 | "Why did we choose X?" | `docs/adrs/2025-XX-XX-*.md` |
 | "Database schema?" | `docs/technical/database-schema.md` |
 | "API endpoints?" | `docs/technical/api-documentation.md` |
