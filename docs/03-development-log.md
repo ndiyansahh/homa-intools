@@ -6,6 +6,75 @@
 
 ## Week of Mar 3 - Mar 9, 2026
 
+### Friday, Mar 7
+**Work Done:**
+- **Critical Bugfix:** Fixed "Change Mitra" functionality in Customer Detail page
+- **Root Cause Diagnosis:** PostgreSQL date type mismatch in available-mitras API
+- **Testing:** Verified fix with comprehensive diagnostic tests
+
+**Issue - Change Mitra Failure:**
+- User reported: "Change Mitra" button returns error "Failed to change mitra"
+- Expected: Dropdown should show available mitras with correct slot calculation
+- Actual: Query always returned 0 visits on date → all mitras showed "2 slots" incorrectly
+
+**Root Cause Analysis:**
+```typescript
+// ❌ BEFORE (BROKEN)
+.where(eq(visitDB.scheduledDate, visit.scheduledDate))
+// Type mismatch: JavaScript Date object vs PostgreSQL date column
+// Drizzle eq() couldn't match types → always returned 0 results
+
+// ✅ AFTER (FIXED)
+const scheduledDateStr = visit.scheduledDate instanceof Date
+  ? visit.scheduledDate.toISOString().split('T')[0]
+  : String(visit.scheduledDate);
+
+.where(sql`${visitDB.scheduledDate}::text = ${scheduledDateStr}`)
+// Explicit PostgreSQL ::text cast for proper string comparison
+```
+
+**Changes Made:**
+1. **available-mitras/route.ts (Lines 148-173):**
+   - Convert scheduledDate to YYYY-MM-DD string before comparison
+   - Use `sql` template with explicit `::text` cast for PostgreSQL compatibility
+   - Added debug logging for date conversion and query results
+   - Added logging to show how many visits found on target date
+
+**Diagnostic Process:**
+1. ✅ Verified database NOT empty (16 active mitras exist)
+2. ✅ Confirmed `/api/mitra?status=Active` working (returns 16 mitras)
+3. ✅ Traced error to available-mitras query returning 0 results
+4. ✅ Identified type mismatch between Date object and PostgreSQL date column
+5. ✅ Applied fix with explicit type casting
+6. ✅ Verified fix with comprehensive tests
+
+**Test Results:**
+| Test Case | Before | After | Status |
+|-----------|--------|-------|--------|
+| Change Mitra modal opens | ✅ | ✅ | Working |
+| Available mitras query | ❌ 0 results | ✅ Correct count | **FIXED** |
+| Slot calculation | ❌ Always "2 slots" | ✅ Dynamic based on bookings | **FIXED** |
+| Change mitra saves | ❌ Error | ✅ Success | **FIXED** |
+| Add Visit dropdown | ✅ (no bug) | ✅ (no bug) | Already working |
+
+**Impact:**
+- ✅ Bug 1 (Change Mitra): Fixed & verified working
+- ✅ Bug 2 (Add Visit dropdown): False alarm - already working, no changes needed
+
+**Commit:** `014a3d6` - fix: resolve date type mismatch in available-mitras API
+
+**Decisions:**
+- Use explicit PostgreSQL type casting for date comparisons going forward
+- Add debug logging to critical API endpoints for easier troubleshooting
+- Document this pattern for future reference
+
+**Tomorrow:**
+- Test in staging environment
+- Update any other endpoints that might have similar date comparison issues
+- Consider creating utility function for safe date comparisons
+
+---
+
 ### Thursday, Mar 6
 **Work Done:**
 - **UI Cleanup (2 fixes):** Removed misleading area limitation warnings from Trial and Customer forms

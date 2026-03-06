@@ -1,13 +1,56 @@
 # 01 - Active Context (Master File)
 
-**Last Updated:** 2026-03-06
-**Current Sprint:** UI Cleanup & Verification (Mar 6, 2026)
-**Status:** ✅ 3 Items Completed
+**Last Updated:** 2026-03-07
+**Current Sprint:** Critical Bugfix (Mar 7, 2026)
+**Status:** ✅ 1 Hotfix Completed
 **Progress:** 100%
 
 ---
 
-## 🎯 CURRENT STATUS (Mar 6, 2026)
+## 🎯 CURRENT STATUS (Mar 7, 2026)
+
+### Critical Bugfix - ✅ COMPLETED (1 hotfix)
+
+| Item | Description | Menu | Root Cause | Status |
+|------|-------------|------|------------|--------|
+| BUG-1 | Change Mitra returns "Failed to change mitra" | Customer Detail | PostgreSQL date type mismatch | ✅ Fixed |
+
+**Root Cause Analysis:**
+- PostgreSQL `date` column compared with JavaScript `Date` object using Drizzle `eq()` failed
+- Query always returned 0 visits → all mitras appeared available incorrectly
+- Error thrown in catch block with generic "Failed to change mitra" message
+
+**Fix Applied:**
+```typescript
+// Convert date to string with explicit PostgreSQL ::text cast
+const scheduledDateStr = visit.scheduledDate instanceof Date
+  ? visit.scheduledDate.toISOString().split('T')[0]
+  : String(visit.scheduledDate);
+
+// Use sql template for explicit type casting
+.where(and(
+  sql`${visitDB.scheduledDate}::text = ${scheduledDateStr}`,
+  // ... other conditions
+))
+```
+
+**Impact:**
+- ✅ Change Mitra: Now works correctly with proper mitra availability
+- ✅ Slot calculation: Shows accurate availability based on actual bookings
+- ✅ Add Visit: Confirmed working (no bug - false alarm from user)
+
+### Files Modified (Mar 7, 2026)
+```
+src/app/api/trial/[id]/visits/[visitId]/available-mitras/route.ts
+  - Lines 148-173: Date conversion and PostgreSQL cast fix
+  - Added debug logging for troubleshooting
+```
+
+**Commit:** `014a3d6` - fix: resolve date type mismatch in available-mitras API
+
+---
+
+## 🎯 PREVIOUS STATUS (Mar 6, 2026)
 
 ### UI Cleanup & Verification - ✅ COMPLETED (3 items)
 
