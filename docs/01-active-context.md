@@ -1,13 +1,39 @@
 # 01 - Active Context (Master File)
 
-**Last Updated:** 2026-02-01 02:45 WIB
-**Current Sprint:** Sprint 5 Hotfixes (Feb 1, 2026)
-**Status:** ✅ 8 Hotfixes Completed
+**Last Updated:** 2026-03-06
+**Current Sprint:** UI Cleanup & Verification (Mar 6, 2026)
+**Status:** ✅ 3 Items Completed
 **Progress:** 100%
 
 ---
 
-## 🎯 CURRENT STATUS (Feb 1, 2026)
+## 🎯 CURRENT STATUS (Mar 6, 2026)
+
+### UI Cleanup & Verification - ✅ COMPLETED (3 items)
+
+| Item | Description | Menu | Status |
+|------|-------------|------|--------|
+| UI-1 | Remove misleading area limitation warnings | Trial | ✅ Done |
+| UI-2 | Update error messages to not mention region | Customer Form | ✅ Done |
+| UI-3 | Verify default visit status = "Done" across ALL endpoints | All | ✅ Verified |
+
+### Files Modified (Mar 6, 2026)
+```
+# UI Cleanup
+src/components/trial-management.tsx      # Removed region warnings, updated messages (7 locations)
+src/components/customer-form.tsx         # Updated error message for mitra availability (1 location)
+
+# Verification - Visit Status Default = "Done" (9 endpoints verified)
+src/app/api/customers/route.ts           # ✅ Line 317
+src/app/api/trial/route.ts               # ✅ Lines 238, 672
+src/app/api/customers/[id]/visits/route.ts  # ✅ Lines 112, 224, 280, 407
+src/app/api/trial/[id]/visits/route.ts   # ✅ Multiple locations
+src/lib/utils/subscriptionUtils.ts       # ✅ Line 244 (with Feedback Feb 1 comment)
+```
+
+---
+
+## 🎯 PREVIOUS STATUS (Feb 1, 2026)
 
 ### Sprint 5 Hotfixes - ✅ COMPLETED (8 items)
 
@@ -212,6 +238,15 @@ STAFF:  Read-only access
 
 ## 📝 Quick Notes
 
+- **Mar 6, 2026: UI cleanup & verification completed**
+  - **UI Fix 1 & 2:** Removed misleading area limitation warnings from Trial and Customer forms
+    - Backend already correct (no region filter since Feb 1)
+    - Frontend UI still showed region-based warnings causing user confusion
+    - Fixed 7 locations in trial-management.tsx + 1 in customer-form.tsx
+  - **Verification:** Confirmed ALL 9 visit creation endpoints default to status = "Done"
+    - Verified consistency across customers, trials, and subscription utilities
+    - All endpoints include completedAt for payout calculation
+    - No inconsistencies found - all match Feedback 4 requirement
 - **Feb 1, 2026: 8 hotfixes completed for Trial/Customer/Payout/Packages menus**
 - Sprint 5 completed Jan 30, 2026
 - JWT Auth (ADR 0002) implemented Jan 31
@@ -224,4 +259,4 @@ STAFF:  Read-only access
 
 **This is the MASTER file. Update daily during active sprints.**
 **Everything else is referenced from here.**
-**Last updated by: AI Assistant @ 2026-02-01 02:45 WIB**
+**Last updated by: AI Assistant @ 2026-03-06**

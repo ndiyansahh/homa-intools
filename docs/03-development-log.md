@@ -4,6 +4,64 @@
 
 ---
 
+## Week of Mar 3 - Mar 9, 2026
+
+### Thursday, Mar 6
+**Work Done:**
+- **UI Cleanup (2 fixes):** Removed misleading area limitation warnings from Trial and Customer forms
+  - Fixed 7 locations in trial-management.tsx (warnings, disabled states, messages)
+  - Updated error message in customer-form.tsx to not mention specific regions
+- **Verification:** Confirmed default visit status = "Done" across ALL 9 visit creation endpoints
+  - Verified consistency across customers, trials, visits, and subscription utilities
+  - All endpoints correctly implement Feedback 4 requirement
+  - No inconsistencies found - no fixes needed
+
+**Issue 1 - UI Misleading Warnings:**
+- Backend already disabled region filter since Feb 1, 2026
+- Frontend UI still showed warnings like "Select City and District first to see mitras for this region"
+- This caused user confusion - dropdown appeared disabled even though all mitras were already loaded
+
+**Changes Made (UI Fix):**
+1. **trial-management.tsx (7 locations):**
+   - Removed warning: "Please select City and District first to see mitras for this region"
+   - Updated error: "No mitra available for {city} - {district}" → "No active mitra available"
+   - Removed disabled conditions based on city/district selection from Trial Date input
+   - Removed disabled conditions based on city/district from Mitra dropdown
+   - Updated placeholder: "Select region first..." → "Select mitra..."
+   - Updated loading message: "Checking mitras for {city}-{district}" → "Loading active mitras..."
+   - Updated success message: "available for this region" → "active mitra(s) available"
+
+2. **customer-form.tsx (1 location):**
+   - Updated error message to not mention specific city/district
+   - Changed from "No mitras service the area: {city} - {district}"
+   - To "No active mitras available that service this area"
+
+**Verification Results:**
+Checked all visit creation endpoints - all correctly default to status = "Done":
+1. ✅ `src/app/api/customers/route.ts:317` - Feedback 4 comment present
+2. ✅ `src/app/api/trial/route.ts:238` - Feedback 4 comment present
+3. ✅ `src/app/api/trial/route.ts:672` - Feedback 4 comment present
+4. ✅ `src/app/api/customers/[id]/visits/route.ts:112, 224, 280, 407` - Feb 1/Feedback 13 comments
+5. ✅ `src/app/api/trial/[id]/visits/route.ts` - Multiple locations verified
+6. ✅ `src/lib/utils/subscriptionUtils.ts:244` - Feedback Feb 1 comment with detailed explanation
+
+**Decisions:**
+- Keep disabled state only when mitras.length === 0 (actual data constraint)
+- Remove all UI logic that suggests region-based filtering
+- Messages should reflect reality: backend returns all active mitras regardless of region
+- No code changes needed for verification - all endpoints already consistent
+
+**Testing:**
+- ✅ Trial form now allows mitra selection immediately without requiring city/district first
+- ✅ Error messages honest about actual problem (no active mitras vs no mitras in region)
+- ✅ All visit creation endpoints verified to have consistent default status logic
+
+**Tomorrow:**
+- Test in staging environment
+- Verify with client that issues are resolved
+
+---
+
 ## Week of Jan 29 - Feb 4, 2026
 
 ### Wednesday, Jan 29

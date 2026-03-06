@@ -851,26 +851,8 @@ export default function TrialManagement({ session }: TrialManagementProps) {
               <div className="border-t border-gray-200 pt-6">
                 <h3 className="text-md font-medium text-gray-900 mb-4">Trial Schedule</h3>
 
-                {/* Show warning if region not selected */}
-                {(!formData.city_id || !formData.district_id) && (
-                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
-                    <div className="flex">
-                      <div className="flex-shrink-0">
-                        <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm text-yellow-700">
-                          Please select City and District first to see available mitras for this region.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Show warning if no mitras available */}
-                {formData.city_id && formData.district_id && !loadingMitras && mitras.length === 0 && (
+                {/* Show warning if no mitras available (region filter removed per feedback) */}
+                {!loadingMitras && mitras.length === 0 && (
                   <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
                     <div className="flex">
                       <div className="flex-shrink-0">
@@ -880,7 +862,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                       </div>
                       <div className="ml-3">
                         <p className="text-sm text-red-700">
-                          No mitra available for <strong>{formData.city_id} - {formData.district_id}</strong>. Please select a different region or add a mitra that covers this area.
+                          No active mitra available. Please contact admin to add active mitras to the system.
                         </p>
                       </div>
                     </div>
@@ -897,7 +879,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                       required
                       value={formData.trial_date}
                       onChange={(e) => setFormData(prev => ({ ...prev, trial_date: e.target.value }))}
-                      disabled={!formData.city_id || !formData.district_id || mitras.length === 0}
+                      disabled={mitras.length === 0}
                       className="input-field disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
                     <p className="text-xs text-gray-500 mt-1">Select one date for the trial visit</p>
@@ -911,17 +893,15 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                       required
                       value={formData.selected_mitra}
                       onChange={(e) => setFormData(prev => ({ ...prev, selected_mitra: e.target.value }))}
-                      disabled={!formData.city_id || !formData.district_id || loadingMitras || mitras.length === 0}
+                      disabled={loadingMitras || mitras.length === 0}
                       className="input-field disabled:bg-gray-100 disabled:cursor-not-allowed"
                     >
                       <option value="">
-                        {!formData.city_id || !formData.district_id
-                          ? 'Select region first...'
-                          : loadingMitras
-                            ? 'Loading mitras...'
-                            : mitras.length === 0
-                              ? 'No mitra available'
-                              : 'Select Mitra...'}
+                        {loadingMitras
+                          ? 'Loading mitras...'
+                          : mitras.length === 0
+                            ? 'No mitra available'
+                            : 'Select mitra...'}
                       </option>
                       {Array.isArray(mitras) && mitras.map((mitra) => (
                         <option key={mitra.id} value={mitra.id}>
@@ -930,10 +910,10 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                       ))}
                     </select>
                     {loadingMitras && (
-                      <p className="text-xs text-blue-500 mt-1">Checking available mitras for {formData.city_id} - {formData.district_id}...</p>
+                      <p className="text-xs text-blue-500 mt-1">Loading active mitras...</p>
                     )}
-                    {!loadingMitras && formData.city_id && formData.district_id && mitras.length > 0 && (
-                      <p className="text-xs text-green-600 mt-1">✓ {mitras.length} mitra(s) available for this region</p>
+                    {!loadingMitras && mitras.length > 0 && (
+                      <p className="text-xs text-green-600 mt-1">✓ {mitras.length} active mitra(s) available</p>
                     )}
                   </div>
                 </div>

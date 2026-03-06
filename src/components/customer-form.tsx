@@ -466,11 +466,11 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
       })));
 
       if (availableMitras.length === 0) {
-        // Check if it's a coverage issue (no mitras in the area)
+        // Check if it's a coverage issue (no mitras in the area) - only if region filter is enabled
         if (coverageFilterApplied && totalMitrasAfterCoverageFilter === 0) {
           setMitraAvailabilityMessage(
-            `⚠️ No mitras service the area: ${formData.city} - ${formData.district}. ` +
-            `Please contact admin to assign mitras to this coverage area, or select a different location.`
+            `⚠️ No active mitras available that service this area. ` +
+            `Please contact admin to add active mitras or adjust coverage settings.`
           );
         } else {
           // It's a capacity issue (mitras exist but are fully booked)
