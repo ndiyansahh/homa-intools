@@ -18,6 +18,7 @@ export async function GET(
   { params }: RouteParams
 ): Promise<NextResponse> {
   try {
+    console.log('🔍 [available-mitras] Starting request...');
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -34,6 +35,7 @@ export async function GET(
     }
 
     const { id, visitId } = await params;
+    console.log('🔍 [available-mitras] Params:', { customerId: id, visitId });
 
     // Get visit details
     const visitResult = await db
@@ -50,6 +52,7 @@ export async function GET(
       .limit(1);
 
     if (visitResult.length === 0) {
+      console.log('❌ [available-mitras] Visit not found');
       return NextResponse.json(
         { success: false, message: 'Visit not found' },
         { status: 404 }
@@ -57,6 +60,7 @@ export async function GET(
     }
 
     const visit = visitResult[0];
+    console.log('✅ [available-mitras] Visit found:', visit);
 
     // Get customer location
     const customerResult = await db
@@ -70,6 +74,7 @@ export async function GET(
       .limit(1);
 
     if (customerResult.length === 0) {
+      console.log('❌ [available-mitras] Customer not found');
       return NextResponse.json(
         { success: false, message: 'Customer not found' },
         { status: 404 }
@@ -77,8 +82,10 @@ export async function GET(
     }
 
     const customer = customerResult[0];
+    console.log('✅ [available-mitras] Customer found:', customer);
 
     // Get all active mitras
+    console.log('🔍 [available-mitras] Fetching active mitras...');
     const allMitras = await db
       .select({
         id: mitraDB.id,
@@ -91,6 +98,8 @@ export async function GET(
       })
       .from(mitraDB)
       .where(eq(mitraDB.status, 'Active'));
+
+    console.log(`✅ [available-mitras] Found ${allMitras.length} active mitras`);
 
     // Check if region filter is enabled (Feedback 2a)
     // Disabled per client feedback Feb 1 2026 - No strict area limitation
@@ -136,6 +145,15 @@ export async function GET(
     }
 
     // Get all visits on this date (exclude current visit)
+    console.log('🔍 [available-mitras] Querying visits on date:', visit.scheduledDate);
+
+    // Convert date to string format for comparison (YYYY-MM-DD)
+    const scheduledDateStr = visit.scheduledDate instanceof Date
+      ? visit.scheduledDate.toISOString().split('T')[0]
+      : String(visit.scheduledDate);
+
+    console.log('🔍 [available-mitras] Date string for query:', scheduledDateStr);
+
     const visitsOnDate = await db
       .select({
         mitraId: visitDB.actualMitraId,
@@ -144,13 +162,15 @@ export async function GET(
       })
       .from(visitDB)
       .where(and(
-        eq(visitDB.scheduledDate, visit.scheduledDate),
+        sql`${visitDB.scheduledDate}::text = ${scheduledDateStr}`,
         ne(visitDB.id, visitId),
         or(
           eq(visitDB.status, 'Scheduled'),
           eq(visitDB.status, 'Done')
         )
       ));
+
+    console.log(`✅ [available-mitras] Found ${visitsOnDate.length} visits on this date`);
 
     // Calculate hours per mitra on this date
     const mitraHoursMap = new Map<string, number>();
@@ -221,9 +241,14 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error('Error fetching available mitras:', error);
+    console.error('❌ [available-mitras] ERROR:', error);
+    console.error('❌ [available-mitras] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch available mitras' },
+      {
+        success: false,
+        message: 'Failed to fetch available mitras',
+        error: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }
