@@ -1,8 +1,9 @@
 # Payout System - Complete Documentation
 
-**Status:** ✅ Implemented (Sprint 3-4)  
-**Last Updated:** 2025-01-29  
+**Status:** ✅ Fully Implemented & Verified
+**Last Updated:** 2026-03-07
 **Owner:** Handi
+**Verified By:** AI Assistant (Claude Code)
 
 ---
 
@@ -17,15 +18,22 @@ Automated mitra (staff) payout calculation system with pro-rate logic, configura
 ### ✅ Implemented Features
 
 #### 1. Pro-Rate Calculation (Feedback 8a)
-**Completed:** Sprint 3  
+**Completed:** Sprint 3
+**Status:** ✅ Verified Mar 7, 2026
 **Files:**
-- `src/lib/payout-calculator.ts` (lines 15-87)
-- `src/app/api/payouts/calculate/route.ts`
+- `src/app/api/payout/route.ts` (POST handler, lines 161-576)
+- `src/app/api/payout/route.ts` (getBillingCycle function, lines 21-51)
 
 **Formula:**
 ```javascript
-monthly_payout = (actual_attendance / scheduled_attendance) × base_rate_monthly
+monthly_payout = (completed_visits / scheduled_visits_in_billing_cycle) × monthly_rate
 ```
+
+**Key Implementation Details:**
+- **Dynamic Billing Cycle:** Each visit's billing cycle is determined by its scheduled date, not payout month (line 300)
+- **Pro-rate Denominator:** Uses total scheduled visits in the invoice period (billing cycle), not calendar month (line 380-390)
+- **Cross-Month Support:** Single invoice period spanning 2 months is correctly split (line 292-312)
+- **No Mitra Filter on Denominator:** Scheduled visits count includes all mitras to handle mid-month mitra changes (line 376-390)
 
 **Example:**
 ```
@@ -78,14 +86,21 @@ Feb 2026 Calculation:
 ---
 
 #### 4. Payout Adjustments (Feedback 8b)
-**Completed:** Sprint 4  
+**Completed:** Sprint 4
+**Status:** ✅ Verified Mar 7, 2026
 **Files:**
-- `src/lib/payout-adjustment-calculator.ts`
-- `src/app/api/payouts/adjustments/*`
-- Database: `payout_adjustments` table
+- `src/lib/payout-adjustment.ts` (adjustment detection, lines 21-296)
+- `src/app/api/payout/route.ts` (adjustment application, lines 433-543)
+- `src/app/api/trial/[id]/visits/[visitId]/change-mitra/route.ts` (trigger on mitra change, lines 214-234)
+- Database: `payout_adjustment_db` table
 
 **How It Works:**
-When historical visits are edited (see `visit-tracking.md`), adjustments are automatically calculated.
+When historical visits are edited (even after period ends), adjustments are automatically calculated and applied to the next payout period.
+
+**Supported Edit Types:**
+- Status change (Done ↔ Cancelled/Scheduled)
+- Mitra reassignment (actualMitraId change)
+- Works for completed visits (no lock by default)
 
 **Example:**
 ```
@@ -120,18 +135,53 @@ Feb Payout Calculation:
 
 ---
 
-### ⏳ Planned Features
-
-#### 1. PDF Payout Slip (Feedback 10)
-**Target:** Sprint 5 (by Feb 17)  
-**Status:** Blocked - awaiting client PDF template  
-**Planned Files:**
-- `src/lib/pdf-generator.ts`
+#### 6. PDF Payout Slip Export (Feedback 10)
+**Completed:** Sprint 5
+**Status:** ✅ Implemented
+**Files:**
 - `src/app/api/payouts/[id]/pdf/route.ts`
 
-**Dependencies:**
-- PDF library selection (react-pdf vs pdfmake vs puppeteer)
-- Client template design approval
+**Features:**
+- Generate PDF payout slip with customer breakdown
+- Includes visit details, adjustments, and final totals
+- Download via API endpoint
+
+---
+
+#### 7. Historical Visit Editing (Feedback 6b)
+**Completed:** Sprint 4
+**Status:** ✅ Verified Mar 7, 2026
+**Files:**
+- `src/lib/config.ts` (CONFIG_KEYS.LOCK_COMPLETED_VISITS, line 156)
+- `src/app/api/trial/[id]/visits/[visitId]/change-mitra/route.ts` (lines 75-88)
+- `src/app/api/trial/[id]/visits/route.ts` (lines 445-458)
+
+**Default Behavior:**
+- Completed visits are **NOT locked** by default (`LOCK_COMPLETED_VISITS = false`)
+- Users can edit historical visits even after period ends
+- Admin can optionally enable lock via system config
+
+**Supported Historical Edits:**
+- ✅ Change mitra (actualMitraId)
+- ✅ Change status (Done ↔ Cancelled)
+- ✅ Edit scheduled date
+- ✅ Works beyond payout period end
+
+**Auto Adjustment on Edit:**
+When historical visit is edited after payout generated:
+1. System detects the change (status or mitra)
+2. Creates adjustment record with reason
+3. Applies adjustment to next payout period
+4. Maintains full audit trail
+
+**Example Flow:**
+```
+Jan 31 Payout: Generated with 8 visits = Rp 800,000 (PAID)
+Feb 5: Discovered Jan 31 visit didn't happen
+       → User changes status: Done → Cancelled
+       → System creates adjustment: -Rp 100,000
+Feb 28 Payout: Base Rp 200,000 + Adjustment -Rp 100,000 = Rp 100,000
+```
 
 ---
 
@@ -372,74 +422,98 @@ CREATE TABLE payout_adjustments (
 
 ## Code Examples
 
-### Calculate Payout (Core Logic)
+### 1. Billing Cycle Calculation
 ```typescript
-// src/lib/payout-calculator.ts
+// src/app/api/payout/route.ts (lines 21-51)
 
-export function calculatePayout(params: {
-  baseRateMonthly: number;
-  scheduledVisits: number;
-  actualVisits: number;
-}) {
-  const { baseRateMonthly, scheduledVisits, actualVisits } = params;
-  
-  // Pro-rate calculation
-  const calculatedAmount = 
-    (actualVisits / scheduledVisits) * baseRateMonthly;
-  
-  return {
-    calculatedAmount: Math.round(calculatedAmount),
-    proration: actualVisits / scheduledVisits
-  };
+function getBillingCycle(subscriptionStart: string, targetDate: Date): { start: Date; end: Date } {
+  const subStart = new Date(subscriptionStart);
+  const target = new Date(targetDate);
+
+  let cycleStart = new Date(subStart);
+
+  while (true) {
+    const cycleEnd = new Date(cycleStart);
+    cycleEnd.setMonth(cycleEnd.getMonth() + 1);
+    cycleEnd.setDate(cycleEnd.getDate() - 1);
+
+    if (target >= cycleStart && target <= cycleEnd) {
+      return { start: cycleStart, end: cycleEnd };
+    }
+
+    cycleStart = new Date(cycleEnd);
+    cycleStart.setDate(cycleStart.getDate() + 1);
+  }
 }
 ```
 
----
-
-### Generate Payout with Adjustments
+### 2. Pro-Rate Calculation (Per Customer per Billing Cycle)
 ```typescript
-// src/lib/payout-generator.ts
+// src/app/api/payout/route.ts (lines 380-401)
 
-export async function generatePayoutForPeriod(
-  mitraId: number,
-  periodMonth: string
-) {
-  // 1. Get mitra base rate
-  const mitra = await db.query.mitras.findFirst({
-    where: eq(mitras.id, mitraId)
-  });
-  
-  // 2. Get scheduled visits in period
-  const scheduled = await getScheduledVisitsInPeriod(mitraId, periodMonth);
-  
-  // 3. Get actual attendance
-  const actual = await getActualAttendanceInPeriod(mitraId, periodMonth);
-  
-  // 4. Calculate base payout
-  const { calculatedAmount } = calculatePayout({
-    baseRateMonthly: mitra.base_rate_monthly,
-    scheduledVisits: scheduled.length,
-    actualVisits: actual.length
-  });
-  
-  // 5. Get any adjustments from previous periods
-  const adjustments = await getPendingAdjustments(mitraId, periodMonth);
-  const adjustmentTotal = adjustments.reduce((sum, adj) => sum + adj.amount, 0);
-  
-  // 6. Calculate final amount
-  const finalAmount = calculatedAmount + adjustmentTotal;
-  
-  return {
-    mitra_id: mitraId,
-    period_month: periodMonth,
-    base_rate: mitra.base_rate_monthly,
-    scheduled_visits: scheduled.length,
-    actual_visits: actual.length,
-    calculated_amount: calculatedAmount,
-    adjustment: adjustmentTotal,
-    final_amount: finalAmount
-  };
+// Count scheduled visits in THIS BILLING CYCLE
+const scheduledVisitsForCustomer = await db
+  .select({ id: visitDB.id })
+  .from(visitDB)
+  .where(
+    and(
+      eq(visitDB.customerId, customerId),
+      // NO mitraId filter - total scheduled for customer
+      gte(visitDB.scheduledDate, billingCycle.start.toISOString().split('T')[0]),
+      lte(visitDB.scheduledDate, billingCycle.end.toISOString().split('T')[0])
+    )
+  );
+
+const scheduled = scheduledVisitsForCustomer.length;
+const completed = cycleVisits.length;
+
+// Pro-rate calculation
+const denominator = scheduled > 0 ? scheduled : completed;
+const customerPayout = (completed / denominator) * monthlyRate;
+```
+
+### 3. Adjustment Detection on Historical Edit
+```typescript
+// src/lib/payout-adjustment.ts (lines 237-250)
+
+if (wasCompleted && !isCompleted) {
+  // Changed from Done to Cancelled/Scheduled
+  const perVisitAmount = Number(customerPayout.monthlyRate) / Number(customerPayout.scheduledVisits);
+  adjustmentAmount = -perVisitAmount; // Deduct
+  adjustmentType = 'OVERPAYMENT_DEDUCTION';
+  reason = `Visit #${visitId.slice(0, 8)} for ${customerName} status changed from Done to ${newStatus}. Overpayment deduction.`;
+} else if (!wasCompleted && isCompleted) {
+  // Changed from Cancelled/Scheduled to Done
+  const perVisitAmount = Number(customerPayout.monthlyRate) / Number(customerPayout.scheduledVisits);
+  adjustmentAmount = perVisitAmount; // Add
+  adjustmentType = 'UNDERPAYMENT_ADDITION';
+  reason = `Visit #${visitId.slice(0, 8)} for ${customerName} status changed from ${oldStatus} to Done. Underpayment correction.`;
 }
+```
+
+### 4. Apply Adjustments to Payout
+```typescript
+// src/app/api/payout/route.ts (lines 433-472)
+
+// Get pending adjustments
+const pendingAdjustments = await db
+  .select()
+  .from(payoutAdjustmentDB)
+  .where(
+    and(
+      eq(payoutAdjustmentDB.mitraId, mitra.id),
+      eq(payoutAdjustmentDB.status, 'PENDING')
+    )
+  );
+
+let totalAdjustmentAmount = 0;
+for (const adj of pendingAdjustments) {
+  totalAdjustmentAmount += Number(adj.adjustmentAmount);
+}
+
+// Calculate final payout with adjustments
+const finalBasePayout = totalBasePayout + totalAdjustmentAmount;
+const finalTotalPayout = finalBasePayout + bonusAmount;
 ```
 
 ---

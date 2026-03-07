@@ -1,13 +1,13 @@
 # 01 - Active Context (Master File)
 
-**Last Updated:** 2026-03-07 (Evening)
-**Current Sprint:** Critical Production Bugfix (Mar 7, 2026)
-**Status:** ✅ 4 Critical Bugs Fixed, ⏳ VPS Deployment Pending
-**Progress:** 100% (Code), 0% (Deployment)
+**Last Updated:** 2026-03-07 (Night)
+**Current Sprint:** Critical Production Bugfix (Mar 7, 2026) + Documentation Verification
+**Status:** ✅ 4 Critical Bugs Fixed, ✅ Payout Logic Verified, ⏳ VPS Deployment Pending
+**Progress:** 100% (Code + Docs), 0% (Deployment)
 
 ---
 
-## 🎯 CURRENT STATUS (Mar 7, 2026 - Evening Update)
+## 🎯 CURRENT STATUS (Mar 7, 2026 - Night Update)
 
 ### Critical Production Bugfix - ✅ CODE COMPLETE (4 bugs fixed)
 
@@ -172,6 +172,54 @@ scripts/test-critical-bugs.sh                 # Testing automation
 - `d4b4df1` - fix: resolve 4 critical production bugs (Bug #2, #3, #4)
 
 **Branch:** `staging` (pushed to GitHub ✅)
+
+---
+
+### Payout Logic Verification - ✅ VERIFIED (Mar 7, 2026 - Night)
+
+**Requirement Review:**
+Client provided detailed payout requirements for verification:
+- Pro-rate formula validation
+- Dynamic billing cycle handling
+- Payout adjustment mechanism
+- Historical visit editing capability
+
+**Verification Results:**
+
+| Requirement | Expected | Actual Implementation | Status |
+|------------|----------|----------------------|--------|
+| **Pro-rate Formula** | `(actual_visits / scheduled_visits) × monthly_rate` | ✅ Implemented in `src/app/api/payout/route.ts:396-401` | ✅ CORRECT |
+| **Billing Cycle** | Dynamic per visit scheduled date, not payout month | ✅ `getBillingCycle()` function (lines 21-51) | ✅ CORRECT |
+| **Cross-Month Invoice** | Jan 7-Feb 6: 8 visits in Jan = 8/9 × 900K, 1 visit in Feb = 1/9 × 900K | ✅ Groups by billing cycle per visit (lines 292-312) | ✅ CORRECT |
+| **Scheduled Denominator** | Total scheduled in invoice period, not per mitra | ✅ No mitra filter on denominator (lines 380-390) | ✅ CORRECT |
+| **Payout Adjustment** | Auto-create on historical edit, apply to next payout | ✅ `payout-adjustment.ts` + applied in route (lines 433-543) | ✅ CORRECT |
+| **Historical Edit Lock** | Default unlocked, editable anytime | ✅ `LOCK_COMPLETED_VISITS = false` default | ✅ CORRECT |
+
+**Example Verified:**
+```
+Invoice: Jan 7 - Feb 6, 2026 (9 total scheduled)
+Jan Payout: 8/9 × Rp 900,000 = Rp 800,000 ✅
+Feb Payout: 1/9 × Rp 900,000 = Rp 100,000 ✅
+
+Later discovery: Jan 31 didn't attend
+Adjustment: -1/9 × Rp 900,000 = -Rp 100,000 ✅
+Next Feb Payout: Rp 200,000 - Rp 100,000 = Rp 100,000 ✅
+```
+
+**Documentation Updated:**
+1. ✅ `docs/features/payout-system.md` - Updated with correct file paths and implementation details
+2. ✅ `docs/features/historical-visit-editing.md` - NEW comprehensive guide created
+3. ✅ `docs/01-active-context.md` - Added verification results (this file)
+
+**Files Analyzed:**
+```
+src/app/api/payout/route.ts                              # Main payout generation
+src/lib/payout-adjustment.ts                             # Adjustment detection
+src/app/api/trial/[id]/visits/[visitId]/change-mitra/route.ts  # Mitra change with adjustment
+src/lib/config.ts                                        # LOCK_COMPLETED_VISITS config
+```
+
+**Conclusion:** 🎉 **All payout requirements fully implemented and verified. No code changes needed.**
 
 ---
 
@@ -378,6 +426,7 @@ STAFF:  Read-only access
 | **"What's this project about?"** | `docs/02-project-overview.md` |
 | **"What changed recently?"** | `docs/03-development-log.md` |
 | **"How does payout work?"** | `docs/features/payout-system.md` |
+| **"Can I edit historical visits?"** | `docs/features/historical-visit-editing.md` ⭐ NEW |
 | **"Why did we choose X?"** | `docs/adrs/2025-XX-XX-decision.md` |
 | **"Current sprint details?"** | `docs/phases/current-sprint.md` |
 | **"Client feedback status?"** | `docs/clients/feedback-tracking.md` |
@@ -426,6 +475,19 @@ STAFF:  Read-only access
 
 ## 📝 Quick Notes
 
+- **Mar 7, 2026 (Night): Payout logic verification completed** ✅
+  - **Client Review:** Verified pro-rate formula, billing cycle, and adjustment mechanism
+  - **Verification Result:** All requirements 100% implemented correctly - NO CODE CHANGES NEEDED
+  - **Documentation Updated:**
+    - ✅ `payout-system.md` - Corrected file paths and added implementation details
+    - ✅ `historical-visit-editing.md` - NEW comprehensive guide created
+    - ✅ `active-context.md` - Added verification results
+  - **Key Findings:**
+    - Pro-rate formula: ✅ Correct (`completed / scheduled × monthly_rate`)
+    - Dynamic billing cycle: ✅ Correct (per visit scheduled date)
+    - Cross-month invoices: ✅ Correct (Jan 7-Feb 6 split handled properly)
+    - Payout adjustments: ✅ Correct (auto-created on historical edit)
+    - Historical edit lock: ✅ Correct (default unlocked, editable anytime)
 - **Mar 6, 2026: UI cleanup & verification completed**
   - **UI Fix 1 & 2:** Removed misleading area limitation warnings from Trial and Customer forms
     - Backend already correct (no region filter since Feb 1)
@@ -447,4 +509,4 @@ STAFF:  Read-only access
 
 **This is the MASTER file. Update daily during active sprints.**
 **Everything else is referenced from here.**
-**Last updated by: AI Assistant @ 2026-03-06**
+**Last updated by: AI Assistant @ 2026-03-07**
