@@ -1,5 +1,5 @@
-import { db } from '../lib/db';
-import { customerDB } from '../lib/schema';
+import { db } from '../src/lib/db';
+import { customerDB } from '../src/lib/schema';
 
 // 20 trial customer data records
 const trialCustomers = [

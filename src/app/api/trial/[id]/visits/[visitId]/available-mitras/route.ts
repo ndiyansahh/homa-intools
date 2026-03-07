@@ -59,7 +59,7 @@ export async function GET(
       );
     }
 
-    const visit = visitResult[0];
+    const visit = visitResult[0] as { id: string; scheduledDate: string | Date; scheduledDay: string };
     console.log('✅ [available-mitras] Visit found:', visit);
 
     // Get customer location
@@ -148,8 +148,8 @@ export async function GET(
     console.log('🔍 [available-mitras] Querying visits on date:', visit.scheduledDate);
 
     // Convert date to string format for comparison (YYYY-MM-DD)
-    const scheduledDateStr = visit.scheduledDate instanceof Date
-      ? visit.scheduledDate.toISOString().split('T')[0]
+    const scheduledDateStr = typeof visit.scheduledDate === 'object' && visit.scheduledDate !== null && 'toISOString' in visit.scheduledDate
+      ? (visit.scheduledDate as Date).toISOString().split('T')[0]
       : String(visit.scheduledDate);
 
     console.log('🔍 [available-mitras] Date string for query:', scheduledDateStr);
@@ -182,7 +182,9 @@ export async function GET(
     });
 
     // Check if max hours restriction is enabled (Feedback 2b)
-    const enableMaxHours = await getConfig(CONFIG_KEYS.ENABLE_SCHEDULE_MAX_HOURS, false);
+    // Disabled per client feedback Mar 7 2026 - No schedule restriction
+    // const enableMaxHours = await getConfig(CONFIG_KEYS.ENABLE_SCHEDULE_MAX_HOURS, false);
+    const enableMaxHours = false;
 
     // Filter by availability (max 8 hours per day - only if enabled)
     const MAX_HOURS_PER_DAY = 8;

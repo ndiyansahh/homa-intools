@@ -108,6 +108,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   const [selectedNewMitra, setSelectedNewMitra] = useState('');
   const [changeReason, setChangeReason] = useState('');
   const [loadingMitraChange, setLoadingMitraChange] = useState(false);
+  const [mitraSearchQuery, setMitraSearchQuery] = useState('');
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedVisitHistory, setSelectedVisitHistory] = useState<any>(null);
 
@@ -669,6 +670,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
     setSelectedVisitForChange(visit);
     setSelectedNewMitra('');
     setChangeReason('');
+    setMitraSearchQuery(''); // Reset search
 
     // Fetch available mitras for this visit date
     try {
@@ -2121,18 +2123,47 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   New Mitra *
                 </label>
+                {/* Search Box */}
+                <input
+                  type="text"
+                  placeholder="🔍 Search mitra by name or code..."
+                  value={mitraSearchQuery}
+                  onChange={(e) => setMitraSearchQuery(e.target.value)}
+                  className="input-field mb-2"
+                />
                 <select
                   value={selectedNewMitra}
                   onChange={(e) => setSelectedNewMitra(e.target.value)}
                   className="input-field"
+                  size={Math.min(availableMitrasForChange.filter(mitra =>
+                    mitraSearchQuery === '' ||
+                    mitra.mitraName?.toLowerCase().includes(mitraSearchQuery.toLowerCase()) ||
+                    mitra.mitraCode?.toLowerCase().includes(mitraSearchQuery.toLowerCase())
+                  ).length + 1, 8)}
                 >
                   <option value="">Select new mitra</option>
-                  {availableMitrasForChange.map((mitra) => (
-                    <option key={mitra.mitraId} value={mitra.mitraId}>
-                      {mitra.mitraName} (Available: {mitra.availableSlots} slots)
-                    </option>
-                  ))}
+                  {availableMitrasForChange
+                    .filter(mitra =>
+                      mitraSearchQuery === '' ||
+                      mitra.mitraName?.toLowerCase().includes(mitraSearchQuery.toLowerCase()) ||
+                      mitra.mitraCode?.toLowerCase().includes(mitraSearchQuery.toLowerCase())
+                    )
+                    .map((mitra) => (
+                      <option key={mitra.mitraId} value={mitra.mitraId}>
+                        {mitra.mitraName} (Available: {mitra.availableSlots} slots)
+                      </option>
+                    ))}
                 </select>
+                {availableMitrasForChange.length > 0 &&
+                 availableMitrasForChange.filter(mitra =>
+                   mitraSearchQuery === '' ||
+                   mitra.mitraName?.toLowerCase().includes(mitraSearchQuery.toLowerCase()) ||
+                   mitra.mitraCode?.toLowerCase().includes(mitraSearchQuery.toLowerCase())
+                 ).length === 0 && (
+                  <p className="text-sm text-amber-600 mt-1">
+                    No mitras match your search. Try different keywords.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

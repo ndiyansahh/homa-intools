@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { MitraData, MitraSubscriptionType, MitraBonusCommission } from '@/types/mitra';
 import { Icons } from './icons';
+import MitraRateConfig from './mitra-rate-config';
 
 interface MitraDetailProps {
   mitraId: string;
@@ -442,6 +443,14 @@ export default function MitraDetailView({ mitraId, onClose, onUpdate }: MitraDet
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Rate Configuration Section */}
+          <div className="mt-6">
+            <MitraRateConfig
+              mitraId={mitraId}
+              mitraName={mitra.name || 'Unknown Mitra'}
+            />
           </div>
         </div>
 

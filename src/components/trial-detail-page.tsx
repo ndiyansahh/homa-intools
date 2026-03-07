@@ -99,6 +99,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
   const [newMitraId, setNewMitraId] = useState('');
   const [changeReason, setChangeReason] = useState('');
   const [changingMitra, setChangingMitra] = useState(false);
+  const [mitraSearchQuery, setMitraSearchQuery] = useState('');
 
   // History viewer modal state
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -583,6 +584,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
     setSelectedVisitForChange(visit);
     setNewMitraId('');
     setChangeReason('');
+    setMitraSearchQuery(''); // Reset search
     setShowChangeMitraModal(true);
 
     // Fetch available mitras for this visit
@@ -2042,6 +2044,14 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Select New Mitra <span className="text-red-500">*</span>
                   </label>
+                  {/* Search Box */}
+                  <input
+                    type="text"
+                    placeholder="🔍 Search mitra by name or code..."
+                    value={mitraSearchQuery}
+                    onChange={(e) => setMitraSearchQuery(e.target.value)}
+                    className="w-full px-3 py-2 mb-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
                   {loadingAvailableMitras ? (
                     <div className="text-sm text-gray-500">Loading available mitras...</div>
                   ) : (
@@ -2049,18 +2059,39 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                       value={newMitraId}
                       onChange={(e) => setNewMitraId(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      size={Math.min(availableMitrasForChange.filter(mitra =>
+                        mitraSearchQuery === '' ||
+                        mitra.mitraName?.toLowerCase().includes(mitraSearchQuery.toLowerCase()) ||
+                        mitra.mitraCode?.toLowerCase().includes(mitraSearchQuery.toLowerCase())
+                      ).length + 1, 8)}
                     >
                       <option value="">-- Select Mitra --</option>
-                      {availableMitrasForChange.map((mitra) => (
-                        <option key={mitra.id} value={mitra.id}>
-                          {mitra.mitraName} ({mitra.mitraCode}) - {mitra.availableHours}h available
-                        </option>
-                      ))}
+                      {availableMitrasForChange
+                        .filter(mitra =>
+                          mitraSearchQuery === '' ||
+                          mitra.mitraName?.toLowerCase().includes(mitraSearchQuery.toLowerCase()) ||
+                          mitra.mitraCode?.toLowerCase().includes(mitraSearchQuery.toLowerCase())
+                        )
+                        .map((mitra) => (
+                          <option key={mitra.id} value={mitra.id}>
+                            {mitra.mitraName} ({mitra.mitraCode}) - {mitra.availableHours}h available
+                          </option>
+                        ))}
                     </select>
                   )}
                   {!loadingAvailableMitras && availableMitrasForChange.length === 0 && (
                     <p className="text-sm text-red-600 mt-1">
-                      No available mitras found for this date and region
+                      No available mitras found for this date
+                    </p>
+                  )}
+                  {!loadingAvailableMitras && availableMitrasForChange.length > 0 &&
+                   availableMitrasForChange.filter(mitra =>
+                     mitraSearchQuery === '' ||
+                     mitra.mitraName?.toLowerCase().includes(mitraSearchQuery.toLowerCase()) ||
+                     mitra.mitraCode?.toLowerCase().includes(mitraSearchQuery.toLowerCase())
+                   ).length === 0 && (
+                    <p className="text-sm text-amber-600 mt-1">
+                      No mitras match your search. Try different keywords.
                     </p>
                   )}
                 </div>
