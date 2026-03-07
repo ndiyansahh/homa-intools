@@ -75,6 +75,7 @@ export default function PackageManagementPage() {
         body: JSON.stringify({
           packageName: packageName.trim(),
           price: priceNum,
+          visitsPerWeek: parseInt(visitsPerWeek), // Bug #4 fix: Send frequency to API
         }),
       });
 

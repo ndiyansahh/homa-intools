@@ -733,14 +733,13 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
         const result = await response.json();
         console.log('Mitra API response:', result);
 
-        // Handle different response formats
-        if (result.items && Array.isArray(result.items)) {
-          console.log('Setting mitras from result.items:', result.items.length);
-          console.log('First mitra structure:', result.items[0]);
-          setAllMitras(result.items);
-        } else if (result.success && result.data) {
+        // Handle different response formats (prioritize new format)
+        if (result.success && result.data && Array.isArray(result.data)) {
           console.log('Setting mitras from result.data:', result.data.length);
           setAllMitras(result.data);
+        } else if (result.items && Array.isArray(result.items)) {
+          console.log('Setting mitras from result.items:', result.items.length);
+          setAllMitras(result.items);
         } else if (Array.isArray(result)) {
           console.log('Setting mitras from array response:', result.length);
           setAllMitras(result);
@@ -748,7 +747,8 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
           console.log('Setting mitras from result.mitras:', result.mitras.length);
           setAllMitras(result.mitras);
         } else {
-          console.warn('Unexpected mitra response format:', result);
+          console.error('Unexpected mitra response format:', result);
+          setAllMitras([]); // Explicitly set empty array
         }
       } else {
         console.error('Mitra API error:', response.status);

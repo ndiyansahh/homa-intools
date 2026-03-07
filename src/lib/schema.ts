@@ -54,6 +54,7 @@ export const subscriptionPackageDB = pgTable('subscription_package_db', {
   subscriptionPackage: varchar('subscription_package', { length: 255 }).notNull(),
   pricePerQty: varchar('price_per_qty', { length: 50 }).notNull(),
   priceNumeric: decimal('price_numeric', { precision: 10, scale: 2 }).notNull(),
+  visitsPerWeek: integer('visits_per_week').default(1).notNull(), // Bug #4 fix: Store frequency as dedicated field
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });

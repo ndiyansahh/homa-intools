@@ -16,13 +16,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .from(subscriptionPackageDB)
       .orderBy(subscriptionPackageDB.priceNumeric);
 
-    // Transform packages to include visitsPerWeek calculation
+    // Transform packages to include visitsPerWeek from database
     const transformedPackages = packages.map(pkg => ({
       id: pkg.id,
       subscriptionPackage: pkg.subscriptionPackage,
       pricePerQty: pkg.pricePerQty,
       priceNumeric: parseFloat(pkg.priceNumeric.toString()),
-      visitsPerWeek: extractVisitsPerWeek(pkg.subscriptionPackage),
+      visitsPerWeek: pkg.visitsPerWeek ?? extractVisitsPerWeek(pkg.subscriptionPackage), // Bug #4 fix: Read from DB column, fallback to parsing
       packageName: pkg.subscriptionPackage, // For compatibility
       description: `${pkg.subscriptionPackage} - ${pkg.pricePerQty}`,
       createdAt: pkg.createdAt,
@@ -62,12 +62,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const body = await request.json();
-    const { packageName, price } = body;
+    const { packageName, price, visitsPerWeek } = body;
 
     // Allow price to be 0
     if (!packageName || price === undefined || price === null) {
       return NextResponse.json(
         { success: false, message: 'Package name and price are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate visitsPerWeek (Bug #4 fix)
+    const visits = visitsPerWeek !== undefined ? parseInt(visitsPerWeek) : 1;
+    if (isNaN(visits) || visits < 0 || visits > 7) {
+      return NextResponse.json(
+        { success: false, message: 'Visits per week must be between 0 and 7' },
         { status: 400 }
       );
     }
@@ -105,6 +114,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         subscriptionPackage: packageName,
         pricePerQty: priceDisplay,
         priceNumeric: priceNum.toFixed(2),
+        visitsPerWeek: visits, // Bug #4 fix: Store frequency
       })
       .returning();
 

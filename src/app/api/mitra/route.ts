@@ -11,6 +11,8 @@ interface AvailableMitra {
   id: string;
   name: string;
   phone: string;
+  mitraName?: string; // Backward compatibility
+  contact?: string; // Backward compatibility
 }
 
 // Get available mitra (cleaners) - simplified response
@@ -77,9 +79,17 @@ async function getAvailableMitra(availableDate: string | null): Promise<NextResp
       id: mitra.id,
       name: mitra.name || 'Unknown',
       phone: mitra.phone || mitra.contact || '', // Use new field with fallback
+      // Add mitraName for backward compatibility
+      mitraName: mitra.name || 'Unknown',
+      contact: mitra.phone || mitra.contact || '', // Add contact for backward compatibility
     }));
 
-    return NextResponse.json(availableMitra);
+    // Return consistent format with metadata
+    return NextResponse.json({
+      success: true,
+      data: availableMitra,
+      count: availableMitra.length
+    });
 
   } catch (dbError) {
     console.error('❌ CRITICAL: Database error in getAvailableMitra:', dbError);

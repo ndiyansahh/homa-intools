@@ -33,9 +33,9 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { packageName, price } = body;
+    const { packageName, price, visitsPerWeek } = body;
 
-    console.log(`[API PUT] Updating package ${id}:`, { packageName, price });
+    console.log(`[API PUT] Updating package ${id}:`, { packageName, price, visitsPerWeek });
 
     if (!packageName || price === undefined) {
       return NextResponse.json(
@@ -49,6 +49,15 @@ export async function PUT(
     if (isNaN(priceNum) || priceNum < 0) {
       return NextResponse.json(
         { success: false, message: 'Price must be a positive number' },
+        { status: 400 }
+      );
+    }
+
+    // Validate visitsPerWeek (Bug #4 fix)
+    const visits = visitsPerWeek !== undefined ? parseInt(visitsPerWeek) : 1;
+    if (isNaN(visits) || visits < 0 || visits > 7) {
+      return NextResponse.json(
+        { success: false, message: 'Visits per week must be between 0 and 7' },
         { status: 400 }
       );
     }
@@ -97,6 +106,7 @@ export async function PUT(
         subscriptionPackage: packageName,
         pricePerQty: priceDisplay,
         priceNumeric: priceNum.toFixed(2),
+        visitsPerWeek: visits, // Bug #4 fix: Store frequency
         updatedAt: new Date(),
       })
       .where(eq(subscriptionPackageDB.id, id))
