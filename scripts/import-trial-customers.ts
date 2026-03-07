@@ -1,5 +1,5 @@
-import { db } from '../src/lib/db';
-import { customerDB } from '../src/lib/schema';
+import { db } from '@/lib/db';
+import { customerDB } from '@/lib/schema';
 
 // 20 trial customer data records
 const trialCustomers = [
@@ -293,7 +293,7 @@ export async function importTrialCustomers() {
     const result = await db.insert(customerDB).values(trialCustomers).returning({ id: customerDB.id });
     
     console.log(`Successfully imported ${result.length} trial customers:`);
-    result.forEach((customer, index) => {
+    result.forEach((customer: { id: string }, index: number) => {
       console.log(`${index + 1}. ${trialCustomers[index].customerName} - ID: ${customer.id}`);
     });
     
