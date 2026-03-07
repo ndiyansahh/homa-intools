@@ -1,21 +1,28 @@
 # 01 - Active Context (Master File)
 
-**Last Updated:** 2026-03-07
-**Current Sprint:** Critical Bugfix (Mar 7, 2026)
-**Status:** ✅ 1 Hotfix Completed
-**Progress:** 100%
+**Last Updated:** 2026-03-07 (Evening)
+**Current Sprint:** Critical Production Bugfix (Mar 7, 2026)
+**Status:** ✅ 4 Critical Bugs Fixed, ⏳ VPS Deployment Pending
+**Progress:** 100% (Code), 0% (Deployment)
 
 ---
 
-## 🎯 CURRENT STATUS (Mar 7, 2026)
+## 🎯 CURRENT STATUS (Mar 7, 2026 - Evening Update)
 
-### Critical Bugfix - ✅ COMPLETED (1 hotfix)
+### Critical Production Bugfix - ✅ CODE COMPLETE (4 bugs fixed)
 
-| Item | Description | Menu | Root Cause | Status |
-|------|-------------|------|------------|--------|
-| BUG-1 | Change Mitra returns "Failed to change mitra" | Customer Detail | PostgreSQL date type mismatch | ✅ Fixed |
+| Bug | Description | Menu | Root Cause | Code Fix | VPS Deploy |
+|-----|-------------|------|------------|----------|------------|
+| **#1** | Change Mitra error on date mismatch | Customer Detail | PostgreSQL date type mismatch | ✅ Fixed | ⏳ Pending |
+| **#2** | Empty mitra dropdown in Add Visit | Customer Detail | Inconsistent API response format | ✅ Fixed | ⏳ Pending |
+| **#3** | Payout generation "Internal server error" | Payout | Missing DB tables in production | ✅ Ready | ⏳ Pending |
+| **#4** | Package frequency not saved to database | Packages | No visits_per_week column | ✅ Fixed | ⏳ Pending |
 
-**Root Cause Analysis:**
+---
+
+### Bug #1: Change Mitra Date Mismatch ✅ FIXED
+
+**Root Cause:**
 - PostgreSQL `date` column compared with JavaScript `Date` object using Drizzle `eq()` failed
 - Query always returned 0 visits → all mitras appeared available incorrectly
 - Error thrown in catch block with generic "Failed to change mitra" message
@@ -34,19 +41,157 @@ const scheduledDateStr = visit.scheduledDate instanceof Date
 ))
 ```
 
-**Impact:**
-- ✅ Change Mitra: Now works correctly with proper mitra availability
-- ✅ Slot calculation: Shows accurate availability based on actual bookings
-- ✅ Add Visit: Confirmed working (no bug - false alarm from user)
+**Files:** `src/app/api/trial/[id]/visits/[visitId]/available-mitras/route.ts:148-173`
 
-### Files Modified (Mar 7, 2026)
+---
+
+### Bug #2: Empty Mitra Dropdown ✅ FIXED
+
+**Root Cause:**
+- API `/api/mitra` returned inconsistent response formats
+- Frontend expected specific format but API changed
+- No mitras appeared in "Add Visit" dropdown
+
+**Fix Applied:**
+```typescript
+// Standardized API response
+return NextResponse.json({
+  success: true,
+  data: availableMitra,
+  count: availableMitra.length
+});
+
+// Frontend with backward compatibility
+if (result.success && result.data && Array.isArray(result.data)) {
+  setAllMitras(result.data);
+} else if (result.items) { // fallback
+  setAllMitras(result.items);
+}
 ```
+
+**Files:**
+- `src/app/api/mitra/route.ts:76-90`
+- `src/components/customer-detail.tsx:736-752`
+
+---
+
+### Bug #3: Payout Generation Error ✅ MIGRATION READY
+
+**Root Cause:**
+- Production VPS missing 3 database tables:
+  - `payout_adjustment_db`
+  - `mitra_rate_config_db`
+  - `system_config_db`
+- These tables exist in Neon (development) but not deployed to VPS
+
+**Fix Prepared:**
+- Migration files ready: `drizzle/neon-migration/0001_early_sage.sql`
+- Deployment script created: `scripts/deploy-production.sh`
+- VPS deployment guide: `VPS-DEPLOYMENT-GUIDE.md`
+
+**Status:** ⏳ Awaiting VPS deployment
+
+---
+
+### Bug #4: Package Frequency Not Saved ✅ FIXED
+
+**Root Cause:**
+- Package frequency only stored in package name string
+- No dedicated `visits_per_week` database column
+- Frequency dropdown in UI but value not persisted
+
+**Fix Applied:**
+
+**Database Migration:**
+```sql
+ALTER TABLE subscription_package_db
+ADD COLUMN visits_per_week INTEGER DEFAULT 1 NOT NULL;
+
+ALTER TABLE subscription_package_db
+ADD CONSTRAINT visits_per_week_range
+CHECK (visits_per_week >= 0 AND visits_per_week <= 7);
+```
+
+**Schema Update:**
+```typescript
+export const subscriptionPackageDB = pgTable('subscription_package_db', {
+  // ...
+  visitsPerWeek: integer('visits_per_week').default(1).notNull(),
+  // ...
+});
+```
+
+**API Updates:**
+- POST `/api/packages` - accepts `visitsPerWeek` parameter (validation: 0-7)
+- PUT `/api/packages/:id` - accepts `visitsPerWeek` parameter (validation: 0-7)
+- GET `/api/packages` - reads from DB column (fallback to parsing name)
+
+**Frontend:**
+- `src/app/app/packages/page.tsx` - sends `visitsPerWeek` in request body
+
+**Files:**
+- `src/lib/schema.ts:51-60`
+- `src/app/api/packages/route.ts:64-82, 110-119`
+- `src/app/api/packages/[id]/route.ts:34-63, 102-113`
+- `src/app/app/packages/page.tsx:72-80`
+
+**Migration Files:**
+- `drizzle/manual-add-visits-per-week.sql` (local - already applied ✅)
+- `drizzle/vps-add-visits-per-week.sql` (VPS production - ⏳ pending)
+
+---
+
+### Files Modified (Mar 7, 2026 - PM)
+```
+# Bug #1: Date mismatch fix
 src/app/api/trial/[id]/visits/[visitId]/available-mitras/route.ts
-  - Lines 148-173: Date conversion and PostgreSQL cast fix
-  - Added debug logging for troubleshooting
+
+# Bug #2: Mitra dropdown fix
+src/app/api/mitra/route.ts                    # Standardized response
+src/components/customer-detail.tsx            # Response handling
+
+# Bug #4: Package frequency fix
+src/lib/schema.ts                             # Added visitsPerWeek field
+src/app/api/packages/route.ts                 # POST/GET updates
+src/app/api/packages/[id]/route.ts            # PUT update
+src/app/app/packages/page.tsx                 # Frontend sends value
+
+# Deployment files (NEW)
+VPS-DEPLOYMENT-GUIDE.md                       # Step-by-step deployment
+BUGFIX-GUIDE.md                               # Technical documentation
+drizzle/vps-add-visits-per-week.sql           # VPS migration
+drizzle/manual-add-visits-per-week.sql        # Local migration (applied)
+scripts/deploy-production.sh                  # Deployment automation
+scripts/seed-mitras.ts                        # Seed sample mitras
+scripts/test-critical-bugs.sh                 # Testing automation
 ```
 
-**Commit:** `014a3d6` - fix: resolve date type mismatch in available-mitras API
+**Commits:**
+- `014a3d6` - fix: resolve date type mismatch in available-mitras API (Bug #1)
+- `631450a` - docs: update logs for Change Mitra bugfix
+- `d4b4df1` - fix: resolve 4 critical production bugs (Bug #2, #3, #4)
+
+**Branch:** `staging` (pushed to GitHub ✅)
+
+---
+
+### Next Steps: VPS Deployment
+
+**Status:** ⏳ Code ready, awaiting deployment to VPS (194.233.68.67)
+
+**Deployment Checklist:**
+- [ ] SSH to VPS at 194.233.68.67
+- [ ] Pull latest code from `staging` branch
+- [ ] Backup databases (homa_staging, homa_production)
+- [ ] Run migrations (Bug #3: missing tables, Bug #4: visits_per_week column)
+- [ ] Rebuild applications (npm run build)
+- [ ] Restart PM2 (homa-staging, homa-production)
+- [ ] Test all 4 bug fixes on staging.homa.co.id
+- [ ] Deploy to production internal.homa.co.id
+
+**Guide:** See `VPS-DEPLOYMENT-GUIDE.md` for complete step-by-step instructions
+
+**Estimated Time:** 30 minutes per environment (staging + production = 1 hour)
 
 ---
 
