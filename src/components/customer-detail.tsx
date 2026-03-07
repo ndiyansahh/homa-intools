@@ -112,6 +112,10 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedVisitHistory, setSelectedVisitHistory] = useState<any>(null);
 
+  // Bulk attendance selection states
+  const [selectedVisits, setSelectedVisits] = useState<Set<string>>(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+
   // Cancel visit with reason states
   const [showCancelReasonModal, setShowCancelReasonModal] = useState(false);
   const [selectedVisitForCancel, setSelectedVisitForCancel] = useState<Visit | null>(null);
@@ -638,6 +642,138 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       alert('Failed to change mitra');
     } finally {
       setLoadingMitraChange(false);
+    }
+  };
+
+  // Bulk attendance handlers
+  const handleToggleVisitSelection = (visitId: string) => {
+    const newSelected = new Set(selectedVisits);
+    if (newSelected.has(visitId)) {
+      newSelected.delete(visitId);
+    } else {
+      newSelected.add(visitId);
+    }
+    setSelectedVisits(newSelected);
+  };
+
+  const handleSelectAllScheduled = () => {
+    const scheduledVisitIds = visits
+      .filter(v => v.status === 'Scheduled')
+      .map(v => v.id);
+    setSelectedVisits(new Set(scheduledVisitIds));
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedVisits(new Set());
+  };
+
+  const handleBulkMarkAttended = async () => {
+    if (selectedVisits.size === 0) {
+      alert('Please select at least one visit');
+      return;
+    }
+
+    const confirmed = confirm(`Mark ${selectedVisits.size} visit(s) as ATTENDED?`);
+    if (!confirmed) return;
+
+    try {
+      setBulkActionLoading(true);
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const visitId of selectedVisits) {
+        try {
+          const response = await fetch(`/api/trial/${customerId}/visits`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              visitId,
+              status: 'Done',
+              actualDate: new Date().toISOString().split('T')[0],
+            }),
+          });
+
+          if (response.ok) {
+            successCount++;
+          } else {
+            errorCount++;
+            console.error(`Failed to mark visit ${visitId} as attended`);
+          }
+        } catch (error) {
+          errorCount++;
+          console.error(`Error updating visit ${visitId}:`, error);
+        }
+      }
+
+      // Clear selection and refresh
+      setSelectedVisits(new Set());
+      await fetchVisits();
+
+      if (errorCount > 0) {
+        alert(`Completed: ${successCount} success, ${errorCount} failed`);
+      } else {
+        alert(`Successfully marked ${successCount} visit(s) as attended`);
+      }
+    } catch (error) {
+      console.error('Bulk mark attended error:', error);
+      alert('Failed to process bulk update');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkMarkMissed = async () => {
+    if (selectedVisits.size === 0) {
+      alert('Please select at least one visit');
+      return;
+    }
+
+    const confirmed = confirm(`Mark ${selectedVisits.size} visit(s) as MISSED (Cancelled)?`);
+    if (!confirmed) return;
+
+    try {
+      setBulkActionLoading(true);
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const visitId of selectedVisits) {
+        try {
+          const response = await fetch(`/api/trial/${customerId}/visits`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              visitId,
+              status: 'Cancelled',
+              visitNotes: 'Marked as missed via bulk action',
+            }),
+          });
+
+          if (response.ok) {
+            successCount++;
+          } else {
+            errorCount++;
+            console.error(`Failed to mark visit ${visitId} as missed`);
+          }
+        } catch (error) {
+          errorCount++;
+          console.error(`Error updating visit ${visitId}:`, error);
+        }
+      }
+
+      // Clear selection and refresh
+      setSelectedVisits(new Set());
+      await fetchVisits();
+
+      if (errorCount > 0) {
+        alert(`Completed: ${successCount} success, ${errorCount} failed`);
+      } else {
+        alert(`Successfully marked ${successCount} visit(s) as missed`);
+      }
+    } catch (error) {
+      console.error('Bulk mark missed error:', error);
+      alert('Failed to process bulk update');
+    } finally {
+      setBulkActionLoading(false);
     }
   };
 
@@ -1338,13 +1474,58 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
             {/* Attendance Record */}
             {visits.length > 0 && (
               <div className="pt-6 border-t border-gray-200">
-                <div className="mb-4">
-                  <h4 className="text-md font-medium text-gray-900">
-                    Attendance Record
-                    {(customer.subscriptionPackage as string) !== 'Trial' && (
-                      <span className="ml-2 text-xs text-gray-500">(Showing completed & scheduled visits)</span>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h4 className="text-md font-medium text-gray-900">
+                      Attendance Record
+                      {(customer.subscriptionPackage as string) !== 'Trial' && (
+                        <span className="ml-2 text-xs text-gray-500">(Showing completed & scheduled visits)</span>
+                      )}
+                    </h4>
+                    {selectedVisits.size > 0 && (
+                      <p className="text-sm text-indigo-600 mt-1">
+                        {selectedVisits.size} visit(s) selected
+                      </p>
                     )}
-                  </h4>
+                  </div>
+
+                  {/* Bulk selection controls */}
+                  <div className="flex items-center space-x-2">
+                    {selectedVisits.size > 0 && (
+                      <>
+                        <button
+                          onClick={handleBulkMarkAttended}
+                          disabled={bulkActionLoading}
+                          className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          ✓ Mark Attended ({selectedVisits.size})
+                        </button>
+                        <button
+                          onClick={handleBulkMarkMissed}
+                          disabled={bulkActionLoading}
+                          className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          ✗ Mark Missed ({selectedVisits.size})
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => {
+                        const selectableVisits = visits.filter(v => v.status !== 'Done' && v.status !== 'Cancelled');
+                        if (selectedVisits.size === selectableVisits.length) {
+                          setSelectedVisits(new Set());
+                        } else {
+                          setSelectedVisits(new Set(selectableVisits.map(v => v.id)));
+                        }
+                      }}
+                      disabled={visits.filter(v => v.status !== 'Done' && v.status !== 'Cancelled').length === 0}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {selectedVisits.size === visits.filter(v => v.status !== 'Done' && v.status !== 'Cancelled').length && selectedVisits.size > 0
+                        ? 'Deselect All'
+                        : 'Select All Scheduled'}
+                    </button>
+                  </div>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="space-y-3">
@@ -1358,10 +1539,32 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                       const packageName = customer?.subscriptionPackage || visit.subscriptionPackage || 'N/A';
 
                       return (
-                        <div key={visit.id} className={`p-4 rounded border ${isCancelled ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-200'}`}>
+                        <div key={visit.id} className={`p-4 rounded border ${isCancelled ? 'bg-gray-100 border-gray-300' :
+                          selectedVisits.has(visit.id) ? 'bg-indigo-50 border-indigo-300 ring-1 ring-indigo-200' :
+                            'bg-white border-gray-200'
+                          }`}>
                           <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-3 mb-2">
+                            <div className="flex items-start space-x-3">
+                              {/* Bulk selection checkbox (Feedback 6a) */}
+                              {!isLocked && !isCancelled && (
+                                <input
+                                  type="checkbox"
+                                  checked={selectedVisits.has(visit.id)}
+                                  onChange={(e) => {
+                                    const updated = new Set(selectedVisits);
+                                    if (e.target.checked) {
+                                      updated.add(visit.id);
+                                    } else {
+                                      updated.delete(visit.id);
+                                    }
+                                    setSelectedVisits(updated);
+                                  }}
+                                  className="mt-1 w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                />
+                              )}
+
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-3 mb-2">
                                   <span className="text-sm font-medium text-gray-900">
                                     Visit #{visit.visitNumber}
                                   </span>
@@ -1510,6 +1713,33 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                     </div>
                   )}
                 </div>
+
+                {/* Bulk Action Bar (Feedback 6a) */}
+                {selectedVisits.size > 0 && (
+                  <div className="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-indigo-900">
+                        {selectedVisits.size} visit(s) selected
+                      </span>
+                      <div className="flex items-center space-x-3">
+                        <button
+                          onClick={handleBulkMarkAttended}
+                          disabled={bulkActionLoading}
+                          className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {bulkActionLoading ? 'Processing...' : '✓ Mark as Attended'}
+                        </button>
+                        <button
+                          onClick={() => setSelectedVisits(new Set())}
+                          disabled={bulkActionLoading}
+                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          Clear Selection
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1965,49 +2195,37 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  New Mitra *
+                  Search Mitra
                 </label>
-                {/* Search Box */}
                 <input
                   type="text"
-                  placeholder="🔍 Search mitra by name or code..."
                   value={mitraSearchQuery}
                   onChange={(e) => setMitraSearchQuery(e.target.value)}
-                  className="input-field mb-2"
+                  placeholder="Type mitra name to search..."
+                  className="input-field"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New Mitra *
+                </label>
                 <select
                   value={selectedNewMitra}
                   onChange={(e) => setSelectedNewMitra(e.target.value)}
                   className="input-field"
-                  size={Math.min(availableMitrasForChange.filter(mitra =>
-                    mitraSearchQuery === '' ||
-                    mitra.mitraName?.toLowerCase().includes(mitraSearchQuery.toLowerCase()) ||
-                    mitra.mitraCode?.toLowerCase().includes(mitraSearchQuery.toLowerCase())
-                  ).length + 1, 8)}
                 >
                   <option value="">Select new mitra</option>
                   {availableMitrasForChange
                     .filter(mitra =>
                       mitraSearchQuery === '' ||
-                      mitra.mitraName?.toLowerCase().includes(mitraSearchQuery.toLowerCase()) ||
-                      mitra.mitraCode?.toLowerCase().includes(mitraSearchQuery.toLowerCase())
+                      mitra.mitraName.toLowerCase().includes(mitraSearchQuery.toLowerCase())
                     )
                     .map((mitra) => (
-                      <option key={mitra.mitraId} value={mitra.mitraId}>
-                        {mitra.mitraName} (Available: {mitra.availableSlots} slots)
-                      </option>
-                    ))}
+                    <option key={mitra.mitraId} value={mitra.mitraId}>
+                      {mitra.mitraName} (Available: {mitra.availableSlots} slots)
+                    </option>
+                  ))}
                 </select>
-                {availableMitrasForChange.length > 0 &&
-                 availableMitrasForChange.filter(mitra =>
-                   mitraSearchQuery === '' ||
-                   mitra.mitraName?.toLowerCase().includes(mitraSearchQuery.toLowerCase()) ||
-                   mitra.mitraCode?.toLowerCase().includes(mitraSearchQuery.toLowerCase())
-                 ).length === 0 && (
-                  <p className="text-sm text-amber-600 mt-1">
-                    No mitras match your search. Try different keywords.
-                  </p>
-                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
