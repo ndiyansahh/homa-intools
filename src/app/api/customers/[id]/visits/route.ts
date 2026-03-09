@@ -51,11 +51,12 @@ export async function POST(
       );
     }
 
-    // Get customer info
+    // Get customer info with invoice_id
     const customer = await db
       .select({
         id: customerDB.id,
         customerName: customerDB.customerName,
+        invoiceId: customerDB.invoiceId,
       })
       .from(customerDB)
       .where(eq(customerDB.id, id))
@@ -103,6 +104,7 @@ export async function POST(
     // Create single visit record
     const visitRecord = {
       customerId: id,
+      invoiceId: customer[0].invoiceId || undefined, // Link to invoice for tracking
       mitraId: mitraId, // Kept for backward compatibility
       originalMitraId: mitraId, // Track original assignment
       actualMitraId: mitraId, // Initially same as original, can be changed later

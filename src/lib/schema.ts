@@ -73,6 +73,7 @@ export const customerDB = pgTable('customer_db', {
   // Cleaner assignment fields
   assignedMitraId: uuid('assigned_mitra_id').references(() => mitraDB.id),
   backupMitraId: uuid('backup_mitra_id').references(() => mitraDB.id),
+  invoiceId: uuid('invoice_id'), // Reference to invoice_db (will be linked after invoice creation)
   subscriptionPackageId: uuid('subscription_package_id').references(() => subscriptionPackageDB.id),
   subscriptionPackage: varchar('subscription_package', { length: 255 }),
   subscriptionStart: date('subscription_start'),
@@ -318,6 +319,7 @@ export const mitraPayoutDB = pgTable('mitra_payout_db', {
 export const visitDB = pgTable('visit_db', {
   id: uuid('id').defaultRandom().primaryKey(),
   customerId: uuid('customer_id').references(() => customerDB.id).notNull(),
+  invoiceId: uuid('invoice_id'), // Reference to invoice_db for tracking & evidence
   mitraId: uuid('mitra_id').references(() => mitraDB.id).notNull(), // Kept for backward compatibility
 
   // Mitra assignment tracking (for replaceable mitra system)

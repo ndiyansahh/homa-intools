@@ -5,6 +5,7 @@ import { sql, and, or, ilike, eq, desc, count, isNull, max } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/logger';
 import { sanitizeSQLLike, sanitizeText } from '@/lib/input-sanitizer';
+import { createInvoice } from '@/lib/utils/invoiceUtils';
 import type { CustomerListItem, CustomersResponse, CustomerApiError, CreateCustomerRequest } from '@/types/customer';
 
 export async function GET(request: NextRequest): Promise<NextResponse<CustomersResponse | CustomerApiError>> {
@@ -293,6 +294,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       const newCustomerId = result[0]?.id;
 
+      // URGENT: Generate invoice for customer (Chris requirement)
+      let invoiceId: string | null = null;
+      if (newCustomerId && (body as any).subscriptionStart) {
+        try {
+          const invoice = await createInvoice({
+            customerId: newCustomerId,
+          });
+          invoiceId = invoice.id;
+
+          // Update customer with invoice_id
+          await db
+            .update(customerDB)
+            .set({ invoiceId: invoiceId })
+            .where(eq(customerDB.id, newCustomerId));
+
+          console.log(`✅ Invoice created and linked: ${invoice.invoiceNumber} → Customer ${newCustomerId}`);
+        } catch (invoiceError) {
+          console.error('⚠️  Failed to create invoice for customer:', invoiceError);
+          // Don't fail customer creation if invoice fails
+        }
+      }
+
       // Generate visit schedule if all required data is provided
       if (newCustomerId && assignedMitraId && (body as any).subscriptionStart && (body as any).selectedDays) {
         console.log('🔄 Generating visit schedule for new customer');
@@ -323,6 +346,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (visitDates.length > 0) {
           const visitRecords = visitDates.map((visit, index) => ({
             customerId: newCustomerId,
+            invoiceId: invoiceId || undefined, // Link visits to invoice for tracking
             mitraId: assignedMitraId,
             originalMitraId: assignedMitraId,
             actualMitraId: assignedMitraId,
@@ -335,7 +359,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }));
 
           await db.insert(visitDB).values(visitRecords);
-          console.log(`✅ Created ${visitRecords.length} visit records for new customer`);
+          console.log(`✅ Created ${visitRecords.length} visit records for new customer (Invoice: ${invoiceId || 'N/A'})`);
         }
       }
 

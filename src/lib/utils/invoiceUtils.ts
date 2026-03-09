@@ -3,21 +3,43 @@ import { invoiceDB, customerDB } from '@/lib/schema';
 import { eq, and, or, sql, max } from 'drizzle-orm';
 
 /**
- * Generates invoice number in format: INV/Cleaning/yyyy.mm.dd-####
- * The sequence number is a 4-digit random number generated when customer is created
+ * Generates invoice number in format: INV/Cleaning/yyyy.mm.dd-#####
+ * Uses a global sequential number from database (NOT date-based reset)
+ * Example: INV/Cleaning/2025.9.01-00450, next invoice is INV/Cleaning/2026.3.15-00451
  */
 function generateInvoiceNumber(subscriptionStart: Date, sequenceNumber: number): string {
   const year = subscriptionStart.getFullYear();
-  const month = String(subscriptionStart.getMonth() + 1).padStart(2, '0');
+  const month = subscriptionStart.getMonth() + 1; // No leading zero
   const day = String(subscriptionStart.getDate()).padStart(2, '0');
 
-  // Format: INV/Cleaning/YYYY.MM.DD-####
-  const formattedSequence = String(sequenceNumber).padStart(4, '0');
+  // Format: INV/Cleaning/YYYY.M.DD-#####
+  const formattedSequence = String(sequenceNumber).padStart(5, '0');
   return `INV/Cleaning/${year}.${month}.${day}-${formattedSequence}`;
 }
 
 /**
- * Generates a random 4-digit sequence number for invoice
+ * Gets the next sequential invoice number from database
+ * Ensures uniqueness by using max(invoice_no) + 1
+ */
+async function getNextInvoiceSequenceNumber(): Promise<number> {
+  try {
+    const result = await db
+      .select({ maxInvoiceNo: max(invoiceDB.invoiceNo) })
+      .from(invoiceDB);
+
+    const maxNo = result[0]?.maxInvoiceNo;
+
+    // Start from 1 if no invoices exist, otherwise increment
+    return maxNo ? Number(maxNo) + 1 : 1;
+  } catch (error) {
+    console.error('Error getting next invoice sequence:', error);
+    throw new Error('Failed to generate invoice sequence number');
+  }
+}
+
+/**
+ * @deprecated Use getNextInvoiceSequenceNumber() instead for sequential numbering
+ * Generates a random 4-digit sequence number for invoice (OLD METHOD)
  */
 export function generateInvoiceSequenceNumber(): number {
   // Generate random 4-digit number (1000-9999)
@@ -72,10 +94,10 @@ export async function createInvoice(params: CreateInvoiceParams) {
       throw new Error('Customer must have a subscription start date to generate invoice');
     }
 
-    // Generate or use provided sequence number
-    const sequenceNumber = params.invoiceSequenceNumber || generateInvoiceSequenceNumber();
-    
-    // Generate invoice number
+    // Generate sequential sequence number from database
+    const sequenceNumber = params.invoiceSequenceNumber || await getNextInvoiceSequenceNumber();
+
+    // Generate invoice number with date from subscription start
     const subscriptionStartDate = new Date(customer.subscriptionStart);
     const invoiceNumber = generateInvoiceNumber(subscriptionStartDate, sequenceNumber);
 
