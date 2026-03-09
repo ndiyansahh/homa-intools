@@ -80,8 +80,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
 
     // Toggle behavior based on feature flag (Feedback: Remove mitra assignment restrictions)
-    let availableMitras: any[] = [];
-    let unavailableMitras: any[] = [];
+    let availableMitras: any[];
+    let unavailableMitras: any[];
 
     if (enableScheduleCheck) {
       // Restricted mode: Separate available vs unavailable based on workload

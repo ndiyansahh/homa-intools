@@ -3,25 +3,25 @@ import { invoiceDB, customerDB } from '@/lib/schema';
 import { eq, and, or, sql, max } from 'drizzle-orm';
 
 /**
- * Generates invoice number in format: INV/Cleaning/yyyy.mm.dd-00000
- * The sequence number is a 5-digit random number generated when customer is created
+ * Generates invoice number in format: INV/Cleaning/yyyy.mm.dd-####
+ * The sequence number is a 4-digit random number generated when customer is created
  */
 function generateInvoiceNumber(subscriptionStart: Date, sequenceNumber: number): string {
   const year = subscriptionStart.getFullYear();
   const month = String(subscriptionStart.getMonth() + 1).padStart(2, '0');
   const day = String(subscriptionStart.getDate()).padStart(2, '0');
-  
-  // Format: INV/Cleaning/yyyy.mm.dd-00000
-  const formattedSequence = String(sequenceNumber).padStart(5, '0');
+
+  // Format: INV/Cleaning/YYYY.MM.DD-####
+  const formattedSequence = String(sequenceNumber).padStart(4, '0');
   return `INV/Cleaning/${year}.${month}.${day}-${formattedSequence}`;
 }
 
 /**
- * Generates a random 5-digit sequence number for invoice
+ * Generates a random 4-digit sequence number for invoice
  */
 export function generateInvoiceSequenceNumber(): number {
-  // Generate random 5-digit number (10000-99999)
-  return Math.floor(Math.random() * 90000) + 10000;
+  // Generate random 4-digit number (1000-9999)
+  return Math.floor(Math.random() * 9000) + 1000;
 }
 
 /**

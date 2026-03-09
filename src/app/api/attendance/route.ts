@@ -4,8 +4,8 @@ import { CreateAttendanceRequest, AttendanceRecord, AttendanceResponse } from '@
 import { logAuditEvent } from '@/lib/logger';
 import { createAttendanceRecord, getAttendanceRecordsWithFullData, updateAttendanceRecordMitraInfo } from '@/lib/utils/attendanceUtils';
 import { db } from '@/lib/db';
-import { attendanceRecordDB, visitDB, customerDB, mitraDB } from '@/lib/schema';
-import { eq, and, or, sql, count, like, gte, lte, desc } from 'drizzle-orm';
+import { attendanceRecordDB, visitDB, customerDB, mitraDB, invoiceDB } from '@/lib/schema';
+import { eq, and, or, sql, count, like, gte, lte, desc, isNull } from 'drizzle-orm';
 
 // Mock data storage (replace with real database)
 let attendanceData: AttendanceRecord[] = [
@@ -200,7 +200,7 @@ export async function GET(request: NextRequest) {
         conditions.push(lte(visitDB.scheduledDate, toDate));
       }
 
-      // Fetch visits with customer and mitra data
+      // Fetch visits with customer, mitra, and invoice data
       const visits = await db
         .select({
           id: visitDB.id,
@@ -215,12 +215,20 @@ export async function GET(request: NextRequest) {
           status: visitDB.status,
           completedAt: visitDB.completedAt,
           createdAt: visitDB.createdAt,
+          invoiceNumber: invoiceDB.invoiceNumber, // 7a: Invoice ID Display
         })
         .from(visitDB)
         .leftJoin(customerDB, eq(visitDB.customerId, customerDB.id))
         .leftJoin(mitraDB, eq(visitDB.actualMitraId, mitraDB.id))
+        .leftJoin(
+          invoiceDB,
+          and(
+            eq(invoiceDB.customerId, visitDB.customerId),
+            or(eq(invoiceDB.isDeleted, false), isNull(invoiceDB.isDeleted))
+          )
+        )
         .where(conditions.length > 0 ? and(...conditions) : undefined)
-        .orderBy(desc(visitDB.scheduledDate))
+        .orderBy(desc(visitDB.scheduledDate), desc(invoiceDB.createdAt)) // Get most recent invoice
         .limit(limit)
         .offset(offset);
 
@@ -237,20 +245,22 @@ export async function GET(request: NextRequest) {
       const total = Number(totalResult[0]?.count || 0);
       const totalPages = Math.ceil(total / limit);
 
-      // Transform data to match component expectations
-      const transformedRecords = visits.map((visit, index) => {
-        // Generate Invoice ID: INV/MitraName/Year.Month.Date-SequenceNumber
-        let invoiceId = 'N/A';
-        if (visit.scheduledDate && visit.visitNumber && visit.mitraName) {
-          const date = new Date(visit.scheduledDate);
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const sequence = String(visit.visitNumber).padStart(3, '0');
-          // Use mitra name (cleaner name) in invoice ID
-          const mitraName = visit.mitraName.replace(/\s+/g, ''); // Remove spaces from mitra name
-          invoiceId = `INV/${mitraName}/${year}.${month}.${day}-${sequence}`;
+      // De-duplicate visits if customer has multiple invoices
+      const seenVisits = new Set<string>();
+      const uniqueVisits = visits.filter(visit => {
+        const key = visit.id;
+        if (seenVisits.has(key)) {
+          return false;
         }
+        seenVisits.add(key);
+        return true;
+      });
+
+      // Transform data to match component expectations
+      const transformedRecords = uniqueVisits.map((visit, index) => {
+        // Use actual invoice number from invoiceDB (7a: Invoice ID Display)
+        // Format: INV/Cleaning/YYYY.MM.DD-####
+        const invoiceId = visit.invoiceNumber || 'N/A';
 
         return {
           id: visit.id || '',

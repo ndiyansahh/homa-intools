@@ -5,6 +5,8 @@ import { eq, and } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import fs from 'fs';
+import path from 'path';
 
 interface RouteParams {
     params: Promise<{ id: string }>;
@@ -135,15 +137,25 @@ export async function GET(
         let yPos = 20;
 
         // ============ HEADER SECTION ============
-        // Logo placeholder - can be replaced with actual logo
-        doc.setFillColor(59, 130, 246); // Blue color
-        doc.roundedRect(margin, yPos - 5, 20, 20, 3, 3, 'F');
+        // Load HOMA logo
+        try {
+            const logoPath = path.join(process.cwd(), 'public', 'images', 'homa-logo.png');
+            const logoExists = fs.existsSync(logoPath);
 
-        // Draw a simple broom/cleaning icon (placeholder)
-        doc.setDrawColor(255, 255, 255);
-        doc.setLineWidth(0.5);
-        doc.line(margin + 10, yPos, margin + 10, yPos + 10);
-        doc.line(margin + 7, yPos + 10, margin + 13, yPos + 10);
+            if (logoExists) {
+                const logoBuffer = fs.readFileSync(logoPath);
+                const logoBase64 = logoBuffer.toString('base64');
+                const logoDataUrl = `data:image/png;base64,${logoBase64}`;
+
+                // Add logo image (20mm width, auto height)
+                doc.addImage(logoDataUrl, 'PNG', margin, yPos - 5, 20, 20);
+            }
+        } catch (error) {
+            console.error('Error loading logo:', error);
+            // Fallback: draw placeholder if logo not found
+            doc.setFillColor(59, 130, 246);
+            doc.roundedRect(margin, yPos - 5, 20, 20, 3, 3, 'F');
+        }
 
         // Company name
         doc.setFont('helvetica', 'bold');
@@ -180,8 +192,8 @@ export async function GET(
         const mitraInfoLabels = [
             { label: 'Nama Mitra', value: payout.mitraName || '-' },
             { label: 'Kode Mitra', value: payout.mitraCode || '-' },
-            { label: 'No. Telpon', value: payout.mitraPhone ? payout.mitraPhone.substring(0, 4) + '########' : '-' },
-            { label: 'Bank', value: payout.mitraBankAccount ? `${payout.mitraBankAccount} - ${payout.mitraBankAccountNumber?.substring(0, 6) || ''}####` : '-' },
+            { label: 'No. Telpon', value: payout.mitraPhone || '-' },
+            { label: 'Bank', value: payout.mitraBankAccount && payout.mitraBankAccountNumber ? `${payout.mitraBankAccount} - ${payout.mitraBankAccountNumber}` : '-' },
         ];
 
         mitraInfoLabels.forEach(item => {
