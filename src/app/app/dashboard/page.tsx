@@ -152,7 +152,7 @@ export default async function DashboardPage() {
       change: `${mitraActiveRate}%`,
       trend: 'neutral',
       icon: Icons.users,
-      href: '/app/mitras',
+      href: '/app/mitra',
     },
     {
       name: 'Active Trials',
@@ -161,7 +161,7 @@ export default async function DashboardPage() {
       change: trialConversionRate > 50 ? 'Good' : 'Fair',
       trend: trialConversionRate > 50 ? 'up' : 'neutral',
       icon: Icons.beaker,
-      href: '/app/trials',
+      href: '/app/trial',
     },
     {
       name: 'Today\'s Visits',

@@ -1291,7 +1291,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                         <tr
                           className="hover:bg-gray-50 cursor-pointer"
                           onClick={() => {
-                            router.push(`/app/trials/${trial.id}`);
+                            router.push(`/app/trial/${trial.id}` as any);
                           }}
                         >
                           <td className="px-6 py-4 whitespace-nowrap">
