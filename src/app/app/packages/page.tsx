@@ -146,24 +146,27 @@ export default function PackageManagementPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Subscription Packages</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage customer pricing plans</p>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Subscription Packages</h1>
+              <p className="text-gray-600 mt-2">Manage customer pricing plans and visit frequencies</p>
+            </div>
+            <button
+              onClick={() => {
+                resetForm();
+                setShowAddForm(!showAddForm);
+              }}
+              className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-semibold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm hover:shadow-md transition-all active:scale-95"
+            >
+              <Icons.plus className="w-5 h-5 mr-2" />
+              {showAddForm ? 'Cancel' : 'Add New Package'}
+            </button>
+          </div>
         </div>
-        <button
-          onClick={() => {
-            resetForm();
-            setShowAddForm(!showAddForm);
-          }}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-        >
-          <Icons.plus className="w-4 h-4 mr-2" />
-          {showAddForm ? 'Cancel' : 'Add Package'}
-        </button>
-      </div>
 
       {/* Add/Edit Form Modal */}
       {showAddForm && (
@@ -293,108 +296,129 @@ export default function PackageManagementPage() {
         </div>
       )}
 
-      {/* Packages List */}
-      <div className="card">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Active Packages ({packages.length})
-          </h2>
-        </div>
-
+        {/* Packages Grid */}
         {packages.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <Icons.beaker className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-            <p className="text-sm">No packages found. Create your first package to get started.</p>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+            <Icons.beaker className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No packages yet</h3>
+            <p className="text-gray-500 mb-6 max-w-md mx-auto">
+              Create your first subscription package to start offering cleaning services to customers
+            </p>
+            <button
+              onClick={() => {
+                resetForm();
+                setShowAddForm(true);
+              }}
+              className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-semibold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-all"
+            >
+              <Icons.plus className="w-5 h-5 mr-2" />
+              Create First Package
+            </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Package Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Monthly Price
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Visits/Week
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Created
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {packages.map((pkg) => (
-                  <tr key={pkg.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              {packages.map((pkg) => (
+                <div
+                  key={pkg.id}
+                  className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg hover:border-indigo-200 transition-all duration-200"
+                >
+                  {/* Card Header */}
+                  <div className="p-6 border-b border-gray-100">
+                    <div className="flex items-start justify-between mb-3">
+                      <h3 className="text-lg font-bold text-gray-900 line-clamp-2">
                         {pkg.subscriptionPackage}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{pkg.pricePerQty}</div>
-                      <div className="text-xs text-gray-500">
-                        Rp {pkg.priceNumeric.toLocaleString('id-ID')}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      </h3>
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 ml-2 flex-shrink-0">
                         {pkg.visitsPerWeek}x/week
                       </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(pkg.createdAt).toLocaleDateString('id-ID')}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleEdit(pkg)}
-                        className="text-indigo-600 hover:text-indigo-900 mr-4"
-                      >
-                        <Icons.edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(pkg)}
-                        disabled={deleting === pkg.id}
-                        className="text-red-600 hover:text-red-900 disabled:opacity-50"
-                      >
-                        {deleting === pkg.id ? (
-                          <Icons.spinner className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Icons.trash className="w-4 h-4" />
-                        )}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                    </div>
+                    <div className="mt-4">
+                      <p className="text-3xl font-bold text-gray-900">{pkg.pricePerQty}</p>
+                      <p className="text-sm text-gray-500 mt-1">per month</p>
+                    </div>
+                  </div>
 
-      {/* Info Card */}
-      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <Icons.alert className="h-5 w-5 text-blue-400" />
-          </div>
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-blue-800">Package Management Tips</h3>
-            <div className="mt-2 text-sm text-blue-700">
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Include visit frequency in package name for clarity (e.g., "Regular 3x/week")</li>
-                <li>Packages are used when creating customers and converting trial customers</li>
-                <li>You cannot delete packages that are currently assigned to customers</li>
-                <li>Price changes only affect new subscriptions, not existing customers</li>
-              </ul>
+                  {/* Card Body */}
+                  <div className="p-6 bg-gray-50">
+                    <div className="space-y-3 text-sm">
+                      <div className="flex items-center text-gray-600">
+                        <Icons.calendar className="w-4 h-4 mr-3 text-gray-400" />
+                        <span>Created {new Date(pkg.createdAt).toLocaleDateString('id-ID', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}</span>
+                      </div>
+                      <div className="flex items-center text-gray-600">
+                        <Icons.currency className="w-4 h-4 mr-3 text-gray-400" />
+                        <span>Rp {pkg.priceNumeric.toLocaleString('id-ID')}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card Actions */}
+                  <div className="p-4 bg-white border-t border-gray-100 flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => handleEdit(pkg)}
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                    >
+                      <Icons.edit className="w-4 h-4 mr-2" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(pkg)}
+                      disabled={deleting === pkg.id}
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {deleting === pkg.id ? (
+                        <>
+                          <Icons.spinner className="w-4 h-4 mr-2 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        <>
+                          <Icons.trash className="w-4 h-4 mr-2" />
+                          Delete
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-        </div>
+
+            {/* Info Card */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <Icons.alert className="h-6 w-6 text-blue-500" />
+                </div>
+                <div className="ml-4 flex-1">
+                  <h3 className="text-base font-semibold text-blue-900 mb-3">Package Management Tips</h3>
+                  <ul className="space-y-2 text-sm text-blue-800">
+                    <li className="flex items-start">
+                      <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mr-3 mt-1.5 flex-shrink-0"></span>
+                      <span>Include visit frequency in package name for clarity (e.g., "Regular 3x/week")</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mr-3 mt-1.5 flex-shrink-0"></span>
+                      <span>Packages are used when creating customers and converting trial customers</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mr-3 mt-1.5 flex-shrink-0"></span>
+                      <span>You cannot delete packages that are currently assigned to customers</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full mr-3 mt-1.5 flex-shrink-0"></span>
+                      <span>Price changes only affect new subscriptions, not existing customers</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
