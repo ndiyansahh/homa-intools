@@ -1203,6 +1203,9 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                         Please select exactly {requiredVisitsPerWeek} days for this package
                       </p>
                     )}
+                    <p className="text-xs text-blue-600 mt-2">
+                      💡 You can select the same day multiple times for different time slots (e.g., Monday 08:00-11:00 & Monday 11:00-14:00)
+                    </p>
                   </div>
                 )}
 

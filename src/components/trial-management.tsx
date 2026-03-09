@@ -661,6 +661,89 @@ export default function TrialManagement({ session }: TrialManagementProps) {
   return (
     <>
       <div className="space-y-6">
+        {/* Header with Stats */}
+        <div className="card p-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Icons.beaker className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <span className="text-3xl font-bold text-gray-900">{pagination.total}</span>
+                <p className="text-sm text-gray-600">Total Trials</p>
+              </div>
+            </div>
+            {lastUpdated && (
+              <div className="text-sm text-gray-500">
+                Last updated: {lastUpdated.toLocaleTimeString()}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5 border border-green-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <Icons.checkCircle className="w-5 h-5 text-green-600" />
+              <span className="text-xs font-medium text-green-700">Converted</span>
+            </div>
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-2xl font-bold text-green-900">
+                  {trials.filter(t => t.overallStatus === 'Converted').length}
+                </p>
+                <p className="text-xs text-green-600 mt-1">Successful Trials</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-5 border border-red-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <Icons.xCircle className="w-5 h-5 text-red-600" />
+              <span className="text-xs font-medium text-red-700">Not Converted</span>
+            </div>
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-2xl font-bold text-red-900">
+                  {trials.filter(t => t.overallStatus === 'Not Converted').length}
+                </p>
+                <p className="text-xs text-red-600 mt-1">Unsuccessful</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-5 border border-yellow-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <Icons.clockIcon className="w-5 h-5 text-yellow-600" />
+              <span className="text-xs font-medium text-yellow-700">Stalling</span>
+            </div>
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-2xl font-bold text-yellow-900">
+                  {trials.filter(t => t.overallStatus === 'Stalling/Postpone').length}
+                </p>
+                <p className="text-xs text-yellow-600 mt-1">Pending</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-5 border border-gray-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <Icons.x className="w-5 h-5 text-gray-600" />
+              <span className="text-xs font-medium text-gray-700">Cancelled</span>
+            </div>
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {trials.filter(t => t.overallStatus === 'Cancelled').length}
+                </p>
+                <p className="text-xs text-gray-600 mt-1">Cancelled</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Create Trial Form */}
         <div className="card p-6">
           <div className="flex items-center justify-between mb-4">
@@ -1046,42 +1129,58 @@ export default function TrialManagement({ session }: TrialManagementProps) {
         </div>
 
         {/* Filters */}
-        <div className="card p-4">
+        <div className="card p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Icons.filter className="w-5 h-5 text-gray-600" />
+            <h3 className="text-lg font-semibold text-gray-900">Filter Trials</h3>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <div>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Icons.search className="h-5 w-5 text-gray-400" />
+              </div>
               <input
                 type="text"
                 placeholder="Search customers..."
                 value={filters.q}
                 onChange={(e) => setFilters(prev => ({ ...prev, q: e.target.value, page: 1 }))}
-                className="input-field"
+                className="input-field pl-10"
               />
             </div>
-            <div>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Icons.package2 className="h-5 w-5 text-gray-400" />
+              </div>
               <select
                 value={filters.acquisition || ''}
                 onChange={(e) => setFilters(prev => ({ ...prev, acquisition: e.target.value as AcquisitionType || undefined, page: 1 }))}
-                className="input-field"
+                className="input-field pl-10"
               >
                 <option value="">All Acquisition</option>
                 <option value="HOMA">HOMA</option>
                 <option value="Altrix">Altrix</option>
               </select>
             </div>
-            <div>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Icons.mapPin className="h-5 w-5 text-gray-400" />
+              </div>
               <input
                 type="text"
                 placeholder="Filter by city..."
                 value={filters.city}
                 onChange={(e) => setFilters(prev => ({ ...prev, city: e.target.value, page: 1 }))}
-                className="input-field"
+                className="input-field pl-10"
               />
             </div>
-            <div>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Icons.home className="h-5 w-5 text-gray-400" />
+              </div>
               <select
                 value={filters.residentialType || ''}
                 onChange={(e) => setFilters(prev => ({ ...prev, residentialType: e.target.value as ResidentialType || undefined, page: 1 }))}
-                className="input-field"
+                className="input-field pl-10"
               >
                 <option value="">All Types</option>
                 <option value="House">House</option>
@@ -1089,11 +1188,14 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                 <option value="Apartment">Apartment</option>
               </select>
             </div>
-            <div>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Icons.checkCircle className="h-5 w-5 text-gray-400" />
+              </div>
               <select
                 value={filters.status || ''}
                 onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as TrialStatus || undefined, page: 1 }))}
-                className="input-field"
+                className="input-field pl-10"
               >
                 <option value="">All Statuses</option>
                 <option value="Converted">Converted</option>
@@ -1102,13 +1204,16 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                 <option value="Cancelled">Cancelled</option>
               </select>
             </div>
-            <div>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Icons.user className="h-5 w-5 text-gray-400" />
+              </div>
               <input
                 type="text"
                 placeholder="Filter by cleaner..."
                 value={filters.cleaner}
                 onChange={(e) => setFilters(prev => ({ ...prev, cleaner: e.target.value, page: 1 }))}
-                className="input-field"
+                className="input-field pl-10"
               />
             </div>
           </div>
@@ -1190,11 +1295,20 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                           }}
                         >
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-blue-600 hover:text-blue-900">
-                              {trial.customerName}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {trial.assignedCleaners && trial.assignedCleaners.length > 0 ? trial.assignedCleaners.join(', ') : 'No cleaner assigned'}
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center shadow-md">
+                                <span className="text-white font-semibold text-sm">
+                                  {trial.customerName.charAt(0).toUpperCase()}
+                                </span>
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-blue-600 hover:text-blue-900">
+                                  {trial.customerName}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {trial.assignedCleaners && trial.assignedCleaners.length > 0 ? trial.assignedCleaners.join(', ') : 'No cleaner assigned'}
+                                </div>
+                              </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
