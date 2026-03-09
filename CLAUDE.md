@@ -176,11 +176,33 @@ npm run db:studio        # Open Drizzle Studio (DB GUI)
 
 ## Deployment
 
+**⚠️ CRITICAL:** Database migrations do NOT auto-apply. You must run them manually during deployment.
+
 **Branches:**
 - `staging` → staging.homa.co.id (port 3001)
 - `main` → internal.homa.co.id (port 3000)
 
-**Deployment managed via:** PM2 (see `ecosystem.config.js`)
+**Deployment workflow:**
+```bash
+# Staging (via SSH to VPS)
+cd /var/www/homa-staging
+bash scripts/deploy-staging.sh
+
+# Production (via SSH to VPS)
+cd /var/www/homa-production
+bash scripts/deploy-production.sh  # Has safety checks & confirmations
+```
+
+**Full guide:** `docs/deployment-guide.md`
+
+**Key deployment steps:**
+1. Backup database & .env
+2. Pull latest code
+3. Install dependencies (if changed)
+4. **Run migrations** (if schema changed)
+5. Build application
+6. Restart PM2
+7. Health check + auto-rollback on failure
 
 ---
 
