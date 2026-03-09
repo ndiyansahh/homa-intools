@@ -1482,50 +1482,9 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                         <span className="ml-2 text-xs text-gray-500">(Showing completed & scheduled visits)</span>
                       )}
                     </h4>
-                    {selectedVisits.size > 0 && (
-                      <p className="text-sm text-indigo-600 mt-1">
-                        {selectedVisits.size} visit(s) selected
-                      </p>
-                    )}
                   </div>
 
-                  {/* Bulk selection controls */}
-                  <div className="flex items-center space-x-2">
-                    {selectedVisits.size > 0 && (
-                      <>
-                        <button
-                          onClick={handleBulkMarkAttended}
-                          disabled={bulkActionLoading}
-                          className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          ✓ Mark Attended ({selectedVisits.size})
-                        </button>
-                        <button
-                          onClick={handleBulkMarkMissed}
-                          disabled={bulkActionLoading}
-                          className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          ✗ Mark Missed ({selectedVisits.size})
-                        </button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => {
-                        const selectableVisits = visits.filter(v => v.status !== 'Done' && v.status !== 'Cancelled');
-                        if (selectedVisits.size === selectableVisits.length) {
-                          setSelectedVisits(new Set());
-                        } else {
-                          setSelectedVisits(new Set(selectableVisits.map(v => v.id)));
-                        }
-                      }}
-                      disabled={visits.filter(v => v.status !== 'Done' && v.status !== 'Cancelled').length === 0}
-                      className="text-xs text-indigo-600 hover:text-indigo-800 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {selectedVisits.size === visits.filter(v => v.status !== 'Done' && v.status !== 'Cancelled').length && selectedVisits.size > 0
-                        ? 'Deselect All'
-                        : 'Select All Scheduled'}
-                    </button>
-                  </div>
+                  {/* Removed: Bulk attendance marking buttons (auto-Done workflow - feedback: too hassle for user) */}
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="space-y-3">
@@ -1539,29 +1498,10 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                       const packageName = customer?.subscriptionPackage || visit.subscriptionPackage || 'N/A';
 
                       return (
-                        <div key={visit.id} className={`p-4 rounded border ${isCancelled ? 'bg-gray-100 border-gray-300' :
-                          selectedVisits.has(visit.id) ? 'bg-indigo-50 border-indigo-300 ring-1 ring-indigo-200' :
-                            'bg-white border-gray-200'
-                          }`}>
+                        <div key={visit.id} className={`p-4 rounded border ${isCancelled ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-200'}`}>
                           <div className="flex items-start justify-between">
                             <div className="flex items-start space-x-3">
-                              {/* Bulk selection checkbox (Feedback 6a) */}
-                              {!isLocked && !isCancelled && (
-                                <input
-                                  type="checkbox"
-                                  checked={selectedVisits.has(visit.id)}
-                                  onChange={(e) => {
-                                    const updated = new Set(selectedVisits);
-                                    if (e.target.checked) {
-                                      updated.add(visit.id);
-                                    } else {
-                                      updated.delete(visit.id);
-                                    }
-                                    setSelectedVisits(updated);
-                                  }}
-                                  className="mt-1 w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                />
-                              )}
+                              {/* Removed: Bulk selection checkbox (auto-Done workflow) */}
 
                               <div className="flex-1">
                                 <div className="flex items-center space-x-3 mb-2">

@@ -5,6 +5,7 @@ import { sql, and, or, ilike, eq, desc, count, not, inArray } from 'drizzle-orm'
 import { getSession } from '@/lib/auth';
 import { CreateMitraRequest, MitraListItem, MitraResponse, MitraData, MitraGender, MitraPartnershipType, MitraStatus, MitraBonusCommission, MitraCityAssignment, MitraSubscriptionType } from '@/types/mitra';
 import { logAuditEvent } from '@/lib/logger';
+import { sanitizeSQLLike, sanitizeText } from '@/lib/input-sanitizer';
 
 // Simple interface for available mitra response
 interface AvailableMitra {
@@ -160,7 +161,7 @@ const generateMitraCode = async (): Promise<string> => {
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -461,7 +462,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -491,17 +492,21 @@ export async function GET(request: NextRequest) {
     const conditions = [];
 
     // Search in name, mitra code, nik, or phone with new schema
+    // SECURITY FIX: Sanitize search input to prevent SQL injection
     if (q) {
-      conditions.push(
-        or(
-          ilike(mitraDB.mitraName, `%${q}%`),
-          ilike(mitraDB.mitraCode, `%${q}%`),
-          ilike(mitraDB.mitraNIK, `%${q}%`),
-          ilike(mitraDB.mitraPhone, `%${q}%`),
-          ilike(mitraDB.contact, `%${q}%`), // Legacy fallback
-          ilike(mitraDB.address, `%${q}%`)
-        )
-      );
+      const sanitizedQ = sanitizeSQLLike(q);
+      if (sanitizedQ) {
+        conditions.push(
+          or(
+            ilike(mitraDB.mitraName, `%${sanitizedQ}%`),
+            ilike(mitraDB.mitraCode, `%${sanitizedQ}%`),
+            ilike(mitraDB.mitraNIK, `%${sanitizedQ}%`),
+            ilike(mitraDB.mitraPhone, `%${sanitizedQ}%`),
+            ilike(mitraDB.contact, `%${sanitizedQ}%`), // Legacy fallback
+            ilike(mitraDB.address, `%${sanitizedQ}%`)
+          )
+        );
+      }
     }
 
     // Status filter
@@ -515,13 +520,17 @@ export async function GET(request: NextRequest) {
     }
 
     // City filter with new schema
+    // SECURITY FIX: Sanitize city filter
     if (city) {
-      conditions.push(
-        or(
-          ilike(mitraDB.mitraCityAssignment, `%${city}%`),
-          ilike(mitraDB.city, `%${city}%`) // Legacy fallback
-        )
-      );
+      const sanitizedCity = sanitizeSQLLike(city);
+      if (sanitizedCity) {
+        conditions.push(
+          or(
+            ilike(mitraDB.mitraCityAssignment, `%${sanitizedCity}%`),
+            ilike(mitraDB.city, `%${sanitizedCity}%`) // Legacy fallback
+          )
+        );
+      }
     }
 
     // Add soft delete condition (only show non-deleted)

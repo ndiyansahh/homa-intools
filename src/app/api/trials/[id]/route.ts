@@ -50,7 +50,7 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const session = await getSession();
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -239,7 +239,7 @@ export async function DELETE(
 ): Promise<NextResponse> {
   try {
     const session = await getSession();
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -330,7 +330,7 @@ export async function DELETE(
 export async function PUT(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await getSession();
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }

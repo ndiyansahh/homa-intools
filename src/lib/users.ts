@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { userDB } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { User, UserRole } from '@/types/auth';
+import { validatePasswordStrength } from './password-validator';
 
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes (ADR 0002)
 const MAX_FAILED_ATTEMPTS = 5; // ADR 0002
@@ -233,14 +234,13 @@ export async function changeUserPassword(
       return { success: false, error: 'Current password is incorrect' };
     }
 
-    // Validate new password
-    if (newPassword.length < 8) {
-      return { success: false, error: 'Password must be at least 8 characters' };
-    }
-
-    // Check for uppercase, lowercase, and number
-    if (!/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-      return { success: false, error: 'Password must contain uppercase, lowercase, and number' };
+    // SECURITY FIX: Validate new password strength with comprehensive rules
+    const passwordValidation = validatePasswordStrength(newPassword);
+    if (!passwordValidation.isValid) {
+      return {
+        success: false,
+        error: passwordValidation.errors.join('. ')
+      };
     }
 
     // Check if new password is same as current

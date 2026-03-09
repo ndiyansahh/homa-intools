@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
+import { getJwtSecret } from './src/lib/env-validation';
+import { requiresCSRFProtection, validateCSRFToken } from './src/lib/csrf';
+import { checkRateLimit } from './src/lib/rate-limit';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'your-secret-key-change-this-in-production'
-);
+// SECURITY: JWT_SECRET validation enforced at startup
+// No fallback - application will not start if JWT_SECRET is missing or weak
+const JWT_SECRET = new TextEncoder().encode(getJwtSecret());
 
 const protectedRoutes = ['/app'];
 const authRoutes = ['/login'];
@@ -14,6 +17,53 @@ const adminOnlyRoutes = ['/app/settings', '/app/users'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // SECURITY: Rate limiting for API requests (before CSRF to prevent DOS)
+  const isApiRoute = pathname.startsWith('/api/');
+  const isMutatingRequest = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method || '');
+
+  if (isApiRoute && isMutatingRequest && !pathname.startsWith('/api/auth/login')) {
+    // Rate limit by IP address
+    const clientIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const rateLimit = checkRateLimit(clientIp, 'api');
+
+    if (!rateLimit.success) {
+      console.warn('⚠️ Rate limit exceeded:', {
+        path: pathname,
+        ip: clientIp,
+        resetTime: new Date(rateLimit.resetTime).toISOString(),
+      });
+
+      const response = NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 }
+      );
+
+      // Add rate limit headers
+      response.headers.set('X-RateLimit-Limit', '100');
+      response.headers.set('X-RateLimit-Remaining', '0');
+      response.headers.set('X-RateLimit-Reset', rateLimit.resetTime.toString());
+      response.headers.set('Retry-After', Math.ceil((rateLimit.resetTime - Date.now()) / 1000).toString());
+
+      return response;
+    }
+  }
+
+  // SECURITY: CSRF Protection for mutating API requests
+  if (requiresCSRFProtection(request)) {
+    const isValid = await validateCSRFToken(request);
+    if (!isValid) {
+      console.warn('⚠️ CSRF validation failed:', {
+        path: pathname,
+        method: request.method,
+        ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+      });
+      return NextResponse.json(
+        { error: 'Invalid CSRF token. Please refresh the page and try again.' },
+        { status: 403 }
+      );
+    }
+  }
 
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));

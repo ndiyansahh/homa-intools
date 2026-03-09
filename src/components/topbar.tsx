@@ -10,12 +10,14 @@ interface TopbarProps {
   breadcrumbs: BreadcrumbItem[];
   session: SessionData;
   onMenuClick: () => void;
+  onToggleCollapse: () => void;
+  isCollapsed: boolean;
 }
 
-export default function Topbar({ breadcrumbs, session, onMenuClick }: TopbarProps) {
+export default function Topbar({ breadcrumbs, session, onMenuClick, onToggleCollapse, isCollapsed }: TopbarProps) {
   return (
     <header className="bg-white/95 backdrop-blur-sm border-b border-gray-200/50 shadow-sm sticky top-0 z-30">
-      <div className="px-4 sm:px-6 lg:ml-59 lg:pl-0 lg:pr-8 xl:ml-55 xl:pl-0 xl:pr-8">
+      <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Left side - Mobile menu and breadcrumbs */}
           <div className="flex items-center space-x-4">
@@ -26,6 +28,19 @@ export default function Topbar({ breadcrumbs, session, onMenuClick }: TopbarProp
               aria-label="Open sidebar"
             >
               <Icons.menu className="h-5 w-5" />
+            </button>
+
+            {/* Desktop toggle button */}
+            <button
+              onClick={onToggleCollapse}
+              className="hidden lg:flex p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isCollapsed ? (
+                <Icons.chevronRight className="h-5 w-5" />
+              ) : (
+                <Icons.chevronLeft className="h-5 w-5" />
+              )}
             </button>
             
             {/* Breadcrumbs */}

@@ -9,7 +9,7 @@ import { logAuditEvent } from '@/lib/logger';
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

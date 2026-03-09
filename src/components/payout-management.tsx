@@ -39,6 +39,7 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
   const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
   const [filterMonth, setFilterMonth] = useState('');
   const [filterMitraName, setFilterMitraName] = useState('');
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [pagination, setPagination] = useState({
@@ -170,29 +171,24 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
     }
   };
 
-  // Export Monthly Payout - Single month export
   const handleExportMonthlyPayout = async () => {
     try {
       setExporting(true);
 
-      // Validate month is selected
       if (!filterMonth) {
         alert('Please select a month to export monthly payout');
         setExporting(false);
         return;
       }
 
-      // Build query params
       const params = new URLSearchParams({
         year: filterYear,
         months: filterMonth,
-        format: 'csv',
+        format: exportFormat,
       });
 
-      // Fetch export data from API
       const response = await fetch(`/api/payouts/export?${params.toString()}`);
 
-      // Handle 404 - No data found
       if (response.status === 404) {
         const errorData = await response.json();
         alert(errorData.message || `No payouts found for ${getMonthName(parseInt(filterMonth))} ${filterYear}`);
@@ -204,18 +200,18 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
         throw new Error('Failed to export payout data');
       }
 
-      // Download CSV file
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `payout-monthly-${filterYear}-${filterMonth.padStart(2, '0')}.csv`;
+      const fileExtension = exportFormat === 'pdf' ? 'pdf' : 'csv';
+      link.download = `payout-monthly-${filterYear}-${filterMonth.padStart(2, '0')}.${fileExtension}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      alert('Export successful! CSV file has been downloaded.');
+      alert(`Export successful! ${exportFormat.toUpperCase()} file has been downloaded.`);
     } catch (error) {
       console.error('Error exporting monthly payout:', error);
       alert('Failed to export monthly payout');
@@ -224,22 +220,18 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
     }
   };
 
-  // Export Full Report Yearly - All months in a year
   const handleExportFullReportYearly = async () => {
     try {
       setExporting(true);
 
-      // Build query params for all months
       const params = new URLSearchParams({
         year: filterYear,
-        months: '1,2,3,4,5,6,7,8,9,10,11,12', // All months
-        format: 'csv',
+        months: '1,2,3,4,5,6,7,8,9,10,11,12',
+        format: exportFormat,
       });
 
-      // Fetch export data from API
       const response = await fetch(`/api/payouts/export?${params.toString()}`);
 
-      // Handle 404 - No data found
       if (response.status === 404) {
         const errorData = await response.json();
         alert(errorData.message || `No payouts found for year ${filterYear}`);
@@ -251,18 +243,18 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
         throw new Error('Failed to export full report');
       }
 
-      // Download CSV file
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `payout-yearly-report-${filterYear}.csv`;
+      const fileExtension = exportFormat === 'pdf' ? 'pdf' : 'csv';
+      link.download = `payout-yearly-report-${filterYear}.${fileExtension}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      alert('Export successful! Full yearly report has been downloaded.');
+      alert(`Export successful! Full yearly ${exportFormat.toUpperCase()} report has been downloaded.`);
     } catch (error) {
       console.error('Error exporting full report:', error);
       alert('Failed to export full report');
@@ -286,38 +278,177 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
   return (
-    <div className="space-y-6">
-      {/* Filters and Actions */}
-      <div className="card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Year
-            </label>
+    <div className="space-y-8 p-1">
+      <style jsx>{`
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+
+        .payout-header {
+          font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+        }
+
+        .financial-card {
+          background: linear-gradient(to bottom, #ffffff, #fafafa);
+          border: 1px solid #e5e7eb;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+          transition: all 0.2s ease;
+        }
+
+        .financial-card:hover {
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .filter-input {
+          border: 1.5px solid #e5e7eb;
+          transition: all 0.2s ease;
+          font-size: 0.875rem;
+        }
+
+        .filter-input:focus {
+          border-color: #3b82f6;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+          outline: none;
+        }
+
+        .action-btn {
+          transition: all 0.2s ease;
+          font-weight: 500;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .action-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .action-btn:active:not(:disabled) {
+          transform: translateY(0);
+        }
+
+        .table-header {
+          background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+          font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+          letter-spacing: 0.05em;
+        }
+
+        .table-row {
+          transition: all 0.15s ease;
+          border-bottom: 1px solid #f3f4f6;
+        }
+
+        .table-row:hover {
+          background: linear-gradient(to right, #fafbfc, #f8f9fa);
+          transform: scale(1.002);
+        }
+
+        .currency-value {
+          font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+          font-variant-numeric: tabular-nums;
+        }
+
+        .badge-eligible {
+          background: linear-gradient(135deg, #10b981, #059669);
+          color: white;
+          font-size: 0.7rem;
+          padding: 2px 8px;
+          border-radius: 9999px;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+        }
+
+        .modal-overlay {
+          backdrop-filter: blur(4px);
+          animation: fadeIn 0.2s ease;
+        }
+
+        .modal-content {
+          animation: slideUp 0.3s ease;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .stat-card {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border-radius: 12px;
+          padding: 1rem;
+          color: white;
+        }
+
+        .empty-state {
+          opacity: 0;
+          animation: fadeInUp 0.5s ease forwards;
+        }
+
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+
+      {/* Header Section */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 payout-header">Payout Management</h1>
+          <p className="mt-2 text-sm text-slate-600">Manage monthly mitra compensation and generate reports</p>
+        </div>
+        <div className="flex items-center gap-3 bg-gradient-to-br from-indigo-50 to-purple-50 px-4 py-3 rounded-xl border border-indigo-100">
+          <div className="text-right">
+            <div className="text-xs text-slate-600 uppercase tracking-wide font-medium">Total Records</div>
+            <div className="text-2xl font-bold text-indigo-600 payout-header">{pagination.total}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters Section */}
+      <div className="financial-card rounded-xl p-6">
+        <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4 payout-header">Filters & Export</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* Filter Inputs */}
+          <div className="lg:col-span-2">
+            <label className="block text-xs font-medium text-slate-700 mb-2 uppercase tracking-wide">Year</label>
             <select
               value={filterYear}
               onChange={(e) => {
                 setFilterYear(e.target.value);
                 setPage(1);
               }}
-              className="input-field"
+              className="filter-input w-full px-3 py-2.5 rounded-lg bg-white"
             >
               {years.map(year => (
                 <option key={year} value={year}>{year}</option>
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Month
-            </label>
+
+          <div className="lg:col-span-2">
+            <label className="block text-xs font-medium text-slate-700 mb-2 uppercase tracking-wide">Month</label>
             <select
               value={filterMonth}
               onChange={(e) => {
                 setFilterMonth(e.target.value);
                 setPage(1);
               }}
-              className="input-field"
+              className="filter-input w-full px-3 py-2.5 rounded-lg bg-white"
             >
               <option value="">All Months</option>
               {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
@@ -325,81 +456,107 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Mitra Name
-            </label>
+
+          <div className="lg:col-span-3">
+            <label className="block text-xs font-medium text-slate-700 mb-2 uppercase tracking-wide">Mitra Name</label>
             <input
               type="text"
-              placeholder="Search by mitra name..."
+              placeholder="Search by name..."
               value={filterMitraName}
               onChange={(e) => {
                 setFilterMitraName(e.target.value);
                 setPage(1);
               }}
-              className="input-field"
+              className="filter-input w-full px-3 py-2.5 rounded-lg bg-white"
             />
           </div>
-          <div className="flex items-end gap-2">
-            <button
-              onClick={handleExportMonthlyPayout}
-              disabled={exporting || !filterMonth}
-              className="btn-primary flex-1"
-              title="Export single month payout with bank details (select month first)"
+
+          <div className="lg:col-span-2">
+            <label className="block text-xs font-medium text-slate-700 mb-2 uppercase tracking-wide">Format</label>
+            <select
+              value={exportFormat}
+              onChange={(e) => setExportFormat(e.target.value as 'csv' | 'pdf')}
+              className="filter-input w-full px-3 py-2.5 rounded-lg bg-white"
             >
-              <Icons.download className="h-4 w-4 mr-2 inline" />
-              {exporting ? 'Exporting...' : 'Export Monthly Payout'}
-            </button>
-            <button
-              onClick={handleExportFullReportYearly}
-              disabled={exporting}
-              className="btn-secondary flex-1"
-              title="Export full yearly report (all months for selected year)"
-            >
-              <Icons.download className="h-4 w-4 mr-2 inline" />
-              {exporting ? 'Exporting...' : 'Export Full Report Yearly'}
-            </button>
+              <option value="csv">CSV</option>
+              <option value="pdf">PDF</option>
+            </select>
+          </div>
+
+          {/* Export Buttons */}
+          <div className="lg:col-span-3 flex gap-2">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-slate-700 mb-2 uppercase tracking-wide">Actions</label>
+              <button
+                onClick={handleExportMonthlyPayout}
+                disabled={exporting || !filterMonth}
+                className="action-btn w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                title="Export single month"
+              >
+                <Icons.download className="h-4 w-4 inline mr-1.5" />
+                {exporting ? 'Exporting...' : 'Monthly'}
+              </button>
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-transparent mb-2 select-none">.</label>
+              <button
+                onClick={handleExportFullReportYearly}
+                disabled={exporting}
+                className="action-btn w-full px-4 py-2.5 bg-slate-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                title="Export full year"
+              >
+                <Icons.download className="h-4 w-4 inline mr-1.5" />
+                {exporting ? 'Exporting...' : 'Yearly'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Payout Records List */}
-      <div className="card">
-        <div className="p-6 border-b border-gray-200">
+      {/* Payout Records Table */}
+      <div className="financial-card rounded-xl overflow-hidden">
+        {/* Table Header */}
+        <div className="px-6 py-5 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Payout Records</h2>
-              <p className="mt-1 text-sm text-gray-600">
-                Monthly payout calculations for mitras
-              </p>
+              <h2 className="text-xl font-bold text-slate-900 payout-header">Payout Records</h2>
+              <p className="mt-1 text-sm text-slate-600">Monthly compensation details for all mitras</p>
             </div>
-            <div className="flex items-center space-x-3">
-              <span className="text-sm text-gray-500">
-                {pagination.total} total records
-              </span>
-              {['ADMIN', 'OWNER'].includes(session.role) && (
-                <button
-                  onClick={handleGeneratePayouts}
-                  disabled={generating}
-                  className="btn-primary"
-                >
-                  {generating ? 'Generating...' : 'Generate Payouts'}
-                </button>
-              )}
-            </div>
+            {['ADMIN', 'OWNER'].includes(session.role) && (
+              <button
+                onClick={handleGeneratePayouts}
+                disabled={generating}
+                className="action-btn px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                {generating ? (
+                  <>
+                    <div className="inline-block animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Icons.plus className="h-4 w-4 inline mr-2" />
+                    Generate Payouts
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
 
+        {/* Table Content */}
         {loading ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Loading payout records...</p>
+          <div className="p-16 text-center empty-state">
+            <div className="inline-block animate-spin h-10 w-10 border-4 border-blue-200 border-t-blue-600 rounded-full"></div>
+            <p className="mt-4 text-slate-600 font-medium">Loading payout records...</p>
           </div>
         ) : payouts.length === 0 ? (
-          <div className="p-8 text-center">
-            <Icons.clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Payout Records Found</h3>
-            <p className="text-gray-600">
+          <div className="p-16 text-center empty-state">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
+              <Icons.clock className="w-8 h-8 text-slate-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2 payout-header">No Payout Records Found</h3>
+            <p className="text-slate-600 max-w-md mx-auto">
               {filterYear || filterMonth || filterMitraName
                 ? 'Try adjusting your filters to see more results.'
                 : 'Generate payouts for a specific month to see records here.'}
@@ -408,75 +565,55 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full">
+                <thead className="table-header">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Payout ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Year
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Month
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Mitra Name
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Visits
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Base Payout
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Lainnya
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total Payout
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase">Payout ID</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase">Period</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase">Mitra</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase">Visits</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase">Base Payout</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase">Lainnya</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase">Total</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold text-slate-700 uppercase">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {payouts.map((payout) => (
-                    <tr key={payout.id} className="hover:bg-gray-50">
+                <tbody className="bg-white">
+                  {payouts.map((payout, index) => (
+                    <tr key={payout.id} className="table-row" style={{ animationDelay: `${index * 0.05}s` }}>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-xs text-gray-900 font-mono">
+                        <div className="text-xs text-slate-600 font-mono bg-slate-50 px-2 py-1 rounded inline-block">
                           {payout.payoutId}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{payout.year}</div>
+                        <div className="text-sm font-semibold text-slate-900">{getMonthName(payout.month)}</div>
+                        <div className="text-xs text-slate-500">{payout.year}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{getMonthName(payout.month)}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{payout.mitraName}</div>
+                        <div className="text-sm font-semibold text-slate-900">{payout.mitraName}</div>
                         {payout.bonusEligible && (
-                          <div className="text-xs text-green-600">✓ Lainnya Eligible</div>
+                          <div className="badge-eligible inline-block mt-1">Lainnya Eligible</div>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="text-sm text-gray-900">{payout.totalVisits}</div>
+                        <div className="inline-flex items-center justify-center bg-blue-50 text-blue-700 font-bold px-3 py-1 rounded-full text-sm">
+                          {payout.totalVisits}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="text-sm text-gray-900">{formatCurrency(payout.basePayout)}</div>
+                        <div className="text-sm font-semibold text-slate-900 currency-value">{formatCurrency(payout.basePayout)}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="text-sm text-gray-900">{formatCurrency(payout.bonusAmount)}</div>
+                        <div className="text-sm font-semibold text-emerald-600 currency-value">{formatCurrency(payout.bonusAmount)}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="text-sm font-semibold text-gray-900">
+                        <div className="text-base font-bold text-slate-900 currency-value bg-slate-50 px-3 py-1.5 rounded-lg inline-block">
                           {formatCurrency(payout.totalPayout)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <div className="flex items-center justify-center space-x-2">
-                          {/* PDF Download Button */}
+                        <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => {
                               const link = document.createElement('a');
@@ -486,19 +623,17 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
                               link.click();
                               document.body.removeChild(link);
                             }}
-                            className="text-gray-600 hover:text-gray-900 text-sm"
-                            title="Download PDF Slip"
+                            className="action-btn p-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg"
+                            title="Download PDF"
                           >
                             <Icons.download className="h-4 w-4" />
                           </button>
-
-                          {/* Edit Lainnya Button */}
                           {payout.bonusEligible && ['ADMIN', 'OWNER'].includes(session.role) && (
                             <button
                               onClick={() => handleEditBonus(payout)}
-                              className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+                              className="action-btn px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-semibold"
                             >
-                              Edit Lainnya
+                              Edit
                             </button>
                           )}
                         </div>
@@ -511,27 +646,27 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
 
             {/* Pagination */}
             {pagination.totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                <div className="text-sm text-gray-700">
-                  Showing {((page - 1) * limit) + 1} to{' '}
-                  {Math.min(page * limit, pagination.total)} of{' '}
-                  {pagination.total} results
+              <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+                <div className="text-sm text-slate-700 font-medium">
+                  Showing <span className="font-bold text-slate-900">{((page - 1) * limit) + 1}</span> to{' '}
+                  <span className="font-bold text-slate-900">{Math.min(page * limit, pagination.total)}</span> of{' '}
+                  <span className="font-bold text-slate-900">{pagination.total}</span> results
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => setPage(Math.max(1, page - 1))}
                     disabled={page <= 1}
-                    className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    className="action-btn px-4 py-2 bg-white border-2 border-slate-200 rounded-lg text-sm font-semibold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:border-slate-300"
                   >
                     Previous
                   </button>
-                  <span className="text-sm text-gray-700">
-                    Page {page} of {pagination.totalPages}
+                  <span className="text-sm font-semibold text-slate-700 px-3">
+                    Page <span className="text-blue-600">{page}</span> of {pagination.totalPages}
                   </span>
                   <button
                     onClick={() => setPage(Math.min(pagination.totalPages, page + 1))}
                     disabled={page >= pagination.totalPages}
-                    className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    className="action-btn px-4 py-2 bg-white border-2 border-slate-200 rounded-lg text-sm font-semibold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:border-slate-300"
                   >
                     Next
                   </button>
@@ -544,52 +679,62 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
 
       {/* Edit Bonus Modal */}
       {showBonusModal && selectedPayout && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Edit Lainnya - {selectedPayout.mitraName}
-            </h3>
-            <div className="space-y-4">
+        <div className="modal-overlay fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+          <div className="modal-content bg-white rounded-2xl max-w-lg w-full overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-5">
+              <h3 className="text-xl font-bold text-white payout-header">
+                Edit Lainnya
+              </h3>
+              <p className="text-blue-100 text-sm mt-1">{selectedPayout.mitraName}</p>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">
                   Lainnya Amount (Rp)
                 </label>
                 <input
                   type="number"
                   value={bonusAmount}
                   onChange={(e) => setBonusAmount(e.target.value)}
-                  className="input-field"
+                  className="filter-input w-full px-4 py-3 rounded-lg bg-white text-lg font-semibold"
                   min="0"
                   step="1000"
                 />
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">
                   Notes
                 </label>
                 <textarea
                   value={bonusNotes}
                   onChange={(e) => setBonusNotes(e.target.value)}
-                  className="input-field"
+                  className="filter-input w-full px-4 py-3 rounded-lg bg-white resize-none"
                   rows={3}
-                  placeholder="Optional notes about bonus..."
+                  placeholder="Optional notes about adjustment..."
                 />
               </div>
-              <div className="bg-gray-50 p-3 rounded">
-                <div className="text-sm text-gray-600 space-y-1">
-                  <div className="flex justify-between">
-                    <span>Base Payout:</span>
-                    <span className="font-medium">{formatCurrency(selectedPayout.basePayout)}</span>
+
+              {/* Calculation Preview */}
+              <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-5 rounded-xl border border-slate-200">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-slate-600 font-medium">Base Payout</span>
+                    <span className="text-base font-bold text-slate-900 currency-value">{formatCurrency(selectedPayout.basePayout)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Lainnya Amount:</span>
-                    <span className="font-medium text-green-600">
-                      {formatCurrency(bonusAmount || '0')}
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-slate-600 font-medium">Lainnya Amount</span>
+                    <span className="text-base font-bold text-emerald-600 currency-value">
+                      +{formatCurrency(bonusAmount || '0')}
                     </span>
                   </div>
-                  <div className="flex justify-between pt-2 border-t border-gray-300">
-                    <span className="font-semibold">Total Payout:</span>
-                    <span className="font-semibold text-blue-600">
+                  <div className="h-px bg-slate-300"></div>
+                  <div className="flex justify-between items-center pt-1">
+                    <span className="text-sm font-bold text-slate-800 uppercase tracking-wide">Total Payout</span>
+                    <span className="text-xl font-bold text-blue-600 currency-value">
                       {formatCurrency(
                         parseFloat(selectedPayout.basePayout) + parseFloat(bonusAmount || '0')
                       )}
@@ -599,23 +744,31 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
               </div>
             </div>
 
-            <div className="flex justify-end space-x-3 mt-6">
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
               <button
                 onClick={() => {
                   setShowBonusModal(false);
                   setSelectedPayout(null);
                 }}
-                className="btn-secondary"
+                className="action-btn px-5 py-2.5 bg-white border-2 border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50"
                 disabled={updating}
               >
                 Cancel
               </button>
               <button
                 onClick={handleUpdateBonus}
-                className="btn-primary"
+                className="action-btn px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-lg font-semibold disabled:opacity-50"
                 disabled={updating}
               >
-                {updating ? 'Updating...' : 'Update Lainnya'}
+                {updating ? (
+                  <>
+                    <div className="inline-block animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                    Updating...
+                  </>
+                ) : (
+                  'Update Lainnya'
+                )}
               </button>
             </div>
           </div>

@@ -16,9 +16,23 @@ interface AppShellProps {
 
 export default function AppShell({ children, session }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const pathname = usePathname();
   const visibleNavItems = getVisibleNavItems(session.role);
   const breadcrumbs = generateBreadcrumbs(pathname);
+
+  // Load collapsed state from localStorage on mount
+  useEffect(() => {
+    const savedCollapsedState = localStorage.getItem('sidebarCollapsed');
+    if (savedCollapsedState !== null) {
+      setSidebarCollapsed(savedCollapsedState === 'true');
+    }
+  }, []);
+
+  // Save collapsed state to localStorage
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', sidebarCollapsed.toString());
+  }, [sidebarCollapsed]);
 
   // Log page views
   useEffect(() => {
@@ -45,9 +59,11 @@ export default function AppShell({ children, session }: AppShellProps) {
           navigationItems={visibleNavItems}
           session={session}
           isOpen={sidebarOpen}
+          isCollapsed={sidebarCollapsed}
           onClose={() => setSidebarOpen(false)}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
-        
+
         {/* Main content area */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Topbar */}
@@ -55,8 +71,10 @@ export default function AppShell({ children, session }: AppShellProps) {
             breadcrumbs={breadcrumbs}
             session={session}
             onMenuClick={() => setSidebarOpen(true)}
+            onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+            isCollapsed={sidebarCollapsed}
           />
-          
+
           {/* Page content */}
           <main className="flex-1 overflow-y-auto bg-gray-50/50" role="main">
             <div className="h-full">

@@ -80,7 +80,7 @@ const updatedMitraData = [
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const session = await getSession();
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -267,7 +267,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const session = await getSession();
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }

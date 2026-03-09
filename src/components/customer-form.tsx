@@ -889,6 +889,10 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                       Please select exactly {requiredVisitsPerWeek} day(s) for this package
                     </p>
                   )}
+                  <p className="text-xs text-blue-600 mt-2 flex items-center">
+                    <Icons.alert className="w-3 h-3 mr-1" />
+                    You can select the same day multiple times for different time slots (e.g., Monday 08:00-11:00 & Monday 11:00-14:00)
+                  </p>
                 </div>
               </div>
             )}

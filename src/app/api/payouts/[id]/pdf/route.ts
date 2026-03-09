@@ -23,14 +23,13 @@ function formatCurrency(amount: number): string {
     return `IDR ${Math.round(amount).toLocaleString('id-ID')}`;
 }
 
-// Helper function to format date
+// Helper function to format date (1-Dec-2025 format)
 function formatDate(dateStr: string): string {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
-    }).replace(/ /g, '-');
+    const day = date.getDate();
+    const month = date.toLocaleDateString('en-US', { month: 'short' });
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
 }
 
 // Helper function to get month name
@@ -199,19 +198,18 @@ export async function GET(
         yPos += 8;
 
         // ============ PAYOUT SUMMARY ============
-        const payoutSummary = [
-            { label: 'Bonus', value: formatCurrency(0), indent: false },
-            { label: 'Komisi Imbal Jasa', value: formatCurrency(komisiImbalJasa), indent: false },
-        ];
+        // Bonus
+        doc.setFont('helvetica', 'normal');
+        doc.text('Bonus', margin, yPos);
+        doc.text(':', margin + 45, yPos);
+        doc.text(formatCurrency(0), margin + 50, yPos);
+        yPos += 6;
 
-        payoutSummary.forEach(item => {
-            doc.text(item.label, margin, yPos);
-            doc.text(`:`, margin + 45, yPos);
-            doc.text(item.value, margin + 70, yPos);
-            yPos += 6;
-        });
-
-        yPos += 3;
+        // Komisi Imbal Jasa
+        doc.text('Komisi Imbal Jasa', margin, yPos);
+        doc.text(':', margin + 45, yPos);
+        doc.text(formatCurrency(komisiImbalJasa), margin + 50, yPos);
+        yPos += 8;
 
         // Tunjangan Lainnya section
         doc.setFont('helvetica', 'bold');
@@ -219,28 +217,29 @@ export async function GET(
         doc.setFont('helvetica', 'normal');
         yPos += 6;
 
-        const tunjanganItems = [
-            { label: 'Uang Parkir', value: '' },
-            { label: 'Kompensasi Promosi', value: '' },
-            { label: 'Uji Coba', value: formatCurrency(0) },
-        ];
-
-        tunjanganItems.forEach(item => {
-            doc.text(`  ${item.label}`, margin, yPos);
-            doc.text(`:`, margin + 45, yPos);
-            if (item.value) {
-                doc.text(item.value, margin + 70, yPos);
-            }
-            yPos += 5;
-        });
-
+        // Uang Parkir
+        doc.text('Uang Parkir', margin + 3, yPos);
+        doc.text(':', margin + 45, yPos);
         yPos += 5;
+
+        // Kompensasi Promosi Uji Coba
+        doc.text('Kompensasi Promosi', margin + 3, yPos);
+        yPos += 5;
+        doc.text('Uji Coba', margin + 3, yPos);
+        doc.text(':', margin + 45, yPos - 5);
+        doc.text(formatCurrency(0), margin + 50, yPos - 5);
+        yPos += 3;
+
+        // Separator line
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, yPos, pageWidth - margin, yPos);
+        yPos += 6;
 
         // Total Pembayaran
         doc.setFont('helvetica', 'bold');
         doc.text('Total Pembayaran', margin, yPos);
-        doc.text(`:`, margin + 45, yPos);
-        doc.text(formatCurrency(totalPembayaran), margin + 70, yPos);
+        doc.text(':', margin + 45, yPos);
+        doc.text(formatCurrency(totalPembayaran), margin + 50, yPos);
         doc.setFont('helvetica', 'normal');
 
         yPos += 10;
@@ -257,7 +256,7 @@ export async function GET(
                 ['Nama Customers', 'Komisi Imbal Jasa', 'Tanggal Awal', 'Tanggal Akhir', 'Perhitungan Pro-Rata']
             ];
 
-            // Table data
+            // Table data - Show ALL breakdown rows (multiple rows per customer if rate changes)
             const tableData = regularCustomers.map((customer: any) => {
                 const completedVisits = customer.completedVisits || 0;
                 const scheduledVisits = customer.scheduledVisits || 1;
@@ -285,24 +284,34 @@ export async function GET(
                 head: tableHeaders,
                 body: tableData,
                 startY: yPos,
-                theme: 'grid',
+                theme: 'plain',
                 styles: {
                     fontSize: 8,
                     cellPadding: 2,
+                    lineColor: [0, 0, 0],
+                    lineWidth: 0.1,
                 },
                 headStyles: {
-                    fillColor: [240, 240, 240],
+                    fillColor: [255, 255, 255],
                     textColor: [0, 0, 0],
                     fontStyle: 'bold',
+                    lineColor: [0, 0, 0],
+                    lineWidth: 0.3,
                 },
                 columnStyles: {
-                    0: { cellWidth: 35 },
-                    1: { cellWidth: 30, halign: 'right' },
-                    2: { cellWidth: 25 },
-                    3: { cellWidth: 25 },
+                    0: { cellWidth: 40 },
+                    1: { cellWidth: 35, halign: 'left' },
+                    2: { cellWidth: 30 },
+                    3: { cellWidth: 30 },
                     4: { cellWidth: 45 },
                 },
                 margin: { left: margin, right: margin },
+                didParseCell: (data) => {
+                    // Bold the total row
+                    if (data.row.index === tableData.length - 1) {
+                        data.cell.styles.fontStyle = 'bold';
+                    }
+                },
             });
 
             // Get the final Y position after the table
@@ -310,61 +319,62 @@ export async function GET(
         }
 
         // ============ TRIAL CUSTOMERS TABLE ============
-        yPos += 5;
-
         // Trial section header
         const trialHeaders = [
-            ['Nama Customers\n(Free Trial)', 'Kompensasi Promosi Uji Coba', 'Uji Coba Ke-1', 'Uji Coba Ke-2']
+            ['Nama Customers\n(Free Trial)', 'Kompensasi Promosi\nUji Coba', 'Uji Coba Ke-1', 'Uji Coba Ke-2']
         ];
 
-        // Trial table data (even if empty, show the structure)
+        // Trial table data (show structure even if empty)
         const trialData = trialCustomers.length > 0
             ? trialCustomers.map((customer: any) => [
-                customer.customerName || '-',
+                customer.customerName || '',
                 formatCurrency(customer.payout || 0),
                 customer.billingCycleStart ? formatDate(customer.billingCycleStart) : '',
                 customer.billingCycleEnd ? formatDate(customer.billingCycleEnd) : ''
             ])
             : [['', formatCurrency(0), '', '']];
 
+        // Calculate trial total
+        const trialTotal = trialCustomers.reduce((sum: number, c: any) => sum + (c.payout || 0), 0);
+
+        // Add empty row and total row
+        trialData.push(['', '', '', '']);
+        trialData.push(['Total', formatCurrency(trialTotal), '', '']);
+
         autoTable(doc, {
             head: trialHeaders,
             body: trialData,
             startY: yPos,
-            theme: 'grid',
+            theme: 'plain',
             styles: {
                 fontSize: 8,
                 cellPadding: 2,
+                lineColor: [0, 0, 0],
+                lineWidth: 0.1,
             },
             headStyles: {
-                fillColor: [240, 240, 240],
+                fillColor: [255, 255, 255],
                 textColor: [0, 0, 0],
                 fontStyle: 'bold',
+                lineColor: [0, 0, 0],
+                lineWidth: 0.3,
             },
             columnStyles: {
-                0: { cellWidth: 45 },
-                1: { cellWidth: 45 },
-                2: { cellWidth: 35 },
-                3: { cellWidth: 35 },
+                0: { cellWidth: 50 },
+                1: { cellWidth: 40, halign: 'left' },
+                2: { cellWidth: 40 },
+                3: { cellWidth: 40 },
             },
             margin: { left: margin, right: margin },
+            didParseCell: (data) => {
+                // Bold the total row (last row)
+                if (data.row.index === trialData.length - 1) {
+                    data.cell.styles.fontStyle = 'bold';
+                }
+            },
         });
 
-        yPos = (doc as any).lastAutoTable.finalY + 10;
-
-        // ============ FOOTER TOTALS ============
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-
-        // Trial total
-        const trialTotal = trialCustomers.reduce((sum: number, c: any) => sum + (c.payout || 0), 0);
-        doc.text(':', margin + 45, yPos);
-        doc.text(formatCurrency(trialTotal), margin + 70, yPos);
-        yPos += 6;
-
-        doc.text('Total', margin, yPos);
-        doc.text(':', margin + 45, yPos);
-        doc.text(formatCurrency(trialTotal), margin + 70, yPos);
+        yPos = (doc as any).lastAutoTable.finalY + 5;
 
         // Generate PDF as buffer
         const pdfBuffer = doc.output('arraybuffer');

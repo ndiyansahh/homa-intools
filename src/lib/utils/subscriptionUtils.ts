@@ -46,7 +46,18 @@ export function generateScheduleDates(
 }
 
 // Check if mitra is available on specific date
+// Behavior controlled by ENABLE_MITRA_SCHEDULE_CHECK feature flag:
+//   - false (default): Always returns true, allows unlimited assignment (totally free)
+//   - true: Enforces 8-hour daily workload limit (max 2 visits @ 3 hours each)
 export function isMitraAvailableOnDate(mitraId: string, date: Date, existingVisits: any[]): boolean {
+  // Feature flag: Enable schedule checking
+  const enableScheduleCheck = process.env.ENABLE_MITRA_SCHEDULE_CHECK === 'true';
+
+  // If schedule check is disabled, always return true (free assignment)
+  if (!enableScheduleCheck) {
+    return true;
+  }
+
   const dateStr = date.toISOString().split('T')[0];
 
   // Get visits for this mitra on this date

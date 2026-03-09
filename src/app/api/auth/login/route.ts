@@ -3,6 +3,7 @@ import { validateUser, ValidateUserResult } from '@/lib/users';
 import { createSession } from '@/lib/auth';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { logAuthEvent } from '@/lib/logger';
+import { setCSRFToken } from '@/lib/csrf';
 import { LoginRequest, LoginResponse, LoginError } from '@/types/auth';
 
 export async function POST(request: NextRequest) {
@@ -91,6 +92,9 @@ export async function POST(request: NextRequest) {
       result.user.mustChangePassword
     );
 
+    // SECURITY: Set CSRF token for protecting subsequent requests
+    const csrfToken = await setCSRFToken();
+
     logAuthEvent({
       action: 'login_success',
       userId: result.user.id,
@@ -107,6 +111,7 @@ export async function POST(request: NextRequest) {
       userId: result.user.id,
       role: result.user.role,
       mustChangePassword: result.user.mustChangePassword,
+      csrfToken, // Return CSRF token to client for subsequent requests
     };
 
     return NextResponse.json(response, { status: 200 });

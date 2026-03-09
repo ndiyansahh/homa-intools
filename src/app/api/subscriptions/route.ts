@@ -9,7 +9,7 @@ import { logAuditEvent } from '@/lib/logger';
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const session = await getSession();
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }

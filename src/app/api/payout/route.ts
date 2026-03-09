@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { payoutDB, mitraDB, visitDB, mitraRateConfigDB, customerDB, payoutAdjustmentDB } from '@/lib/schema';
-import { eq, and, desc, gte, lte, like, count, isNull } from 'drizzle-orm';
+import { eq, and, desc, gte, lte, like, ilike, count, isNull } from 'drizzle-orm';
 import { logAuditEvent } from '@/lib/logger';
 
 /**
@@ -54,7 +54,7 @@ function getBillingCycle(subscriptionStart: string, targetDate: Date): { start: 
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (mitraName) {
-      conditions.push(like(mitraDB.mitraName, `%${mitraName}%`));
+      conditions.push(ilike(mitraDB.mitraName, `%${mitraName}%`));
     }
 
     // Fetch payouts with mitra data
@@ -161,7 +161,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -191,11 +191,28 @@ export async function POST(request: NextRequest) {
       )
       .limit(1);
 
+    // Feature flag: Allow payout regeneration for testing
+    const allowRegeneration = process.env.ALLOW_PAYOUT_REGENERATION === 'true';
+
     if (existingPayouts.length > 0) {
-      return NextResponse.json({
-        success: false,
-        message: `Payouts for ${year}-${String(month).padStart(2, '0')} have already been generated`
-      }, { status: 400 });
+      if (allowRegeneration) {
+        // Delete existing payouts for this period (testing mode)
+        console.log(`🔄 ALLOW_PAYOUT_REGENERATION=true: Deleting existing payouts for ${year}-${String(month).padStart(2, '0')}`);
+        await db
+          .delete(payoutDB)
+          .where(
+            and(
+              eq(payoutDB.year, year),
+              eq(payoutDB.month, month)
+            )
+          );
+        console.log(`✅ Existing payouts deleted. Proceeding with regeneration...`);
+      } else {
+        return NextResponse.json({
+          success: false,
+          message: `Payouts for ${year}-${String(month).padStart(2, '0')} have already been generated. Set ALLOW_PAYOUT_REGENERATION=true in .env to allow regeneration.`
+        }, { status: 400 });
+      }
     }
 
     // Get all active mitras

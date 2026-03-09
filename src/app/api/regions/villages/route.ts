@@ -8,7 +8,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     // Check authentication
     const session = await getSession();
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }

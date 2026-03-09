@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { destroySession, getSession } from '@/lib/auth';
+import { deleteCSRFToken } from '@/lib/csrf';
 import { logAuthEvent } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
@@ -21,7 +22,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // SECURITY: Destroy both session and CSRF token
     await destroySession();
+    await deleteCSRFToken();
 
     return new NextResponse(null, { status: 204 });
 

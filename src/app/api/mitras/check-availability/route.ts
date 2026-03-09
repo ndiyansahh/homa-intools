@@ -65,6 +65,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       })
       .from(visitDB);
 
+    // Feature flag: Enable schedule checking
+    // When false (default): All mitras available, no workload restrictions (totally free assignment)
+    // When true: Enforce 8-hour daily limit, check for conflicts
+    const enableScheduleCheck = process.env.ENABLE_MITRA_SCHEDULE_CHECK === 'true';
+
     // Check availability using utility function
     const availabilityResults = getMitraAvailabilityForPattern(
       dayPattern,
@@ -74,15 +79,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       existingVisits
     );
 
-    const availableMitras = availabilityResults.filter(result => result.availableForAllDates);
-    const unavailableMitras = availabilityResults
-      .filter(result => !result.availableForAllDates)
-      .map(result => ({
+    // Toggle behavior based on feature flag (Feedback: Remove mitra assignment restrictions)
+    let availableMitras: any[] = [];
+    let unavailableMitras: any[] = [];
+
+    if (enableScheduleCheck) {
+      // Restricted mode: Separate available vs unavailable based on workload
+      availableMitras = availabilityResults.filter(result => result.availableForAllDates);
+      unavailableMitras = availabilityResults
+        .filter(result => !result.availableForAllDates)
+        .map(result => ({
+          mitraId: result.mitraId,
+          mitraName: result.mitraName,
+          reason: `Fully booked on: ${result.conflictDates?.join(', ')}`,
+          conflictDates: result.conflictDates
+        }));
+    } else {
+      // Free assignment mode: All mitras available
+      console.log(`✅ ENABLE_MITRA_SCHEDULE_CHECK=false: Returning all ${mitras.length} mitras as available (no workload check)`);
+      availableMitras = availabilityResults.map(result => ({
         mitraId: result.mitraId,
         mitraName: result.mitraName,
-        reason: `Fully booked on: ${result.conflictDates?.join(', ')}`,
-        conflictDates: result.conflictDates
+        contact: result.contact,
+        availableForAllDates: true, // Force all available
+        totalSessionsNeeded: result.totalSessionsNeeded,
+        wouldHaveHours: result.wouldHaveHours
       }));
+      unavailableMitras = []; // No unavailable mitras in free mode
+    }
 
     return NextResponse.json({
       success: true,
@@ -93,7 +117,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         totalMitrasBeforeFilter: allMitras.length,
         totalMitrasAfterCoverageFilter: mitras.length,
         coverageFilterApplied: city && district && enableRegionFilter ? true : false,
-        coverageFilterEnabled: enableRegionFilter, // NEW: Toggle status
+        coverageFilterEnabled: enableRegionFilter,
+        scheduleCheckEnabled: enableScheduleCheck, // NEW: Schedule check toggle status
       }
     });
 

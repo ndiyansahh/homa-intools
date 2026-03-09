@@ -112,8 +112,10 @@ export async function POST(
       status: 'Done', // Default status changed to 'Done' per Chris request (Feb 1, 2026)
 
       // Auto-fill completion details for 'Done' status
+      // FIX: Use scheduledDate for completedAt to ensure visits are counted in correct payout period
+      // Issue: When creating visit in March for April schedule, completedAt was March (wrong payout month)
       actualDate: visitDate,
-      completedAt: new Date(),
+      completedAt: new Date(visitDate), // Use scheduled date instead of current time
       updatedBy: session.email || 'Admin',
 
       durationHours: 3, // Default 3 hours

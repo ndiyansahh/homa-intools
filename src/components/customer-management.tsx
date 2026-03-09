@@ -116,37 +116,119 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
       )}
 
       <div className="space-y-6">
-        {/* Add Customer Button */}
-        <div className="flex justify-between items-center">
+        {/* Header with Stats and Action */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Icons.users className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl font-bold text-gray-900">{pagination.total}</span>
+                  {refreshing && (
+                    <div className="flex items-center text-blue-600">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                      <span className="text-sm">Updating...</span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600">Total Customers</p>
+                {lastUpdated && (
+                  <p className="text-xs text-gray-400">
+                    Last updated: {lastUpdated.toLocaleTimeString()}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
           <button
             onClick={() => setShowForm(true)}
-            className="btn-primary"
+            className="btn-primary inline-flex items-center justify-center"
           >
             <Icons.plus className="w-4 h-4 mr-2" />
             Add New Customer
           </button>
         </div>
 
+        {/* Subscription Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5 border border-green-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 bg-white rounded-lg">
+                <Icons.checkCircle className="w-5 h-5 text-green-600" />
+              </div>
+              <span className="text-xs font-medium text-green-600 bg-white px-2 py-1 rounded-full">Active</span>
+            </div>
+            <div className="text-2xl font-bold text-green-900">
+              {customers.filter(c => c.subscriptionStatus === 'Active').length}
+            </div>
+            <div className="text-sm text-green-700 mt-1">Active subscriptions</div>
+          </div>
+
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 bg-white rounded-lg">
+                <Icons.clockIcon className="w-5 h-5 text-blue-600" />
+              </div>
+              <span className="text-xs font-medium text-blue-600 bg-white px-2 py-1 rounded-full">Trial</span>
+            </div>
+            <div className="text-2xl font-bold text-blue-900">
+              {customers.filter(c => c.subscriptionStatus === 'Trial').length}
+            </div>
+            <div className="text-sm text-blue-700 mt-1">Trial subscriptions</div>
+          </div>
+
+          <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-5 border border-yellow-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 bg-white rounded-lg">
+                <Icons.alertTriangle className="w-5 h-5 text-yellow-600" />
+              </div>
+              <span className="text-xs font-medium text-yellow-600 bg-white px-2 py-1 rounded-full">Suspended</span>
+            </div>
+            <div className="text-2xl font-bold text-yellow-900">
+              {customers.filter(c => c.subscriptionStatus === 'Suspended').length}
+            </div>
+            <div className="text-sm text-yellow-700 mt-1">Suspended accounts</div>
+          </div>
+
+          <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-5 border border-gray-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 bg-white rounded-lg">
+                <Icons.xCircle className="w-5 h-5 text-gray-600" />
+              </div>
+              <span className="text-xs font-medium text-gray-600 bg-white px-2 py-1 rounded-full">Inactive</span>
+            </div>
+            <div className="text-2xl font-bold text-gray-900">
+              {customers.filter(c => c.subscriptionStatus === 'Inactive').length}
+            </div>
+            <div className="text-sm text-gray-700 mt-1">Inactive customers</div>
+          </div>
+        </div>
+
         {/* Filters */}
-        <div className="card p-4">
+        <div className="card p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Icons.search className="w-5 h-5 text-gray-400" />
+            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Search & Filters</h3>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
+            <div className="relative">
+              <Icons.search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search customers..."
                 value={filters.q}
                 onChange={(e) => setFilters(prev => ({ ...prev, q: e.target.value, page: 1 }))}
-                className="input-field"
+                className="input-field pl-10"
               />
             </div>
-            <div>
+            <div className="relative">
+              <Icons.filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <select
                 value={filters.status}
                 onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value, page: 1 }))}
-                className="input-field"
+                className="input-field pl-10"
               >
                 <option value="">All Status</option>
                 <option value="Active">Active</option>
@@ -156,56 +238,40 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
                 <option value="Expired">Expired</option>
               </select>
             </div>
-            <div>
+            <div className="relative">
+              <Icons.mapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Filter by city..."
                 value={filters.city}
                 onChange={(e) => setFilters(prev => ({ ...prev, city: e.target.value, page: 1 }))}
-                className="input-field"
+                className="input-field pl-10"
               />
             </div>
-            <div>
+            <div className="relative">
+              <Icons.package2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Filter by package..."
                 value={filters.subscriptionPackage || ''}
                 onChange={(e) => setFilters(prev => ({ ...prev, subscriptionPackage: e.target.value || undefined, page: 1 }))}
-                className="input-field"
+                className="input-field pl-10"
               />
             </div>
           </div>
         </div>
 
-        {/* Customer Dashboard - Showing 5 Key Fields as per PRD */}
+        {/* Customer Table */}
         <div className="card">
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <h2 className="text-xl font-semibold text-gray-900">Customer Dashboard</h2>
-                {refreshing && (
-                  <div className="flex items-center text-blue-600">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                    <span className="text-sm">Updating...</span>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center space-x-3">
-                <div className="text-right">
-                  <span className="text-sm text-gray-500">
-                    {pagination.total} total customers
-                  </span>
-                  {lastUpdated && (
-                    <div className="text-xs text-gray-400">
-                      Last updated: {lastUpdated.toLocaleTimeString()}
-                    </div>
-                  )}
-                </div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Customer List</h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  Manage and view all customer details
+                </p>
               </div>
             </div>
-            <p className="mt-1 text-sm text-gray-600">
-              Customer overview with subscription details and location
-            </p>
           </div>
 
           {loading ? (
@@ -227,81 +293,98 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
             <>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Customer Name
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Customer
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        City
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Location
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Invoice ID
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Subscription Package
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Package
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Monthly Fee
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white divide-y divide-gray-100">
                     {customers.map((customer) => (
                       <tr
                         key={customer.id}
-                        className="hover:bg-gray-50"
+                        className="hover:bg-blue-50 transition-colors cursor-pointer"
+                        onClick={() => handleViewDetails(customer.id)}
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-blue-600 hover:text-blue-900 cursor-pointer"
-                            onClick={() => handleViewDetails(customer.id)}>
-                            {customer.customerName}
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-blue-600 font-semibold text-sm">
+                                {customer.customerName.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-semibold text-gray-900">
+                                {customer.customerName}
+                              </div>
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
+                          <div className="flex items-center text-sm text-gray-700">
+                            <Icons.mapPin className="w-4 h-4 mr-1 text-gray-400" />
                             {customer.city}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {customer.invoiceId ? (
-                            <div
-                              className="text-sm text-blue-600 hover:text-blue-900 hover:underline cursor-pointer font-mono"
-                              title={customer.invoiceId}
-                            >
+                            <div className="text-sm text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded inline-block"
+                              title={customer.invoiceId}>
                               {customer.invoiceId}
                             </div>
                           ) : (
                             <div className="text-sm text-gray-400">-</div>
                           )}
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900 max-w-xs truncate" title={customer.subscriptionPackage}>
-                            {customer.subscriptionPackage ? customer.subscriptionPackage.substring(0, 30) + '...' : 'No package'}
+                        <td className="px-6 py-4 max-w-xs">
+                          <div className="text-sm text-gray-700 truncate" title={customer.subscriptionPackage}>
+                            {customer.subscriptionPackage ?
+                              (customer.subscriptionPackage.length > 30
+                                ? customer.subscriptionPackage.substring(0, 30) + '...'
+                                : customer.subscriptionPackage)
+                              : <span className="text-gray-400">No package</span>
+                            }
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColors[customer.subscriptionStatus] || 'bg-gray-100 text-gray-800'}`}>
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${statusColors[customer.subscriptionStatus] || 'bg-gray-100 text-gray-800'}`}>
                             {customer.subscriptionStatus}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
+                          <div className="text-sm font-semibold text-gray-900">
                             Rp {customer.monthlyFee?.toLocaleString('id-ID') || 0}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <button
-                            onClick={() => handleViewDetails(customer.id)}
-                            className="text-blue-600 hover:text-blue-900"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewDetails(customer.id);
+                            }}
+                            className="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
                           >
-                            Detail
+                            <Icons.eye className="w-4 h-4 mr-1" />
+                            View
                           </button>
                         </td>
                       </tr>
@@ -341,48 +424,6 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
               )}
             </>
           )}
-        </div>
-
-        {/* Subscription Summary */}
-        <div className="card">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">Subscription Summary</h3>
-            <p className="mt-1 text-sm text-gray-600">
-              Overview of customer distribution by status
-            </p>
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-green-50 rounded-lg p-4">
-                <div className="text-sm font-medium text-green-600">Active</div>
-                <div className="text-2xl font-bold text-green-900">
-                  {customers.filter(c => c.subscriptionStatus === 'Active').length}
-                </div>
-                <div className="text-xs text-green-600">Active subscriptions</div>
-              </div>
-              <div className="bg-red-50 rounded-lg p-4">
-                <div className="text-sm font-medium text-red-600">Inactive</div>
-                <div className="text-2xl font-bold text-red-900">
-                  {customers.filter(c => c.subscriptionStatus === 'Inactive').length}
-                </div>
-                <div className="text-xs text-red-600">Inactive customers</div>
-              </div>
-              <div className="bg-yellow-50 rounded-lg p-4">
-                <div className="text-sm font-medium text-yellow-600">Suspended</div>
-                <div className="text-2xl font-bold text-yellow-900">
-                  {customers.filter(c => c.subscriptionStatus === 'Suspended').length}
-                </div>
-                <div className="text-xs text-yellow-600">Suspended accounts</div>
-              </div>
-              <div className="bg-blue-50 rounded-lg p-4">
-                <div className="text-sm font-medium text-blue-600">Trial</div>
-                <div className="text-2xl font-bold text-blue-900">
-                  {customers.filter(c => c.subscriptionStatus === 'Trial').length}
-                </div>
-                <div className="text-xs text-blue-600">Trial subscriptions</div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </>

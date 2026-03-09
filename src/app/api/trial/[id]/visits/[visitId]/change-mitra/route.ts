@@ -72,20 +72,8 @@ export async function POST(
 
     const visit = visitResult[0];
 
-    // Check if completed visits should be locked (Feedback 6b)
-    const lockCompletedVisits = await getConfig(CONFIG_KEYS.LOCK_COMPLETED_VISITS, false);
-
-    if (lockCompletedVisits && visit.status === 'Done') {
-      return NextResponse.json(
-        { success: false, message: 'Cannot change mitra for completed visit (locked by admin)' },
-        { status: 400 }
-      );
-    }
-
-    // If lock is disabled, allow changing mitra even for completed visits
-    if (!lockCompletedVisits && visit.status === 'Done') {
-      console.log(`⚠️  Changing mitra for completed visit ${visitId} - lock is DISABLED (Feedback 6b)`);
-    }
+    // Removed: Historical visits locking (Feedback: allow editing historical data for corrections)
+    // Users need to edit visits even after period ends for late information updates
 
     // Check if new mitra exists and is active
     const newMitraResult = await db

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { customerDB, regionDB, mitraDB, subscriptionPackageDB } from '@/lib/schema';
+import { customerDB, regionDB, mitraDB, subscriptionPackageDB, visitDB } from '@/lib/schema';
 import { sql, and, or, ilike, eq, desc, count } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { CreateTrialRequest, TrialListItem, TrialsResponse, TrialData } from '@/types/trial';
@@ -43,7 +43,7 @@ function calculateLTV(trialStart: string, trialEnd?: string): number {
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const session = await getSession();
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -195,6 +195,33 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         );
       }
 
+      // Create visit records for ALL trial assignments (Feedback: Unlimited trial dates)
+      let visitsCreated = 0;
+      for (const [index, assignment] of body.assignments.entries()) {
+        if (assignment.trialStart && assignment.assignedMitraId) {
+          const trialDate = convertDateString(assignment.trialStart);
+          const dayName = trialDate.toLocaleDateString('en-US', { weekday: 'long' });
+
+          const visitRecord = {
+            customerId: newTrialId,
+            mitraId: assignment.assignedMitraId,
+            originalMitraId: assignment.assignedMitraId,
+            actualMitraId: assignment.assignedMitraId,
+            visitNumber: index + 1,
+            scheduledDate: trialDate.toISOString().split('T')[0], // YYYY-MM-DD format
+            scheduledDay: dayName,
+            status: 'Done', // Auto-attended
+            completedAt: trialDate,
+            durationHours: 3,
+          };
+
+          await db.insert(visitDB).values([visitRecord]);
+          visitsCreated++;
+        }
+      }
+
+      console.log(`✅ Created ${visitsCreated} visit record(s) for trial ${newTrialId}`);
+
       // Log audit event
       if (session) {
         await logAuditEvent({
@@ -207,14 +234,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             trialStartDate: firstAssignment.trialStart,
             trialEndDate: firstAssignment.trialEnd,
             assignedCleaner: firstAssignment.assignedCleaner,
+            totalAssignments: body.assignments.length,
+            visitsCreated,
           }
         });
       }
 
       return NextResponse.json({
         success: true,
-        data: { id: newTrialId },
-        message: 'Trial customer created successfully',
+        data: {
+          id: newTrialId,
+          visitsCreated,
+        },
+        message: `Trial customer created successfully${visitsCreated > 0 ? ` with ${visitsCreated} visit(s) scheduled` : ''}`,
       }, { status: 201 });
 
     } catch (dbError: any) {
@@ -259,7 +291,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const session = await getSession();
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }

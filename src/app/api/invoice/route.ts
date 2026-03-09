@@ -12,7 +12,7 @@ import { eq, and, or, sql, count } from 'drizzle-orm';
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -172,7 +172,7 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const session = await getSession();
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

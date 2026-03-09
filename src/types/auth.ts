@@ -9,6 +9,7 @@ export interface LoginResponse {
   userId: string;
   role: UserRole;
   mustChangePassword: boolean; // ADR 0002: Force password change
+  csrfToken?: string; // CSRF token for subsequent requests (security)
 }
 
 export interface LoginError {

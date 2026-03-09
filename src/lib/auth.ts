@@ -1,13 +1,15 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { SessionData, UserRole } from '@/types/auth';
+import { getJwtSecret } from './env-validation';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'your-secret-key-change-this-in-production'
-);
+// SECURITY: JWT_SECRET validation enforced at startup
+// No fallback - application will not start if JWT_SECRET is missing or weak
+const JWT_SECRET = new TextEncoder().encode(getJwtSecret());
 
 const COOKIE_NAME = 'session';
-const COOKIE_MAX_AGE = 24 * 60 * 60; // 24 hours in seconds
+// SECURITY FIX: Reduced from 24 hours to 4 hours to limit session hijacking window
+const COOKIE_MAX_AGE = 4 * 60 * 60; // 4 hours in seconds (configurable via env)
 
 // ADR 0002: Added mustChangePassword parameter
 export async function createSession(
@@ -27,16 +29,22 @@ export async function createSession(
   const token = await new SignJWT(sessionData)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('24h')
+    .setExpirationTime('4h') // SECURITY FIX: Reduced from 24h to 4h
     .sign(JWT_SECRET);
 
   const cookieStore = await cookies();
+
+  // SECURITY: Force secure cookies in production
+  const isProduction = process.env.NODE_ENV === 'production';
+  const isHttps = process.env.NEXT_PUBLIC_APP_URL?.startsWith('https://') ?? false;
+
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
-    // Use HTTPS detection: only set secure cookie if using HTTPS
-    // This allows staging (HTTP) and production (HTTPS) to work properly
-    secure: process.env.NEXT_PUBLIC_APP_URL?.startsWith('https://') ?? false,
-    sameSite: 'lax',
+    // SECURITY FIX: Always use secure=true in production, regardless of URL config
+    // In development, allow HTTP for local testing
+    secure: isProduction ? true : isHttps,
+    // SECURITY FIX: Use 'strict' for better CSRF protection (changed from 'lax')
+    sameSite: 'strict',
     maxAge: COOKIE_MAX_AGE,
     path: '/',
   });
@@ -75,15 +83,21 @@ export async function refreshSession() {
   const newToken = await new SignJWT(session)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('24h')
+    .setExpirationTime('4h') // SECURITY FIX: Reduced from 24h to 4h
     .sign(JWT_SECRET);
 
   const cookieStore = await cookies();
+
+  // SECURITY: Force secure cookies in production
+  const isProduction = process.env.NODE_ENV === 'production';
+  const isHttps = process.env.NEXT_PUBLIC_APP_URL?.startsWith('https://') ?? false;
+
   cookieStore.set(COOKIE_NAME, newToken, {
     httpOnly: true,
-    // Use HTTPS detection: only set secure cookie if using HTTPS
-    secure: process.env.NEXT_PUBLIC_APP_URL?.startsWith('https://') ?? false,
-    sameSite: 'lax',
+    // SECURITY FIX: Always use secure=true in production
+    secure: isProduction ? true : isHttps,
+    // SECURITY FIX: Use 'strict' for better CSRF protection
+    sameSite: 'strict',
     maxAge: COOKIE_MAX_AGE,
     path: '/',
   });

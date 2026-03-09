@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { payoutDB, mitraDB } from '@/lib/schema';
 import { eq, and, inArray } from 'drizzle-orm';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // Helper function to format currency
 function formatCurrency(amount: number | string): string {
@@ -181,8 +183,159 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Return PDF format
+    if (format === 'pdf') {
+      console.log('Starting PDF generation with', transformedPayouts.length, 'payouts');
+
+      // Create PDF document (A4 landscape for better table fit)
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 10;
+      let yPos = 15;
+
+      // Header
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(30, 58, 138);
+      doc.text('HOMA - Payout Export Report', pageWidth / 2, yPos, { align: 'center' });
+
+      yPos += 7;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+
+      // Determine period text
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      let periodText = '';
+      if (months.length === 12) {
+        periodText = `Full Year ${year}`;
+      } else if (months.length === 1) {
+        periodText = `${monthNames[months[0] - 1]} ${year}`;
+      } else {
+        const monthsText = months.map(m => monthNames[m - 1]).join(', ');
+        periodText = `${monthsText} ${year}`;
+      }
+
+      doc.text(`Period: ${periodText}`, pageWidth / 2, yPos, { align: 'center' });
+      yPos += 3;
+      doc.text(`Generated: ${new Date().toLocaleDateString('id-ID')}`, pageWidth / 2, yPos, { align: 'center' });
+
+      yPos += 8;
+
+      // Prepare table data
+      const tableHeaders = [
+        'Payout ID',
+        'Year',
+        'Month',
+        'Mitra Code',
+        'Mitra Name',
+        'Bank',
+        'Account #',
+        'Qty',
+        'Price/Qty',
+        'Lainnya',
+        'Total'
+      ];
+
+      const tableData = transformedPayouts.map((p) => [
+        p.payoutId || '',
+        (p.year || year).toString(),
+        (p.month || 1).toString().padStart(2, '0'),
+        p.mitraCode || '',
+        p.mitraName || '',
+        p.bankAccount || '',
+        p.bankAccountNumber || '',
+        (p.qty || 0).toString(),
+        formatCurrency(p.pricePerQty || 0),
+        formatCurrency(p.bonusAmount || 0),
+        formatCurrency(p.priceTotal || 0),
+      ]);
+
+      // Calculate totals
+      const totalQty = transformedPayouts.reduce((sum, p) => sum + (Number(p.qty) || 0), 0);
+      const totalBonus = transformedPayouts.reduce((sum, p) => {
+        const amount = typeof p.bonusAmount === 'string' ? parseFloat(p.bonusAmount) : Number(p.bonusAmount);
+        return sum + (isNaN(amount) ? 0 : amount);
+      }, 0);
+      const grandTotal = transformedPayouts.reduce((sum, p) => {
+        const amount = typeof p.priceTotal === 'string' ? parseFloat(p.priceTotal) : Number(p.priceTotal);
+        return sum + (isNaN(amount) ? 0 : amount);
+      }, 0);
+
+      // Add summary row
+      tableData.push([
+        '',
+        '',
+        '',
+        '',
+        'TOTAL',
+        '',
+        `${transformedPayouts.length} payouts`,
+        totalQty.toString(),
+        '',
+        formatCurrency(totalBonus),
+        formatCurrency(grandTotal),
+      ]);
+
+      // Generate table
+      autoTable(doc, {
+        head: [tableHeaders],
+        body: tableData,
+        startY: yPos,
+        theme: 'striped',
+        styles: {
+          fontSize: 7,
+          cellPadding: 2,
+        },
+        headStyles: {
+          fillColor: [59, 130, 246],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'center',
+        },
+        columnStyles: {
+          0: { cellWidth: 22 },  // Payout ID
+          1: { cellWidth: 12, halign: 'center' },  // Year
+          2: { cellWidth: 12, halign: 'center' },  // Month
+          3: { cellWidth: 18 },  // Mitra Code
+          4: { cellWidth: 35 },  // Mitra Name
+          5: { cellWidth: 20 },  // Bank
+          6: { cellWidth: 25 },  // Account #
+          7: { cellWidth: 12, halign: 'right' },  // Qty
+          8: { cellWidth: 25, halign: 'right' },  // Price/Qty
+          9: { cellWidth: 25, halign: 'right' },  // Lainnya
+          10: { cellWidth: 30, halign: 'right' },  // Total
+        },
+        margin: { left: margin, right: margin },
+        didParseCell: (data) => {
+          // Bold the summary row
+          if (data.row.index === tableData.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [240, 240, 240];
+          }
+        },
+      });
+
+      // Generate PDF as buffer
+      const pdfBuffer = doc.output('arraybuffer');
+
+      // Return PDF response
+      return new NextResponse(pdfBuffer, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="payout-export-${year}-${months.join('-')}.pdf"`,
+        },
+      });
+    }
+
     return NextResponse.json(
-      { error: 'Invalid format. Use csv or json' },
+      { error: 'Invalid format. Use csv, json, or pdf' },
       { status: 400 }
     );
   } catch (error) {

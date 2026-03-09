@@ -4,13 +4,14 @@ import { customerDB, mitraDB, visitDB, invoiceDB } from '@/lib/schema';
 import { sql, and, or, ilike, eq, desc, count, isNull, max } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/logger';
+import { sanitizeSQLLike, sanitizeText } from '@/lib/input-sanitizer';
 import type { CustomerListItem, CustomersResponse, CustomerApiError, CreateCustomerRequest } from '@/types/customer';
 
 export async function GET(request: NextRequest): Promise<NextResponse<CustomersResponse | CustomerApiError>> {
   try {
     const session = await getSession();
 
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -43,29 +44,43 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
     const conditions = [];
 
     // Search in customer name, address, or contact
+    // SECURITY FIX: Sanitize search input to prevent SQL injection
     if (search) {
-      conditions.push(
-        or(
-          ilike(customerDB.customerName, `%${search}%`),
-          ilike(customerDB.address, `%${search}%`),
-          ilike(customerDB.contact, `%${search}%`)
-        )
-      );
+      const sanitizedSearch = sanitizeSQLLike(search);
+      if (sanitizedSearch) {
+        conditions.push(
+          or(
+            ilike(customerDB.customerName, `%${sanitizedSearch}%`),
+            ilike(customerDB.address, `%${sanitizedSearch}%`),
+            ilike(customerDB.contact, `%${sanitizedSearch}%`)
+          )
+        );
+      }
     }
 
     // Status filter - map to subscriptionStatus
+    // SECURITY FIX: Sanitize all filter inputs
     if (status) {
-      conditions.push(ilike(customerDB.subscriptionStatus, `%${status}%`));
+      const sanitizedStatus = sanitizeSQLLike(status);
+      if (sanitizedStatus) {
+        conditions.push(ilike(customerDB.subscriptionStatus, `%${sanitizedStatus}%`));
+      }
     }
 
     // City filter
     if (city) {
-      conditions.push(ilike(customerDB.city, `%${city}%`));
+      const sanitizedCity = sanitizeSQLLike(city);
+      if (sanitizedCity) {
+        conditions.push(ilike(customerDB.city, `%${sanitizedCity}%`));
+      }
     }
 
     // Subscription package filter
     if (subscriptionPackage) {
-      conditions.push(ilike(customerDB.subscriptionPackage, `%${subscriptionPackage}%`));
+      const sanitizedPackage = sanitizeSQLLike(subscriptionPackage);
+      if (sanitizedPackage) {
+        conditions.push(ilike(customerDB.subscriptionPackage, `%${sanitizedPackage}%`));
+      }
     }
 
     // Assigned mitra filter - filter by primary or backup mitra
@@ -181,7 +196,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const session = await getSession();
-    if (!session && process.env.NODE_ENV !== 'development') {
+    if (!session) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
