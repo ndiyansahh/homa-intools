@@ -744,21 +744,36 @@ export default function TrialManagement({ session }: TrialManagementProps) {
           </div>
         </div>
 
-        {/* Create Trial Form */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Create New Trial</h2>
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="btn-primary"
-            >
-              <Icons.plus className="w-4 h-4 mr-2" />
-              {showForm ? 'Cancel' : 'New Trial'}
-            </button>
-          </div>
+        {/* Create Trial Button */}
+        <div className="flex justify-end mb-6">
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="btn-primary"
+          >
+            <Icons.plus className="w-4 h-4 mr-2" />
+            Add New Trial
+          </button>
+        </div>
 
-          {showForm && (
-            <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Create Trial Modal */}
+        {showForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              {/* Header */}
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-xl">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-gray-900">Add New Trial</h2>
+                  <button
+                    onClick={() => setShowForm(false)}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <Icons.close className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="p-6 space-y-6">
               {/* Error Display */}
               {formError && (
                 <div className="bg-red-50 border border-red-200 rounded-md p-4">
@@ -1097,36 +1112,40 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                 </p>
               </div>
 
-              <div className="flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={handleCancelForm}
-                  disabled={creating}
-                  className="btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating}
-                  className="btn-primary"
-                >
-                  {creating ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Creating...
-                    </>
-                  ) : (
-                    'Create Trial'
-                  )}
-                </button>
+              {/* Footer Actions */}
+              <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 rounded-b-xl">
+                <div className="flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={handleCancelForm}
+                    disabled={creating}
+                    className="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={creating}
+                    className="inline-flex items-center px-6 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg active:scale-95"
+                  >
+                    {creating ? (
+                      <>
+                        <Icons.spinner className="w-4 h-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Icons.check className="w-4 h-4 mr-2" />
+                        Create Trial
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </form>
-          )}
+          </div>
         </div>
+        )}
 
         {/* Filters */}
         <div className="card p-6">
