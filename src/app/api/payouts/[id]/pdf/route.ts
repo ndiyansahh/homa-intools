@@ -214,7 +214,7 @@ export async function GET(
         doc.setFont('helvetica', 'normal');
         doc.text('Bonus', margin, yPos);
         doc.text(':', margin + 45, yPos);
-        doc.text(formatCurrency(0), margin + 50, yPos);
+        doc.text(formatCurrency(bonusAmount), margin + 50, yPos);
         yPos += 6;
 
         // Komisi Imbal Jasa
