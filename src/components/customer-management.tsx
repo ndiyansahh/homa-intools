@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { SessionData } from '@/types/auth';
 import { CustomerListItem, CustomersResponse, CustomerFilters } from '@/types/customer';
@@ -26,6 +26,8 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [showFilterPopup, setShowFilterPopup] = useState(false);
+  const filterPopupRef = useRef<HTMLDivElement>(null);
 
   // Filter state
   const [filters, setFilters] = useState<CustomerFilters>({
@@ -42,6 +44,20 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
     total: 0,
     totalPages: 0,
   });
+
+  // Close filter popup when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (filterPopupRef.current && !filterPopupRef.current.contains(event.target as Node)) {
+        setShowFilterPopup(false);
+      }
+    }
+
+    if (showFilterPopup) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showFilterPopup]);
 
   const fetchCustomers = async (isRefresh = false) => {
     try {
@@ -105,6 +121,24 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
     fetchCustomers(); // Refresh customer list
   };
 
+  // Count active filters
+  const activeFilterCount = [
+    filters.status,
+    filters.city,
+    filters.subscriptionPackage,
+  ].filter(Boolean).length;
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setFilters(prev => ({
+      ...prev,
+      status: '',
+      city: '',
+      subscriptionPackage: undefined,
+      page: 1,
+    }));
+  };
+
   return (
     <>
       {showForm && (
@@ -116,149 +150,176 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
       )}
 
       <div className="space-y-6">
-        {/* Header with Stats and Action */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Icons.users className="w-6 h-6 text-blue-600" />
+        {/* Simplified Header */}
+        <div className="card p-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              {/* Search Input */}
+              <div className="relative flex-1 md:w-80">
+                <Icons.search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search customers..."
+                  value={filters.q}
+                  onChange={(e) => setFilters(prev => ({ ...prev, q: e.target.value, page: 1 }))}
+                  className="input-field pl-10 w-full"
+                />
               </div>
-              <div>
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl font-bold text-gray-900">{pagination.total}</span>
-                  {refreshing && (
-                    <div className="flex items-center text-blue-600">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                      <span className="text-sm">Updating...</span>
-                    </div>
+
+              {/* Filter Button with Popup */}
+              <div className="relative" ref={filterPopupRef}>
+                <button
+                  onClick={() => setShowFilterPopup(!showFilterPopup)}
+                  className={`inline-flex items-center px-4 py-2 border rounded-lg font-medium transition-all ${
+                    activeFilterCount > 0
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <Icons.filter className="w-4 h-4 mr-2" />
+                  Filters
+                  {activeFilterCount > 0 && (
+                    <span className="ml-2 px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full">
+                      {activeFilterCount}
+                    </span>
                   )}
-                </div>
-                <p className="text-sm text-gray-600">Total Customers</p>
-                {lastUpdated && (
-                  <p className="text-xs text-gray-400">
-                    Last updated: {lastUpdated.toLocaleTimeString()}
-                  </p>
+                </button>
+
+                {/* Filter Popup */}
+                {showFilterPopup && (
+                  <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-xl border border-gray-200 z-50">
+                    <div className="p-4 border-b border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-gray-900">Filter Customers</h3>
+                        <button
+                          onClick={() => setShowFilterPopup(false)}
+                          className="text-gray-400 hover:text-gray-600"
+                        >
+                          <Icons.close className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-4 space-y-4">
+                      {/* Status Filter */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Subscription Status
+                        </label>
+                        <select
+                          value={filters.status}
+                          onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value, page: 1 }))}
+                          className="input-field w-full"
+                        >
+                          <option value="">All Status</option>
+                          <option value="Active">Active</option>
+                          <option value="Inactive">Inactive</option>
+                          <option value="Suspended">Suspended</option>
+                          <option value="Trial">Trial</option>
+                          <option value="Expired">Expired</option>
+                        </select>
+                      </div>
+
+                      {/* City Filter */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          City
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Filter by city..."
+                          value={filters.city}
+                          onChange={(e) => setFilters(prev => ({ ...prev, city: e.target.value, page: 1 }))}
+                          className="input-field w-full"
+                        />
+                      </div>
+
+                      {/* Package Filter */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Subscription Package
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Filter by package..."
+                          value={filters.subscriptionPackage || ''}
+                          onChange={(e) => setFilters(prev => ({ ...prev, subscriptionPackage: e.target.value || undefined, page: 1 }))}
+                          className="input-field w-full"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex items-center justify-between">
+                      <button
+                        onClick={clearAllFilters}
+                        className="text-sm text-gray-600 hover:text-gray-900 font-medium"
+                        disabled={activeFilterCount === 0}
+                      >
+                        Clear all
+                      </button>
+                      <button
+                        onClick={() => setShowFilterPopup(false)}
+                        className="btn-primary text-sm"
+                      >
+                        Apply Filters
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
-          </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="btn-primary inline-flex items-center justify-center"
-          >
-            <Icons.plus className="w-4 h-4 mr-2" />
-            Add New Customer
-          </button>
-        </div>
 
-        {/* Subscription Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5 border border-green-200 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2 bg-white rounded-lg">
-                <Icons.checkCircle className="w-5 h-5 text-green-600" />
+            {/* Add New Customer Button */}
+            <button
+              onClick={() => setShowForm(true)}
+              className="btn-primary inline-flex items-center justify-center whitespace-nowrap"
+            >
+              <Icons.plus className="w-4 h-4 mr-2" />
+              Add New Customer
+            </button>
+          </div>
+
+          {/* Active Filters Display */}
+          {activeFilterCount > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm text-gray-600 font-medium">Active filters:</span>
+                {filters.status && (
+                  <span className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                    Status: {filters.status}
+                    <button
+                      onClick={() => setFilters(prev => ({ ...prev, status: '', page: 1 }))}
+                      className="ml-2 hover:text-blue-900"
+                    >
+                      <Icons.x className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {filters.city && (
+                  <span className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                    City: {filters.city}
+                    <button
+                      onClick={() => setFilters(prev => ({ ...prev, city: '', page: 1 }))}
+                      className="ml-2 hover:text-blue-900"
+                    >
+                      <Icons.x className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {filters.subscriptionPackage && (
+                  <span className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                    Package: {filters.subscriptionPackage}
+                    <button
+                      onClick={() => setFilters(prev => ({ ...prev, subscriptionPackage: undefined, page: 1 }))}
+                      className="ml-2 hover:text-blue-900"
+                    >
+                      <Icons.x className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
               </div>
-              <span className="text-xs font-medium text-green-600 bg-white px-2 py-1 rounded-full">Active</span>
             </div>
-            <div className="text-2xl font-bold text-green-900">
-              {customers.filter(c => c.subscriptionStatus === 'Active').length}
-            </div>
-            <div className="text-sm text-green-700 mt-1">Active subscriptions</div>
-          </div>
-
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2 bg-white rounded-lg">
-                <Icons.clockIcon className="w-5 h-5 text-blue-600" />
-              </div>
-              <span className="text-xs font-medium text-blue-600 bg-white px-2 py-1 rounded-full">Trial</span>
-            </div>
-            <div className="text-2xl font-bold text-blue-900">
-              {customers.filter(c => c.subscriptionStatus === 'Trial').length}
-            </div>
-            <div className="text-sm text-blue-700 mt-1">Trial subscriptions</div>
-          </div>
-
-          <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-5 border border-yellow-200 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2 bg-white rounded-lg">
-                <Icons.alertTriangle className="w-5 h-5 text-yellow-600" />
-              </div>
-              <span className="text-xs font-medium text-yellow-600 bg-white px-2 py-1 rounded-full">Suspended</span>
-            </div>
-            <div className="text-2xl font-bold text-yellow-900">
-              {customers.filter(c => c.subscriptionStatus === 'Suspended').length}
-            </div>
-            <div className="text-sm text-yellow-700 mt-1">Suspended accounts</div>
-          </div>
-
-          <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-5 border border-gray-200 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2 bg-white rounded-lg">
-                <Icons.xCircle className="w-5 h-5 text-gray-600" />
-              </div>
-              <span className="text-xs font-medium text-gray-600 bg-white px-2 py-1 rounded-full">Inactive</span>
-            </div>
-            <div className="text-2xl font-bold text-gray-900">
-              {customers.filter(c => c.subscriptionStatus === 'Inactive').length}
-            </div>
-            <div className="text-sm text-gray-700 mt-1">Inactive customers</div>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="card p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Icons.search className="w-5 h-5 text-gray-400" />
-            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Search & Filters</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="relative">
-              <Icons.search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search customers..."
-                value={filters.q}
-                onChange={(e) => setFilters(prev => ({ ...prev, q: e.target.value, page: 1 }))}
-                className="input-field pl-10"
-              />
-            </div>
-            <div className="relative">
-              <Icons.filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <select
-                value={filters.status}
-                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value, page: 1 }))}
-                className="input-field pl-10"
-              >
-                <option value="">All Status</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-                <option value="Suspended">Suspended</option>
-                <option value="Trial">Trial</option>
-                <option value="Expired">Expired</option>
-              </select>
-            </div>
-            <div className="relative">
-              <Icons.mapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Filter by city..."
-                value={filters.city}
-                onChange={(e) => setFilters(prev => ({ ...prev, city: e.target.value, page: 1 }))}
-                className="input-field pl-10"
-              />
-            </div>
-            <div className="relative">
-              <Icons.package2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Filter by package..."
-                value={filters.subscriptionPackage || ''}
-                onChange={(e) => setFilters(prev => ({ ...prev, subscriptionPackage: e.target.value || undefined, page: 1 }))}
-                className="input-field pl-10"
-              />
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Customer Table */}
@@ -266,10 +327,28 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Customer List</h2>
-                <p className="mt-1 text-sm text-gray-600">
-                  Manage and view all customer details
-                </p>
+                <div className="flex items-center gap-3 mb-2">
+                  <h2 className="text-xl font-semibold text-gray-900">Customer List</h2>
+                  {refreshing && (
+                    <div className="flex items-center text-blue-600">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                      <span className="text-sm">Updating...</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <span className="font-medium">{pagination.total} total customers</span>
+                  <span className="text-gray-400">|</span>
+                  <span className="text-green-600">{customers.filter(c => c.subscriptionStatus === 'Active').length} Active</span>
+                  <span className="text-blue-600">{customers.filter(c => c.subscriptionStatus === 'Trial').length} Trial</span>
+                  <span className="text-yellow-600">{customers.filter(c => c.subscriptionStatus === 'Suspended').length} Suspended</span>
+                  <span className="text-gray-600">{customers.filter(c => c.subscriptionStatus === 'Inactive').length} Inactive</span>
+                </div>
+                {lastUpdated && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    Last updated: {lastUpdated.toLocaleTimeString()}
+                  </p>
+                )}
               </div>
             </div>
           </div>
