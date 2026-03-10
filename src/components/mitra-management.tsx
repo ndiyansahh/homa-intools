@@ -48,6 +48,9 @@ export default function MitraManagement({ session }: MitraManagementProps) {
   const [selectedMitra, setSelectedMitra] = useState<string | null>(null);
   const [detailViewRefreshTrigger, setDetailViewRefreshTrigger] = useState<number>(0);
 
+  // Filter popup state
+  const [showFilterPopup, setShowFilterPopup] = useState(false);
+
   // Form state with new comprehensive schema
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<CreateMitraRequest>({
@@ -393,110 +396,177 @@ export default function MitraManagement({ session }: MitraManagementProps) {
           </div>
         )}
 
-        {/* Header with Stats */}
+        {/* Simplified Header with Search, Filter, and Add Button */}
         <div className="card p-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            {/* Page Title */}
+            <div className="flex items-center gap-3 flex-shrink-0">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <Icons.users className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <span className="text-3xl font-bold text-gray-900">{pagination.total}</span>
-                <p className="text-sm text-gray-600">Total Mitra Partners</p>
+                <h1 className="text-2xl font-bold text-gray-900">Mitra Management</h1>
+                <p className="text-sm text-gray-600">{pagination.total} partners</p>
               </div>
             </div>
-            {lastUpdated && (
-              <div className="text-sm text-gray-500">
-                Last updated: {lastUpdated.toLocaleTimeString()}
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5 border border-green-200 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <Icons.checkCircle className="w-5 h-5 text-green-600" />
-              <span className="text-xs font-medium text-green-700">Active</span>
-            </div>
-            <div className="flex items-end justify-between">
-              <div>
-                <p className="text-2xl font-bold text-green-900">
-                  {mitras.filter(m => m.status === 'Active').length}
-                </p>
-                <p className="text-xs text-green-600 mt-1">Working Partners</p>
+            {/* Search Input */}
+            <div className="flex-1 relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Icons.search className="h-5 w-5 text-gray-400" />
               </div>
+              <input
+                type="text"
+                placeholder="Search mitras..."
+                value={filters.q}
+                onChange={(e) => setFilters(prev => ({ ...prev, q: e.target.value, page: 1 }))}
+                className="input-field pl-10 w-full"
+              />
             </div>
-          </div>
 
-          <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-5 border border-red-200 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <Icons.xCircle className="w-5 h-5 text-red-600" />
-              <span className="text-xs font-medium text-red-700">Exit</span>
-            </div>
-            <div className="flex items-end justify-between">
-              <div>
-                <p className="text-2xl font-bold text-red-900">
-                  {mitras.filter(m => m.status === 'Exit').length}
-                </p>
-                <p className="text-xs text-red-600 mt-1">Left Partners</p>
-              </div>
-            </div>
-          </div>
+            {/* Filter Button with Popup */}
+            <button
+              onClick={() => setShowFilterPopup(!showFilterPopup)}
+              className={`btn-secondary flex items-center gap-2 relative ${
+                (filters.status || filters.partnershipType || filters.city) ? 'bg-blue-50 border-blue-300 text-blue-700' : ''
+              }`}
+            >
+              <Icons.filter className="w-4 h-4" />
+              <span>Filters</span>
+              {(filters.status || filters.partnershipType || filters.city) && (
+                <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {[filters.status, filters.partnershipType, filters.city].filter(Boolean).length}
+                </span>
+              )}
+            </button>
 
-          <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-5 border border-yellow-200 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <Icons.alertTriangle className="w-5 h-5 text-yellow-600" />
-              <span className="text-xs font-medium text-yellow-700">Flagged</span>
-            </div>
-            <div className="flex items-end justify-between">
-              <div>
-                <p className="text-2xl font-bold text-yellow-900">
-                  {mitras.filter(m => m.status === 'Active-Flag').length}
-                </p>
-                <p className="text-xs text-yellow-600 mt-1">Need Attention</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-5 border border-gray-200 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <Icons.x className="w-5 h-5 text-gray-600" />
-              <span className="text-xs font-medium text-gray-700">Banned</span>
-            </div>
-            <div className="flex items-end justify-between">
-              <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {mitras.filter(m => m.status === 'Banned').length}
-                </p>
-                <p className="text-xs text-gray-600 mt-1">Restricted</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Create Mitra Form */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Create New Mitra</h2>
+            {/* Add New Mitra Button */}
             <button
               onClick={() => {
                 setShowForm(!showForm);
                 if (showForm) {
-                  // Clear any success messages when closing form
                   setSuccessMessage(null);
                   setLastCreatedMitra(null);
                 }
               }}
-              className="btn-primary"
+              className="btn-primary flex items-center gap-2"
             >
-              <Icons.plus className="w-4 h-4 mr-2" />
-              {showForm ? 'Cancel' : 'New Mitra'}
+              <Icons.plus className="w-4 h-4" />
+              <span>Add New Mitra</span>
             </button>
           </div>
 
-          {showForm && (
+          {/* Filter Popup */}
+          {showFilterPopup && (
+            <div className="fixed inset-0 bg-black bg-opacity-25 z-50 flex items-start justify-end p-4">
+              <div
+                className="absolute inset-0"
+                onClick={() => setShowFilterPopup(false)}
+              />
+              <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mt-20 relative z-10">
+                {/* Popup Header */}
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-4 rounded-t-xl flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">Filter Mitra Partners</h3>
+                  <button
+                    onClick={() => setShowFilterPopup(false)}
+                    className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-1"
+                  >
+                    <Icons.x className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Popup Content */}
+                <div className="p-6 space-y-4">
+                  {/* Status Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Status
+                    </label>
+                    <select
+                      value={filters.status || ''}
+                      onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as MitraStatus || undefined, page: 1 }))}
+                      className="input-field w-full"
+                    >
+                      <option value="">All Status</option>
+                      <option value="ACTIVE">Active</option>
+                      <option value="EXIT">Exit</option>
+                      <option value="ACTIVE-FLAG">Active-Flag</option>
+                      <option value="BANNED">Banned</option>
+                    </select>
+                  </div>
+
+                  {/* Partnership Type Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Partnership Type
+                    </label>
+                    <select
+                      value={filters.partnershipType || ''}
+                      onChange={(e) => setFilters(prev => ({ ...prev, partnershipType: e.target.value as MitraPartnershipType || undefined, page: 1 }))}
+                      className="input-field w-full"
+                    >
+                      <option value="">All Partnership</option>
+                      <option value="Full Time">Full Time</option>
+                      <option value="Part Time">Part Time</option>
+                      <option value="Fulltime">Fulltime (Legacy)</option>
+                      <option value="Partime">Partime (Legacy)</option>
+                    </select>
+                  </div>
+
+                  {/* City Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      City
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Filter by city..."
+                      value={filters.city}
+                      onChange={(e) => setFilters(prev => ({ ...prev, city: e.target.value, page: 1 }))}
+                      className="input-field w-full"
+                    />
+                  </div>
+                </div>
+
+                {/* Popup Footer */}
+                <div className="px-6 py-4 bg-gray-50 rounded-b-xl flex items-center justify-between">
+                  <button
+                    onClick={() => {
+                      setFilters(prev => ({ ...prev, status: undefined, partnershipType: undefined, city: '', page: 1 }));
+                    }}
+                    className="text-sm text-gray-600 hover:text-gray-900"
+                  >
+                    Clear all
+                  </button>
+                  <button
+                    onClick={() => setShowFilterPopup(false)}
+                    className="btn-primary"
+                  >
+                    Apply Filters
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Create Mitra Form */}
+        {showForm && (
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">Create New Mitra</h2>
+              <button
+                onClick={() => {
+                  setShowForm(false);
+                  setSuccessMessage(null);
+                  setLastCreatedMitra(null);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <Icons.x className="w-5 h-5" />
+              </button>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Mitra Name */}
@@ -897,74 +967,8 @@ export default function MitraManagement({ session }: MitraManagementProps) {
                 </button>
               </div>
             </form>
-          )}
-        </div>
-
-        {/* Filters */}
-        <div className="card p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Icons.filter className="w-5 h-5 text-gray-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Filter Partners</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Icons.search className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search mitras..."
-                value={filters.q}
-                onChange={(e) => setFilters(prev => ({ ...prev, q: e.target.value, page: 1 }))}
-                className="input-field pl-10"
-              />
-            </div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Icons.checkCircle className="h-5 w-5 text-gray-400" />
-              </div>
-              <select
-                value={filters.status || ''}
-                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as MitraStatus || undefined, page: 1 }))}
-                className="input-field pl-10"
-              >
-                <option value="">All Status</option>
-                <option value="ACTIVE">Active</option>
-                <option value="EXIT">Exit</option>
-                <option value="ACTIVE-FLAG">Active-Flag</option>
-                <option value="BANNED">Banned</option>
-              </select>
-            </div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Icons.users className="h-5 w-5 text-gray-400" />
-              </div>
-              <select
-                value={filters.partnershipType || ''}
-                onChange={(e) => setFilters(prev => ({ ...prev, partnershipType: e.target.value as MitraPartnershipType || undefined, page: 1 }))}
-                className="input-field pl-10"
-              >
-                <option value="">All Partnership</option>
-                <option value="Full Time">Full Time</option>
-                <option value="Part Time">Part Time</option>
-                <option value="Fulltime">Fulltime (Legacy)</option>
-                <option value="Partime">Partime (Legacy)</option>
-              </select>
-            </div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Icons.mapPin className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Filter by city..."
-                value={filters.city}
-                onChange={(e) => setFilters(prev => ({ ...prev, city: e.target.value, page: 1 }))}
-                className="input-field pl-10"
-              />
-            </div>
-          </div>
-        </div>
+        )}
 
         {/* Mitra List */}
         <div className="card">
