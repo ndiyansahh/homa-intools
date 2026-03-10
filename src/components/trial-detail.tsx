@@ -548,38 +548,40 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-900">Trial Details</h2>
-            <p className="text-sm text-gray-600">Customer: {trial.customerName}</p>
-          </div>
-          <div className="flex items-center space-x-3">
+    <div className="space-y-6">
+      {/* Header Card */}
+      <div className="card">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={onClose}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Back to trials"
+              >
+                <Icons.arrowLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Trial Details</h1>
+                <p className="text-sm text-gray-600 mt-1">Customer: {trial.customerName}</p>
+              </div>
+            </div>
             <button
               onClick={toggleEditMode}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                isEditMode 
-                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' 
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                isEditMode
+                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
               }`}
             >
-              <Icons.edit className="w-4 h-4 mr-2 inline" />
+              <Icons.edit className="w-4 h-4" />
               {isEditMode ? 'Cancel Edit' : 'Edit'}
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <Icons.close className="w-6 h-6" />
             </button>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-6">
-          {/* Customer Information */}
+        {/* Customer Information */}
+        <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">Customer Information</h3>
@@ -721,10 +723,13 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
               </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Trial Assignments */}
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Trial Assignments</h3>
+      {/* Trial Assignments Card */}
+      <div className="card">
+        <div className="p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Trial Assignments</h3>
             
             {isEditMode ? (
               /* Edit Mode - Package-Driven Subscription Management */
@@ -995,12 +1000,13 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
                 ))}
               </div>
             )}
-          </div>
+        </div>
+      </div>
 
-
-          {/* Timeline */}
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Timeline</h3>
+      {/* Timeline Card */}
+      <div className="card">
+        <div className="p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Timeline</h3>
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -1031,11 +1037,13 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
                 </div>
               </div>
             </div>
-          </div>
+        </div>
+      </div>
 
-          {/* Notes */}
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Notes</h3>
+      {/* Notes Card */}
+      <div className="card">
+        <div className="p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Notes</h3>
             {isEditMode ? (
               <div>
                 <textarea
@@ -1056,82 +1064,68 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
                 )}
               </div>
             )}
+        </div>
+      </div>
+
+      {/* Action Buttons Card */}
+      {isEditMode && subscriptionCreated && subscriptionData && (
+        <div className="card">
+          <div className="p-6">
+            <div className="flex items-center justify-between gap-4">
+              <button
+                onClick={toggleEditMode}
+                disabled={convertingToCustomer}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConvertToCustomer}
+                disabled={convertingToCustomer}
+                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium flex items-center gap-2"
+              >
+                {convertingToCustomer ? (
+                  <>
+                    <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Converting to Customer...
+                  </>
+                ) : (
+                  <>
+                    <Icons.check className="w-4 h-4" />
+                    Step 2: Convert to Customer
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-between">
-          {isEditMode ? (
-            subscriptionCreated && subscriptionData ? (
-              /* Step 2: Convert to Customer Footer */
-              <>
-                <button 
-                  onClick={toggleEditMode}
-                  disabled={convertingToCustomer}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConvertToCustomer}
-                  disabled={convertingToCustomer}
-                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-                >
-                  {convertingToCustomer ? (
-                    <>
-                      <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Converting to Customer...
-                    </>
-                  ) : (
-                    <>
-                      <Icons.check className="w-4 h-4 mr-2 inline" />
-                      Step 2: Convert to Customer
-                    </>
-                  )}
-                </button>
-              </>
-            ) : (
-              /* Edit Mode Footer - Package-Driven Workflow */
-              <>
-                <button 
-                  onClick={toggleEditMode}
-                  disabled={updating}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Exit Edit Mode
-                </button>
-                <p className="text-sm text-gray-600 self-center">
-                  Notes will be saved when subscription is converted to customer
-                </p>
-              </>
-            )
-          ) : (
-            /* View Mode Footer */
-            <>
-              <button 
+      {!isEditMode && (
+        <div className="card">
+          <div className="p-6">
+            <div className="flex items-center justify-end gap-4">
+              <button
                 onClick={handleLegacyConvertToCustomer}
                 disabled={updating}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
                 {updating ? (
                   <>
-                    <Icons.spinner className="w-4 h-4 mr-2 inline animate-spin" />
+                    <Icons.spinner className="w-4 h-4 animate-spin" />
                     Converting...
                   </>
                 ) : (
                   <>
-                    <Icons.check className="w-4 h-4 mr-2 inline" />
+                    <Icons.check className="w-4 h-4" />
                     Convert to Customer
                   </>
                 )}
               </button>
-              <button onClick={onClose} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                Close
-              </button>
-            </>
-          )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
