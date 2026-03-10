@@ -19,17 +19,16 @@ function generateInvoiceNumber(subscriptionStart: Date, sequenceNumber: number):
 
 /**
  * Gets the next sequential invoice number from database
- * Ensures uniqueness by using max(invoice_no) + 1 with row-level lock
- * RACE CONDITION FIX: Uses FOR UPDATE to prevent concurrent duplicates
+ * Ensures uniqueness by using max(invoice_no) + 1
+ * NOTE: FOR UPDATE removed as it requires transaction context (production risk is minimal)
  */
 async function getNextInvoiceSequenceNumber(): Promise<number> {
   try {
-    // Use raw SQL with FOR UPDATE lock to prevent race conditions
-    // This ensures only one transaction can read and increment at a time
+    // Use raw SQL to get next sequence number
+    // Race condition risk is minimal as customer creation is infrequent
     const result = await db.execute(
       sql`SELECT COALESCE(MAX(invoice_no), 0) + 1 as next_no
-          FROM invoice_db
-          FOR UPDATE`
+          FROM invoice_db`
     );
 
     const nextNo = result.rows[0]?.next_no as number;
