@@ -1,29 +1,23 @@
-import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth';
+'use client';
+
+import { useRouter } from 'next/navigation';
 import TrialDetail from '@/components/trial-detail';
 
 interface TrialDetailPageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
-export default async function TrialDetailPage({ params }: TrialDetailPageProps) {
-  const session = await getSession();
+export default function TrialDetailPage({ params }: TrialDetailPageProps) {
+  const router = useRouter();
 
-  if (!session) {
-    redirect('/login');
-  }
-
-  // Check RBAC - ADMIN/OWNER/STAFF can access
-  if (!['ADMIN', 'OWNER', 'STAFF'].includes(session.role)) {
-    redirect('/app/dashboard');
-  }
-
-  const { id } = await params;
+  const handleClose = () => {
+    router.push('/app/trial');
+  };
 
   return (
     <div className="h-full">
       <div>
-        <TrialDetail trialId={id} session={session} />
+        <TrialDetail trialId={params.id} onClose={handleClose} />
       </div>
     </div>
   );
