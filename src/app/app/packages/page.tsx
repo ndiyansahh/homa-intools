@@ -258,9 +258,11 @@ export default function PackageManagementPage() {
                     <option value="3">3x per week</option>
                     <option value="4">4x per week</option>
                     <option value="5">5x per week</option>
+                    <option value="6">6x per week</option>
+                    <option value="7">7x per week</option>
                   </select>
                   <p className="text-xs text-gray-500 mt-2">
-                    This will be appended to package name if not already included
+                    Expected monthly visits vary based on calendar. This frequency is used for payout calculations.
                   </p>
                 </div>
               </div>
