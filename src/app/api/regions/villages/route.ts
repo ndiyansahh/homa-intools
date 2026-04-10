@@ -55,10 +55,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         )
         .orderBy(asc(regionDB.village));
 
-      // Remove duplicates based on village name and create proper response format
-      const uniqueVillages = Array.from(
-        new Map(regions.map(region => [region.village, region])).values()
-      ).map(region => ({
+      // Remove duplicates based on village name, preferring records with postal code
+      const villageMap = new Map<string, typeof regions[0]>();
+      for (const region of regions) {
+        const existing = villageMap.get(region.village ?? '');
+        // Keep this record if no existing entry, or if this one has a postal code and existing doesn't
+        if (!existing || (!existing.postalCode && region.postalCode)) {
+          villageMap.set(region.village ?? '', region);
+        }
+      }
+      const uniqueVillages = Array.from(villageMap.values()).map(region => ({
         id: region.village, // Use village name as ID
         name: region.village,
         district_id: region.district,
