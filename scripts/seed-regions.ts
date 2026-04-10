@@ -701,7 +701,7 @@ function cleanCityName(name: string): string {
 }
 
 function getPostalCode(cityName: string, districtName: string, villageName: string): string {
-  const key = `${cityName}|${districtName}|${villageName}`;
+  const key = `${cityName.toUpperCase()}|${districtName}|${villageName}`;
   return POSTAL_CODE_MAP[key] || '';
 }
 
