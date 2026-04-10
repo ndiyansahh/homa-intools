@@ -696,6 +696,8 @@ const POSTAL_CODE_MAP: Record<string, string> = {
 function cleanCityName(name: string): string {
   return name
     .replace(/^KOTA ADM\.\s*/i, '')
+    .replace(/^KOTA ADMINISTRASI\s*/i, '')
+    .replace(/^ADMINISTRASI\s*/i, '')
     .replace(/^KOTA\s*/i, '')
     .trim();
 }
