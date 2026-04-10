@@ -34,9 +34,9 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { bonusAmount, notes, status } = body;
+    const { tunjanganAmount, notes, status } = body;
 
-    console.log(`📝 Updating payout ${id}:`, { bonusAmount, notes, status });
+    console.log(`📝 Updating payout ${id}:`, { tunjanganAmount, notes, status });
 
     // Get current payout
     const currentPayout = await db
@@ -54,25 +54,15 @@ export async function PUT(
 
     const payout = currentPayout[0];
 
-    // Check if lainnya is eligible
-    if (bonusAmount !== undefined && !payout.bonusEligible) {
-      return NextResponse.json(
-        { success: false, message: 'Mitra is not eligible for lainnya' },
-        { status: 400 }
-      );
-    }
-
-    // Calculate new total payout
-    const newBonusAmount = bonusAmount !== undefined ? Number(bonusAmount) : Number(payout.bonusAmount);
-    const basePayout = Number(payout.basePayout);
-    const newTotalPayout = basePayout + newBonusAmount;
-
     const updateData: any = {
       updatedAt: new Date(),
     };
 
-    if (bonusAmount !== undefined) {
-      updateData.bonusAmount = newBonusAmount.toString();
+    if (tunjanganAmount !== undefined) {
+      // bonusAmount stays as the mitra's bonus rate — tunjangan is additive on top
+      const basePayout = Number(payout.basePayout);
+      const bonusAmount = Number(payout.bonusAmount); // keep existing bonus rate
+      const newTotalPayout = basePayout + bonusAmount + Number(tunjanganAmount);
       updateData.totalPayout = newTotalPayout.toString();
     }
 

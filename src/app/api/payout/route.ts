@@ -4,22 +4,42 @@ import { db } from '@/lib/db';
 import { payoutDB, mitraDB, visitDB, mitraRateConfigDB, customerDB, payoutAdjustmentDB } from '@/lib/schema';
 import { eq, and, desc, gte, lte, like, ilike, count, isNull } from 'drizzle-orm';
 import { logAuditEvent } from '@/lib/logger';
+import { getNormalRange } from '@/lib/utils/normalRange';
+import { extractVisitsPerWeek } from '@/lib/utils/subscriptionUtils';
 
 /**
  * Calculate the billing cycle (invoice period) that contains a given date
  * Billing cycles are monthly periods starting from the subscription start date
  *
- * Example: If subscription starts on 7-Jan-2026:
- * - Cycle 1: 7-Jan to 6-Feb
- * - Cycle 2: 7-Feb to 6-Mar
+ * Example: If subscription starts on 18-Mar-2026:
+ * - Cycle 1: 18-Mar to 17-Apr (exactly 1 month)
+ * - Cycle 2: 18-Apr to 17-May (exactly 1 month)
  * - etc.
+ *
+ * Edge cases:
+ * - Start: 31-Jan → End: 28-Feb (or 29-Feb in leap year) - last day of Feb
+ * - Start: 31-May → End: 30-Jun - last day of June
  *
  * @param subscriptionStart - Customer's subscription start date (YYYY-MM-DD)
  * @param targetDate - Date to find the billing cycle for
  * @returns { start: Date, end: Date } - The billing cycle period
  */
+// Parse a YYYY-MM-DD string as local midnight (avoid UTC offset shifting the date)
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+// Format a Date to YYYY-MM-DD using local time
+function toLocalDateString(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function getBillingCycle(subscriptionStart: string, targetDate: Date): { start: Date; end: Date } {
-  const subStart = new Date(subscriptionStart);
+  const subStart = parseLocalDate(subscriptionStart);
   const target = new Date(targetDate);
 
   // Find which billing cycle the target date falls into
@@ -27,24 +47,61 @@ function getBillingCycle(subscriptionStart: string, targetDate: Date): { start: 
 
   // Advance cycle start to the correct year/month
   while (true) {
-    const cycleEnd = new Date(cycleStart);
-    cycleEnd.setMonth(cycleEnd.getMonth() + 1);
-    cycleEnd.setDate(cycleEnd.getDate() - 1); // Last day of cycle (e.g., 6-Feb if start is 7-Jan)
+    // Calculate next cycle start by adding 1 month
+    const year = cycleStart.getFullYear();
+    const month = cycleStart.getMonth();
+    const day = cycleStart.getDate();
+
+    // Create next cycle start date
+    let nextMonth = month + 1;
+    let nextYear = year;
+
+    if (nextMonth > 11) {
+      nextMonth = 0;
+      nextYear++;
+    }
+
+    // Handle day overflow (e.g., Jan 31 → Feb 28/29)
+    const nextCycleStart = new Date(nextYear, nextMonth, 1);
+    const daysInNextMonth = new Date(nextYear, nextMonth + 1, 0).getDate();
+    const nextDay = Math.min(day, daysInNextMonth);
+    nextCycleStart.setDate(nextDay);
+
+    // End of current cycle = day before next cycle starts
+    const cycleEnd = new Date(nextCycleStart.getTime() - 86400000);
 
     if (target >= cycleStart && target <= cycleEnd) {
       return { start: cycleStart, end: cycleEnd };
     }
 
     // Move to next cycle
-    cycleStart = new Date(cycleEnd);
-    cycleStart.setDate(cycleStart.getDate() + 1);
+    cycleStart = new Date(nextCycleStart);
 
     // Safety check to prevent infinite loop
     if (cycleStart > target) {
       // Target is before subscription start, use first cycle
+      const firstMonth = subStart.getMonth();
+      const firstYear = subStart.getFullYear();
+      const firstDay = subStart.getDate();
+
+      let nextFirstMonth = firstMonth + 1;
+      let nextFirstYear = firstYear;
+
+      if (nextFirstMonth > 11) {
+        nextFirstMonth = 0;
+        nextFirstYear++;
+      }
+
+      const firstNextCycleStart = new Date(nextFirstYear, nextFirstMonth, 1);
+      const daysInFirstNextMonth = new Date(nextFirstYear, nextFirstMonth + 1, 0).getDate();
+      const firstNextDay = Math.min(firstDay, daysInFirstNextMonth);
+      firstNextCycleStart.setDate(firstNextDay);
+
+      const firstCycleEnd = new Date(firstNextCycleStart.getTime() - 86400000);
+
       return {
         start: new Date(subStart),
-        end: new Date(new Date(subStart).setMonth(subStart.getMonth() + 1) - 86400000) // -1 day
+        end: firstCycleEnd
       };
     }
   }
@@ -224,6 +281,7 @@ export async function POST(request: NextRequest) {
         baseRate: mitraDB.baseRate, // DEPRECATED - kept for backward compatibility
         monthlyBaseRate: mitraDB.monthlyBaseRate, // NEW - monthly rate
         bonusRate: mitraDB.bonusRate, // NEW - bonus rate
+        trialRatePerVisit: mitraDB.trialRatePerVisit, // Per-mitra trial rate
       })
       .from(mitraDB)
       .where(eq(mitraDB.isActive, true));
@@ -232,43 +290,97 @@ export async function POST(request: NextRequest) {
     const payoutAdjustmentsMap = new Map<string, any[]>(); // Store adjustments by mitraId
     const monthStart = new Date(year, month - 1, 1);
     const monthEnd = new Date(year, month, 0); // Last day of month
-    const lastDayOfMonth = monthEnd.toISOString().split('T')[0];
+    const lastDayOfMonth = toLocalDateString(monthEnd);
 
-    console.log(`📅 Period: ${monthStart.toISOString().split('T')[0]} to ${lastDayOfMonth}`);
+    console.log(`📅 Period: ${toLocalDateString(monthStart)} to ${lastDayOfMonth}`);
 
     for (const mitra of mitras) {
       console.log(`\n🔄 Processing payout for ${mitra.mitraName}...`);
 
-      // Step 1: Get all completed visits for this mitra in the period (with customer info)
-      const completedVisits = await db
+      // Step 1: Get all SCHEDULED visits for this mitra in the payout month
+      // IMPORTANT: Filter by scheduledDate, not completedAt!
+      // This ensures we pay based on when visits were scheduled, not when completed
+      const visitsInMonth = await db
         .select({
           visitId: visitDB.id,
           customerId: visitDB.customerId,
           customerName: customerDB.customerName,
           subscriptionPackageId: customerDB.subscriptionPackageId,
           subscriptionPackage: customerDB.subscriptionPackage,
+          subscriptionStatus: customerDB.subscriptionStatus,
           scheduledDate: visitDB.scheduledDate,
           completedAt: visitDB.completedAt,
+          status: visitDB.status,
         })
         .from(visitDB)
         .leftJoin(customerDB, eq(visitDB.customerId, customerDB.id))
         .where(
           and(
             eq(visitDB.actualMitraId, mitra.id), // Actually completed by this mitra
-            eq(visitDB.status, 'Done'),
-            gte(visitDB.completedAt, monthStart),
-            lte(visitDB.completedAt, monthEnd)
+            eq(visitDB.status, 'Done'), // Only completed visits
+            gte(visitDB.scheduledDate, toLocalDateString(monthStart)), // Scheduled in payout month
+            lte(visitDB.scheduledDate, toLocalDateString(monthEnd))
           )
         );
 
-      if (completedVisits.length === 0) {
+      if (visitsInMonth.length === 0) {
         console.log(`⏭️  Skipping ${mitra.mitraName} - no completed visits`);
         continue;
       }
 
-      // Step 2: Group visits by customer
-      const customerVisitMap = new Map<string, typeof completedVisits>();
-      completedVisits.forEach((visit) => {
+      // Step 2: Separate trial visits from regular visits
+      const trialStatuses = ['Trial', 'Trial Scheduled', 'Not Converted', 'Cancelled'];
+      const trialVisitsInMonth = visitsInMonth.filter(v => trialStatuses.includes(v.subscriptionStatus || ''));
+      const regularVisitsInMonth = visitsInMonth.filter(v => !trialStatuses.includes(v.subscriptionStatus || ''));
+
+      // Step 2a: Handle trial visits — flat rate per visit
+      let totalBasePayout = 0;
+      let totalScheduledVisits = 0;
+      let totalCompletedVisits = 0;
+      const customerBreakdown: any[] = [];
+
+      if (trialVisitsInMonth.length > 0) {
+        const trialRatePerVisit = mitra.trialRatePerVisit ? Number(mitra.trialRatePerVisit) : 0;
+
+        if (trialRatePerVisit > 0) {
+          const trialPayout = trialVisitsInMonth.length * trialRatePerVisit;
+          totalBasePayout += trialPayout;
+          totalCompletedVisits += trialVisitsInMonth.length;
+
+          // Group by customer for breakdown
+          const trialByCustomer = new Map<string, typeof trialVisitsInMonth>();
+          trialVisitsInMonth.forEach(v => {
+            if (!trialByCustomer.has(v.customerId)) trialByCustomer.set(v.customerId, []);
+            trialByCustomer.get(v.customerId)!.push(v);
+          });
+
+          for (const [, tVisits] of trialByCustomer.entries()) {
+            const payout = tVisits.length * trialRatePerVisit;
+            const visitDates = tVisits
+              .map(v => v.scheduledDate)
+              .filter(Boolean)
+              .sort();
+            customerBreakdown.push({
+              customerId: tVisits[0].customerId,
+              customerName: tVisits[0].customerName || 'Unknown',
+              subscriptionPackage: 'Trial',
+              scheduledVisits: tVisits.length,
+              completedVisits: tVisits.length,
+              monthlyRate: trialRatePerVisit,
+              payout,
+              isTrialVisit: true,
+              visitDates,
+            });
+            console.log(`   🧪 Trial visit: ${tVisits[0].customerName} — ${tVisits.length} visit(s) × Rp ${trialRatePerVisit.toLocaleString()} = Rp ${payout.toLocaleString()}`);
+          }
+        } else {
+          console.log(`   ⚠️  No trial rate configured for ${mitra.mitraName}, skipping ${trialVisitsInMonth.length} trial visit(s)`);
+        }
+      }
+
+      // Step 2b: Group regular visits by customer
+      const customerVisitMap = new Map<string, typeof regularVisitsInMonth>();
+      regularVisitsInMonth.forEach((visit) => {
         const customerId = visit.customerId;
         if (!customerVisitMap.has(customerId)) {
           customerVisitMap.set(customerId, []);
@@ -276,25 +388,21 @@ export async function POST(request: NextRequest) {
         customerVisitMap.get(customerId)!.push(visit);
       });
 
-      console.log(`   📋 Processing ${customerVisitMap.size} unique customers`);
+      console.log(`   📋 Processing ${customerVisitMap.size} regular customers + ${trialVisitsInMonth.length} trial visit(s)`);
 
-      // Step 3: Calculate payout per customer (pro-rate by subscription package)
-      let totalBasePayout = 0;
-      let totalScheduledVisits = 0;
-      let totalCompletedVisits = 0;
-      const customerBreakdown: any[] = [];
+      // Step 3: Calculate payout per customer — one entry per billing-cycle per customer
+      // A customer may have visits in TWO billing cycles within a single calendar month
+      // (e.g., last day(s) of old period + first day(s) of new period).
+      // We group visits by (customerId, billingCycleKey) and process each group independently.
 
       for (const [customerId, visits] of customerVisitMap.entries()) {
         const firstVisit = visits[0];
         const customerName = firstVisit.customerName || 'Unknown';
-        const subscriptionPackageId = firstVisit.subscriptionPackageId;
         const subscriptionPackage = firstVisit.subscriptionPackage || 'Unknown';
 
-        // Step 3a: Get customer's subscription start date to calculate billing cycle
+        // Step 3a: Get customer's subscription start date
         const customerData = await db
-          .select({
-            subscriptionStart: customerDB.subscriptionStart,
-          })
+          .select({ subscriptionStart: customerDB.subscriptionStart })
           .from(customerDB)
           .where(eq(customerDB.id, customerId))
           .limit(1);
@@ -306,134 +414,168 @@ export async function POST(request: NextRequest) {
 
         const subscriptionStart = customerData[0].subscriptionStart;
 
-        // Step 3b: Group visits by billing cycle (DYNAMIC!)
-        // Each visit's billing cycle is determined by its SCHEDULED DATE, not payout month
-        const billingCycleMap = new Map<string, {
-          cycle: { start: Date; end: Date };
-          visits: typeof visits;
-        }>();
-
+        // Step 3b: Group visits by billing cycle
+        // A visit belongs to whichever billing cycle its scheduledDate falls into.
+        const visitsByBillingCycle = new Map<string, { visits: typeof visits; billingCycle: { start: Date; end: Date } }>();
         for (const visit of visits) {
-          const scheduledDate = new Date(visit.scheduledDate);
-          const billingCycle = getBillingCycle(subscriptionStart, scheduledDate);
-          const cycleKey = `${billingCycle.start.toISOString()}_${billingCycle.end.toISOString()}`;
-
-          if (!billingCycleMap.has(cycleKey)) {
-            billingCycleMap.set(cycleKey, {
-              cycle: billingCycle,
-              visits: []
-            });
+          const cycle = getBillingCycle(subscriptionStart, parseLocalDate(visit.scheduledDate));
+          const cycleKey = toLocalDateString(cycle.start);
+          if (!visitsByBillingCycle.has(cycleKey)) {
+            visitsByBillingCycle.set(cycleKey, { visits: [], billingCycle: cycle });
           }
-
-          billingCycleMap.get(cycleKey)!.visits.push(visit);
+          visitsByBillingCycle.get(cycleKey)!.visits.push(visit);
         }
 
-        console.log(`   📅 ${customerName}: ${billingCycleMap.size} billing cycle(s) in this payout month`);
+        console.log(`   📋 ${customerName}: ${visitsByBillingCycle.size} billing cycle(s) in this month`);
 
-        // Step 3c: Calculate payout for each billing cycle separately
-        for (const [cycleKey, { cycle: billingCycle, visits: cycleVisits }] of billingCycleMap.entries()) {
-          console.log(`   📅   Billing cycle: ${billingCycle.start.toISOString().split('T')[0]} to ${billingCycle.end.toISOString().split('T')[0]}`);
+        // Step 3c: Process each billing cycle separately
+        for (const [, { visits: cycleVisits, billingCycle }] of visitsByBillingCycle.entries()) {
+          // Intersection of billing cycle with the payout calendar month
+          const intersectionStart = new Date(Math.max(billingCycle.start.getTime(), monthStart.getTime()));
+          const intersectionEnd = new Date(Math.min(billingCycle.end.getTime(), monthEnd.getTime()));
 
-          // Step 3d: Get rate configuration for this mitra + subscription package combo
-          const rateConfigs = await db
-            .select({
-              monthlyRate: mitraRateConfigDB.monthlyRate,
-            })
-            .from(mitraRateConfigDB)
-            .where(
-              and(
-                eq(mitraRateConfigDB.mitraId, mitra.id),
-                eq(mitraRateConfigDB.isActive, true),
-                lte(mitraRateConfigDB.effectiveFrom, lastDayOfMonth),
-                isNull(mitraRateConfigDB.effectiveTo),
-                subscriptionPackageId
-                  ? eq(mitraRateConfigDB.subscriptionPackageId, subscriptionPackageId)
-                  : isNull(mitraRateConfigDB.subscriptionPackageId)
-              )
-            )
-            .limit(1);
+          console.log(`   📅 ${customerName}: Billing ${toLocalDateString(billingCycle.start)} to ${toLocalDateString(billingCycle.end)}`);
+          console.log(`   📅   Intersection: ${toLocalDateString(intersectionStart)} to ${toLocalDateString(intersectionEnd)}`);
 
-          // Fallback chain: specific config → default config → mitra base rate
+          // Step 3d: Get rate for this mitra + visitsPerWeek
+          // New schema: look up by (mitraId, visitsPerWeek)
+          const visitsPerWeekForRate = extractVisitsPerWeek(subscriptionPackage);
+
+          const rateConfigs = visitsPerWeekForRate > 0
+            ? await db
+                .select({ payoutRate: mitraRateConfigDB.payoutRate })
+                .from(mitraRateConfigDB)
+                .where(
+                  and(
+                    eq(mitraRateConfigDB.mitraId, mitra.id),
+                    eq(mitraRateConfigDB.visitsPerWeek, visitsPerWeekForRate)
+                  )
+                )
+                .limit(1)
+            : [];
+
           let monthlyRate = 0;
           if (rateConfigs.length > 0) {
-            monthlyRate = Number(rateConfigs[0].monthlyRate);
+            monthlyRate = Number(rateConfigs[0].payoutRate);
           } else {
-            // Try default config (subscriptionPackageId = NULL)
-            const defaultConfig = await db
-              .select({
-                monthlyRate: mitraRateConfigDB.monthlyRate,
-              })
+            // Fallback 1: use any rate config for this mitra (ignore visitsPerWeek)
+            const anyRateConfig = await db
+              .select({ payoutRate: mitraRateConfigDB.payoutRate })
               .from(mitraRateConfigDB)
-              .where(
-                and(
-                  eq(mitraRateConfigDB.mitraId, mitra.id),
-                  eq(mitraRateConfigDB.isActive, true),
-                  lte(mitraRateConfigDB.effectiveFrom, lastDayOfMonth),
-                  isNull(mitraRateConfigDB.effectiveTo),
-                  isNull(mitraRateConfigDB.subscriptionPackageId)
-                )
-              )
+              .where(eq(mitraRateConfigDB.mitraId, mitra.id))
               .limit(1);
 
-            if (defaultConfig.length > 0) {
-              monthlyRate = Number(defaultConfig[0].monthlyRate);
+            if (anyRateConfig.length > 0) {
+              monthlyRate = Number(anyRateConfig[0].payoutRate);
+              console.log(`   ℹ️  No rate for ${visitsPerWeekForRate}x/week, using default rate config: Rp${monthlyRate.toLocaleString()}`);
             } else {
-              // Final fallback: mitra base rate
+              // Fallback 2: use mitra's base rate from mitra table
               monthlyRate = Number(mitra.monthlyBaseRate) || Number(mitra.baseRate) || 0;
+              console.log(`   ⚠️  No rate config found for ${mitra.mitraName}, using base rate: Rp${monthlyRate.toLocaleString()}`);
             }
           }
 
           if (monthlyRate === 0) {
-            console.log(`   ⚠️  No rate configured for ${customerName} (${subscriptionPackage}), skipping`);
+            console.log(`   ⚠️  No rate for ${customerName} (${subscriptionPackage}), skipping`);
             continue;
           }
 
-          // Step 3e: Count scheduled visits for this customer in THIS BILLING CYCLE
-          // FIXED BUG #1: Removed mitraId filter - denominator should be total scheduled visits
-          //               regardless of which mitra, to handle mid-month mitra changes correctly
-          // FIXED BUG #2: Use billing cycle dates (determined by visit's scheduledDate)
-          //               to ensure prorate calculation matches invoice period
-          // FIXED BUG #3: Dynamic billing cycle per visit, not per payout month
-          const scheduledVisitsForCustomer = await db
+          // Step 3e: Total scheduled visits in the FULL billing cycle (denominator)
+          const scheduledInCycleRows = await db
             .select({ id: visitDB.id })
             .from(visitDB)
             .where(
               and(
                 eq(visitDB.customerId, customerId),
-                // NO mitraId filter here! Total scheduled for customer in billing period
-                gte(visitDB.scheduledDate, billingCycle.start.toISOString().split('T')[0]),
-                lte(visitDB.scheduledDate, billingCycle.end.toISOString().split('T')[0])
+                gte(visitDB.scheduledDate, toLocalDateString(billingCycle.start)),
+                lte(visitDB.scheduledDate, toLocalDateString(billingCycle.end))
               )
             );
 
-          const scheduled = scheduledVisitsForCustomer.length;
-          const completed = cycleVisits.length; // Use cycleVisits (visits in this billing cycle)
+          const totalScheduledInCycle = scheduledInCycleRows.length;
+          const completedInMonth = cycleVisits.length;
 
-          // Step 3f: Calculate pro-rate for this customer x billing cycle
-          // Formula: (completed visits in this billing cycle / total scheduled in billing cycle) × monthly rate
-          // Example: Jan 2026 payout with billing cycle 7-Jan to 6-Feb (9 scheduled)
-          //          Visit 1-8 completed in Jan → 8/9 × Rp 900,000 = Rp 800,000
-          //          Visit 9 completed in Feb → 1/9 × Rp 900,000 = Rp 100,000
-          const denominator = scheduled > 0 ? scheduled : completed;
-          const customerPayout = (completed / denominator) * monthlyRate;
+          // Step 3f: Extract visitsPerWeek
+          let visitsPerWeek = extractVisitsPerWeek(subscriptionPackage);
+          if (!visitsPerWeek || visitsPerWeek < 1 || visitsPerWeek > 7) {
+            // Trial package has visitsPerWeek = 0 — skip from regular payout
+            console.log(`   ⚠️  Skipping ${customerName} — Trial package has no regular payout frequency`);
+            continue;
+          }
+
+          // Step 3g: Calculate payout per TOPIC #2
+          // Formula: payout = (completedInMonth / totalScheduledInCycle) × monthlyRate
+          // Bonus: if totalScheduledInCycle > normalMax, extra visits get bonus
+          let customerPayout = 0;
+          let payoutCalculationDetails: any = {};
+
+          if (totalScheduledInCycle === 0) {
+            console.log(`   ⚠️  No scheduled visits in cycle for ${customerName}, skipping`);
+            continue;
+          }
+
+          // Get normal range for this frequency (Topic #1)
+          let normalMax = totalScheduledInCycle;
+          try {
+            const nr = getNormalRange(visitsPerWeek);
+            normalMax = nr.max;
+          } catch {}
+
+          // Extra visits in cycle = scheduled beyond normal max
+          // e.g. 1x/week normalMax=5, but cycle has 6 scheduled → 1 extra visit
+          const extraVisitsInCycle = Math.max(0, totalScheduledInCycle - normalMax);
+
+          // Base payout: pro-rata of completed vs total scheduled (TOPIC #2)
+          // Formula: completedInMonth / totalScheduledInCycle × monthlyRate
+          const basePayout = (completedInMonth / totalScheduledInCycle) * monthlyRate;
+
+          // Bonus payout: extra visits beyond normal max (TOPIC #1)
+          // Formula: (extraVisitsInCycle / normalMax) × monthlyRate
+          // Then pro-rate to this month: × (completedInMonth / totalScheduledInCycle)
+          let bonusPayout = 0;
+          if (extraVisitsInCycle > 0 && mitra.bonusCommission === 'Eligible') {
+            const fullBonusForCycle = (extraVisitsInCycle / normalMax) * monthlyRate;
+            // Pro-rate: only pay the portion of bonus for visits completed this month
+            bonusPayout = fullBonusForCycle * (completedInMonth / totalScheduledInCycle);
+          }
+
+          customerPayout = Math.round(basePayout + bonusPayout);
+
+          const percentage = Math.round((completedInMonth / totalScheduledInCycle) * 100 * 100) / 100;
+
+          payoutCalculationDetails = {
+            method: 'TOPIC1_TOPIC2_FORMULA',
+            visitsPerWeek,
+            normalMax,
+            totalScheduledInCycle,
+            extraVisitsInCycle,
+            completedInMonth,
+            percentage,
+            monthlyRate,
+            basePayout: Math.round(basePayout),
+            bonusPayout: Math.round(bonusPayout),
+            totalPayout: customerPayout,
+            bonusEligible: mitra.bonusCommission === 'Eligible',
+          };
+
+          console.log(`   ✓ ${customerName}: ${completedInMonth}/${totalScheduledInCycle} visits (${percentage}%) = Rp${customerPayout.toLocaleString()}`);
 
           totalBasePayout += customerPayout;
-          totalScheduledVisits += scheduled;
-          totalCompletedVisits += completed;
+          totalScheduledVisits += totalScheduledInCycle;
+          totalCompletedVisits += completedInMonth;
 
           customerBreakdown.push({
             customerId,
             customerName,
             subscriptionPackage,
-            billingCycleStart: billingCycle.start.toISOString().split('T')[0],
-            billingCycleEnd: billingCycle.end.toISOString().split('T')[0],
-            scheduledVisits: scheduled,
-            completedVisits: completed,
+            billingCycleStart: toLocalDateString(intersectionStart),
+            billingCycleEnd: toLocalDateString(intersectionEnd),
+            scheduledVisits: totalScheduledInCycle,
+            completedVisits: completedInMonth,
             monthlyRate,
             payout: customerPayout,
+            calculationDetails: payoutCalculationDetails,
           });
-
-          console.log(`   ✓ ${customerName} (${subscriptionPackage}): ${completed}/${scheduled} visits × Rp${monthlyRate.toLocaleString()} = Rp${customerPayout.toLocaleString()} [Billing: ${billingCycle.start.toISOString().split('T')[0]} to ${billingCycle.end.toISOString().split('T')[0]}]`);
         } // End billing cycle loop
       } // End customer loop
 

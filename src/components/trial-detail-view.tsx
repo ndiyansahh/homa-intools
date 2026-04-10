@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Icons } from './icons';
 import { TrialListItem, TrialStatus } from '@/types/trial';
+import { useToast } from '@/lib/toast';
 
 interface UpdateTrialData {
   id: string;
@@ -52,6 +53,7 @@ export default function TrialDetailView({
   acquisitionColors,
   residentialColors,
 }: TrialDetailViewProps) {
+  const { toast } = useToast();
   const [showConversionForm, setShowConversionForm] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -77,7 +79,7 @@ export default function TrialDetailView({
 
   const handleConvert = async () => {
     if (!selectedPackage || selectedDays.length === 0 || !startDate) {
-      alert('Please fill in all required fields for conversion');
+      toast('warning', 'Please fill in all required fields for conversion');
       return;
     }
 

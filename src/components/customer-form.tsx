@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { SessionData } from '@/types/auth';
 import { Icons } from './icons';
+import { useToast } from '@/lib/toast';
 
 interface CustomerFormProps {
   session: SessionData;
@@ -70,6 +71,7 @@ const convertFromDateInputFormat = (yyyymmdd: string): string => {
 };
 
 export default function CustomerForm({ session, onClose, onSuccess }: CustomerFormProps) {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<CreateCustomerRequest>({
     customerName: '',
@@ -518,37 +520,37 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
     e.preventDefault();
 
     if (!formData.customerName.trim()) {
-      alert('Please enter customer name');
+      toast('warning', 'Please enter customer name');
       return;
     }
 
     if (!formData.contact.trim()) {
-      alert('Please enter contact information');
+      toast('warning', 'Please enter contact information');
       return;
     }
 
     if (!formData.city || !formData.district) {
-      alert('Please select city and district');
+      toast('warning', 'Please select city and district');
       return;
     }
 
     if (!formData.subscriptionPackageId) {
-      alert('Please select a subscription package');
+      toast('warning', 'Please select a subscription package');
       return;
     }
 
     if (selectedDaysCount !== requiredVisitsPerWeek) {
-      alert(`Please select exactly ${requiredVisitsPerWeek} day(s) for this package`);
+      toast('info', `Please select exactly ${requiredVisitsPerWeek} day(s) for this package`);
       return;
     }
 
     if (!formData.firstDateSubscription) {
-      alert('Please select first subscription date');
+      toast('warning', 'Please select first subscription date');
       return;
     }
 
     if (!formData.cleaner1) {
-      alert('Please select a primary mitra');
+      toast('warning', 'Please select a primary mitra');
       return;
     }
 
@@ -584,16 +586,16 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
       });
 
       if (response.ok) {
-        alert('Customer created successfully!');
+        toast('success', 'Customer created successfully!');
         onSuccess();
         onClose();
       } else {
         const error = await response.json();
-        alert(`Failed to create customer: ${error.message}`);
+        toast('info', `Failed to create customer: ${error.message}`);
       }
     } catch (error) {
       console.error('Error creating customer:', error);
-      alert('Failed to create customer. Please try again.');
+      toast('warning', 'Failed to create customer. Please try again.');
     } finally {
       setLoading(false);
     }

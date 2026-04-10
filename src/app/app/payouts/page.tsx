@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth';
 import PayoutManagement from '@/components/payout-management';
-import MitraRatesAdvanced from '@/components/mitra-rates-advanced';
+import RateConfigurationManagement from '@/components/rate-configuration-management';
 import SimpleTabs from '@/components/simple-tabs';
 import { Icons } from '@/components/icons';
 
@@ -28,7 +28,7 @@ export default async function PayoutPage() {
       id: 'rates',
       label: 'Rate Configuration',
       icon: <Icons.cog className="h-4 w-4" />,
-      content: <MitraRatesAdvanced session={session} />,
+      content: <RateConfigurationManagement session={session} />,
     },
   ];
 

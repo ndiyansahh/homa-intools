@@ -4,6 +4,7 @@ import { customerDB, attendanceScheduleDB, attendanceRecordDB, mitraDB, subscrip
 import { eq, desc, like, and, or } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/logger';
+import { createInvoice } from '@/lib/utils/invoiceUtils';
 
 interface CreateTrialRequest {
   customer_name: string;
@@ -370,13 +371,15 @@ interface UpdateTrialRequest {
   start_date?: string; // YYYY-MM-DD format
   end_date?: string; // YYYY-MM-DD format  
   assigned_mitra?: string; // UUID of mitra
-  subscription_status?: 'Trial' | 'Trial Scheduled' | 'Active' | 'Inactive' | 'Suspended' | 'Expired' | 'Cancelled';
+  subscription_status?: 'Trial' | 'Trial Scheduled' | 'Active' | 'Inactive' | 'Suspended' | 'Expired' | 'Cancelled' | 'Not Converted';
   notes?: string; // Customer notes
   subscription_package?: string; // Subscription package name
   total_sessions?: number; // Total sessions
   chosen_days?: string[]; // Array of chosen days
   qty_package?: number; // Quantity for package (1 qty = 1 month)
   convert_to_customer?: boolean; // Flag for full customer conversion
+  promo_code?: string;
+  promo_discount?: number;
 }
 
 export async function PUT(request: NextRequest): Promise<NextResponse> {
@@ -603,7 +606,21 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
             .where(eq(customerDB.id, body.id))
             .returning();
 
-          // 5. Generate new visit schedule when converting trial to customer
+          // 5. Cancel all Scheduled visits when trial is cancelled
+          if (body.subscription_status === 'Cancelled') {
+            await tx
+              .update(visitDB)
+              .set({ status: 'Cancelled', updatedAt: new Date() })
+              .where(
+                and(
+                  eq(visitDB.customerId, body.id),
+                  eq(visitDB.status, 'Scheduled')
+                )
+              );
+            console.log('✅ Cancelled all Scheduled visits for cancelled trial');
+          }
+
+          // 6. Generate new visit schedule when converting trial to customer
           if (body.convert_to_customer && body.start_date && body.chosen_days && assignedMitraId) {
             console.log('🔄 Converting trial to customer - generating new visit schedule');
 
@@ -684,6 +701,33 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
         return customer;
       });
+
+      // Create invoice for converted customer (outside transaction, uses global db)
+      if (body.convert_to_customer) {
+        try {
+          const invoice = await createInvoice({
+            customerId: body.id,
+            invoicePromoCode: body.promo_code || undefined,
+            invoicePromoDiscount: body.promo_discount ? Number(body.promo_discount) : undefined,
+          });
+          // Save invoiceId back to customerDB
+          await db
+            .update(customerDB)
+            .set({ invoiceId: invoice.id })
+            .where(eq(customerDB.id, body.id));
+          console.log(`✅ Invoice created for converted customer: ${invoice.invoiceNumber}`);
+        } catch (invoiceError: any) {
+          console.error('⚠️ Failed to create invoice during trial conversion:', invoiceError);
+          console.error('Invoice error details:', {
+            message: invoiceError?.message,
+            code: invoiceError?.code,
+            detail: invoiceError?.detail,
+            constraint: invoiceError?.constraint,
+            column: invoiceError?.column,
+          });
+          // Don't fail the conversion if invoice creation fails
+        }
+      }
 
       // Log audit event
       if (session) {

@@ -1,4 +1,4 @@
-export type TrialStatus = 'Converted' | 'Not Converted' | 'Stalling/Postpone' | 'Cancelled';
+export type TrialStatus = 'Trial Scheduled' | 'Converted' | 'Not Converted' | 'Cancelled';
 export type AcquisitionType = 'HOMA' | 'Altrix';
 export type ResidentialType = 'House' | 'Office Space' | 'Apartment';
 
@@ -41,6 +41,7 @@ export interface TrialData {
 
 export interface CreateTrialRequest {
   customerName: string;
+  contact?: string;
   acquisition: AcquisitionType;
   address: string;
   district: string;

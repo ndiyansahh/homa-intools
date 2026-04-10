@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Icons } from './icons';
+import { useToast } from '@/lib/toast';
+import { useConfirm } from '@/components/confirm-dialog';
 
 interface RateConfig {
   id: string;
@@ -43,6 +45,8 @@ const parseFormattedNumber = (value: string): number => {
 };
 
 export default function MitraRateConfig({ mitraId, mitraName }: MitraRateConfigProps) {
+  const { toast } = useToast();
+  const confirm = useConfirm();
   const [rateConfigs, setRateConfigs] = useState<RateConfig[]>([]);
   const [packages, setPackages] = useState<SubscriptionPackage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,12 +114,12 @@ export default function MitraRateConfig({ mitraId, mitraName }: MitraRateConfigP
     e.preventDefault();
 
     if (!formData.monthlyRate || parseFormattedNumber(formData.monthlyRate) <= 0) {
-      alert('Monthly rate is required and must be greater than 0');
+      toast('warning', 'Monthly rate is required and must be greater than 0');
       return;
     }
 
     if (!formData.effectiveFrom) {
-      alert('Effective from date is required');
+      toast('warning', 'Effective from date is required');
       return;
     }
 
@@ -142,12 +146,12 @@ export default function MitraRateConfig({ mitraId, mitraName }: MitraRateConfigP
         });
 
         if (response.ok) {
-          alert('Rate configuration updated successfully');
+          toast('success', 'Rate configuration updated successfully');
           resetForm();
           await fetchRateConfigs();
         } else {
           const errorData = await response.json();
-          alert(`Failed to update: ${errorData.error || 'Unknown error'}`);
+          toast('info', `Failed to update: ${errorData.error || 'Unknown error'}`);
         }
       } else {
         // Create new config
@@ -158,17 +162,17 @@ export default function MitraRateConfig({ mitraId, mitraName }: MitraRateConfigP
         });
 
         if (response.ok) {
-          alert('Rate configuration created successfully');
+          toast('success', 'Rate configuration created successfully');
           resetForm();
           await fetchRateConfigs();
         } else {
           const errorData = await response.json();
-          alert(`Failed to create: ${errorData.error || 'Unknown error'}`);
+          toast('info', `Failed to create: ${errorData.error || 'Unknown error'}`);
         }
       }
     } catch (err) {
       console.error('Error saving rate config:', err);
-      alert('Failed to save rate configuration');
+      toast('error', 'Failed to save rate configuration');
     } finally {
       setSaving(false);
     }
@@ -187,9 +191,8 @@ export default function MitraRateConfig({ mitraId, mitraName }: MitraRateConfigP
   };
 
   const handleDeactivate = async (configId: string) => {
-    if (!confirm('Are you sure you want to deactivate this rate configuration?')) {
-      return;
-    }
+    const ok = await confirm({ title: 'Deactivate Rate', message: 'Deactivate this rate configuration?', confirmLabel: 'Deactivate', danger: true });
+    if (!ok) return;
 
     try {
       const response = await fetch(`/api/mitra/${mitraId}/rates?rateConfigId=${configId}`, {
@@ -197,15 +200,15 @@ export default function MitraRateConfig({ mitraId, mitraName }: MitraRateConfigP
       });
 
       if (response.ok) {
-        alert('Rate configuration deactivated successfully');
+        toast('success', 'Rate configuration deactivated successfully');
         await fetchRateConfigs();
       } else {
         const errorData = await response.json();
-        alert(`Failed to deactivate: ${errorData.error || 'Unknown error'}`);
+        toast('info', `Failed to deactivate: ${errorData.error || 'Unknown error'}`);
       }
     } catch (err) {
       console.error('Error deactivating rate config:', err);
-      alert('Failed to deactivate rate configuration');
+      toast('error', 'Failed to deactivate rate configuration');
     }
   };
 

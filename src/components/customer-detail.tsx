@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { SessionData } from '@/types/auth';
 import { CustomerData } from '@/types/customer';
 import { Icons } from './icons';
+import { useBreadcrumbOverride } from '@/lib/breadcrumb-context';
+import { useToast } from '@/lib/toast';
+import { useConfirm } from '@/components/confirm-dialog';
 
 interface CustomerDetailProps {
   customerId: string;
@@ -62,6 +65,10 @@ interface Visit {
 
 export default function CustomerDetail({ customerId, session }: CustomerDetailProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const { setOverride } = useBreadcrumbOverride();
+  const { toast } = useToast();
+  const confirm = useConfirm();
   const [customer, setCustomer] = useState<CustomerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -108,6 +115,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   const [selectedNewMitra, setSelectedNewMitra] = useState('');
   const [changeReason, setChangeReason] = useState('');
   const [loadingMitraChange, setLoadingMitraChange] = useState(false);
+  const [changeMitraDate, setChangeMitraDate] = useState('');
   const [mitraSearchQuery, setMitraSearchQuery] = useState('');
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedVisitHistory, setSelectedVisitHistory] = useState<any>(null);
@@ -147,10 +155,41 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   const [newVisitDate, setNewVisitDate] = useState('');
   const [newVisitMitra, setNewVisitMitra] = useState('');
 
+  // Invoice states
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [previewInvoice, setPreviewInvoice] = useState<{ id: string; number: string; blobUrl?: string } | null>(null);
+
+  const openInvoicePreview = async (id: string, number: string) => {
+    try {
+      const res = await fetch(`/api/invoice/${id}/pdf`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      setPreviewInvoice({ id, number, blobUrl });
+    } catch (e) {
+      console.error('Failed to load invoice preview', e);
+    }
+  };
+
+  const closeInvoicePreview = () => {
+    if (previewInvoice?.blobUrl) URL.revokeObjectURL(previewInvoice.blobUrl);
+    setPreviewInvoice(null);
+  };
+
   useEffect(() => {
     fetchCustomer();
     fetchAvailableCleaners();
+    fetchInvoices();
   }, [customerId]);
+
+  const fetchInvoices = async () => {
+    try {
+      const res = await fetch(`/api/invoice?customerId=${customerId}`);
+      const data = await res.json();
+      if (data.success) setInvoices(data.data);
+    } catch (err) {
+      console.error('Error fetching invoices:', err);
+    }
+  };
 
   // Load visits when customer data is loaded
   useEffect(() => {
@@ -174,6 +213,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
         if (result.success && result.data) {
           console.log('📦 Customer data loaded:', result.data.id, result.data.customerName);
           setCustomer(result.data);
+          setOverride(pathname, result.data.customerName);
           setNewDate(result.data.firstDateSubscription || '');
           setCleaner1(result.data.cleaner1 || '');
           setCleaner2(result.data.cleaner2 || '');
@@ -307,11 +347,11 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
         await fetchVisits(); // Refresh visits
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to update attendance');
+        toast('error', error.message || 'Failed to update attendance');
       }
     } catch (error) {
       console.error('Error updating attendance:', error);
-      alert('Failed to update attendance');
+      toast('error', 'Failed to update attendance');
     }
   };
 
@@ -342,7 +382,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   // Save cancellation with reason
   const saveCancelVisit = async () => {
     if (!selectedVisitForCancel || !cancelReason.trim()) {
-      alert('Please provide a reason for cancelling this visit');
+      toast('warning', 'Please provide a reason for cancelling this visit');
       return;
     }
 
@@ -363,14 +403,14 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
         setSelectedVisitForCancel(null);
         setCancelReason('');
         await fetchVisits(); // Refresh visits
-        alert('Visit cancelled successfully');
+        toast('success', 'Visit cancelled successfully');
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to cancel visit');
+        toast('error', error.message || 'Failed to cancel visit');
       }
     } catch (error) {
       console.error('Error cancelling visit:', error);
-      alert('Failed to cancel visit');
+      toast('error', 'Failed to cancel visit');
     } finally {
       setLoadingCancelVisit(false);
     }
@@ -430,7 +470,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   // Save single visit reschedule
   const saveSingleVisitReschedule = async () => {
     if (!selectedVisitForReschedule || !singleRescheduleDate || !singleRescheduleMitra) {
-      alert('Please select both date and mitra');
+      toast('warning', 'Please select both date and mitra');
       return;
     }
 
@@ -454,7 +494,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       });
 
       if (response.ok) {
-        alert('Visit rescheduled successfully!');
+        toast('success', 'Visit rescheduled successfully!');
         setShowSingleRescheduleModal(false);
         setSelectedVisitForReschedule(null);
         setSingleRescheduleDate('');
@@ -463,11 +503,11 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
         await fetchVisits(); // Refresh visits
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to reschedule visit');
+        toast('error', error.message || 'Failed to reschedule visit');
       }
     } catch (error) {
       console.error('Error rescheduling visit:', error);
-      alert('Failed to reschedule visit');
+      toast('error', 'Failed to reschedule visit');
     } finally {
       setLoadingSingleReschedule(false);
     }
@@ -550,7 +590,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   // Save edited date
   const saveEditedDate = async (visitId: string, forceUpdate: boolean = false) => {
     if (!editingDateValue) {
-      alert('Please select a valid date');
+      toast('warning', 'Please select a valid date');
       return;
     }
 
@@ -581,11 +621,11 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
         await fetchVisits();
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to update date');
+        toast('error', error.message || 'Failed to update date');
       }
     } catch (error) {
       console.error('Error updating date:', error);
-      alert('Failed to update date');
+      toast('error', 'Failed to update date');
     }
   };
 
@@ -594,7 +634,8 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
     setSelectedVisitForChange(visit);
     setSelectedNewMitra('');
     setChangeReason('');
-    setMitraSearchQuery(''); // Reset search
+    setMitraSearchQuery(''); // empty so dropdown shows on first type
+    setChangeMitraDate(visit.scheduledDate); // Initialize with current scheduled date
 
     // Fetch available mitras for this visit date
     try {
@@ -613,7 +654,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   // Save mitra change
   const saveMitraChange = async () => {
     if (!selectedVisitForChange || !selectedNewMitra || !changeReason.trim()) {
-      alert('Please select a mitra and provide a reason for the change');
+      toast('warning', 'Please select a mitra and provide a reason for the change');
       return;
     }
 
@@ -625,6 +666,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
         body: JSON.stringify({
           newMitraId: selectedNewMitra,
           reason: changeReason,
+          scheduledDate: changeMitraDate || undefined,
         }),
       });
 
@@ -632,14 +674,14 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
         const result = await response.json();
         setSelectedVisitForChange(null);
         await fetchVisits();
-        alert(result.message || 'Mitra changed successfully.');
+        toast('error', result.message || 'Mitra changed successfully.');
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to change mitra');
+        toast('error', error.message || 'Failed to change mitra');
       }
     } catch (error) {
       console.error('Error changing mitra:', error);
-      alert('Failed to change mitra');
+      toast('error', 'Failed to change mitra');
     } finally {
       setLoadingMitraChange(false);
     }
@@ -669,11 +711,11 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
 
   const handleBulkMarkAttended = async () => {
     if (selectedVisits.size === 0) {
-      alert('Please select at least one visit');
+      toast('warning', 'Please select at least one visit');
       return;
     }
 
-    const confirmed = confirm(`Mark ${selectedVisits.size} visit(s) as ATTENDED?`);
+    const confirmed = await confirm({ message: `Mark ${selectedVisits.size} visit(s) as attended?`, confirmLabel: 'Mark Attended' });
     if (!confirmed) return;
 
     try {
@@ -710,13 +752,13 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       await fetchVisits();
 
       if (errorCount > 0) {
-        alert(`Completed: ${successCount} success, ${errorCount} failed`);
+        toast('info', `Completed: ${successCount} success, ${errorCount} failed`);
       } else {
-        alert(`Successfully marked ${successCount} visit(s) as attended`);
+        toast('info', `Successfully marked ${successCount} visit(s) as attended`);
       }
     } catch (error) {
       console.error('Bulk mark attended error:', error);
-      alert('Failed to process bulk update');
+      toast('error', 'Failed to process bulk update');
     } finally {
       setBulkActionLoading(false);
     }
@@ -724,11 +766,11 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
 
   const handleBulkMarkMissed = async () => {
     if (selectedVisits.size === 0) {
-      alert('Please select at least one visit');
+      toast('warning', 'Please select at least one visit');
       return;
     }
 
-    const confirmed = confirm(`Mark ${selectedVisits.size} visit(s) as MISSED (Cancelled)?`);
+    const confirmed = await confirm({ message: `Mark ${selectedVisits.size} visit(s) as missed/cancelled?`, confirmLabel: 'Mark Missed', danger: true });
     if (!confirmed) return;
 
     try {
@@ -765,13 +807,13 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       await fetchVisits();
 
       if (errorCount > 0) {
-        alert(`Completed: ${successCount} success, ${errorCount} failed`);
+        toast('info', `Completed: ${successCount} success, ${errorCount} failed`);
       } else {
-        alert(`Successfully marked ${successCount} visit(s) as missed`);
+        toast('info', `Successfully marked ${successCount} visit(s) as missed`);
       }
     } catch (error) {
       console.error('Bulk mark missed error:', error);
-      alert('Failed to process bulk update');
+      toast('error', 'Failed to process bulk update');
     } finally {
       setBulkActionLoading(false);
     }
@@ -867,7 +909,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
           setAvailableMitras(available);
 
           if (available.length === 0) {
-            alert('No mitras available for all scheduled dates in this area. Please try different dates or contact admin.');
+            toast('warning', 'No mitras available for all scheduled dates in this area. Please try different dates or contact admin.');
           }
         }
       } else {
@@ -890,7 +932,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   // Generate visit schedule
   const generateVisitSchedule = async () => {
     if (!scheduleStartDate || !selectedDay || !selectedMitraForSchedule) {
-      alert('Please fill in start date, select a day, and assign a mitra');
+      toast('warning', 'Please fill in start date, select a day, and assign a mitra');
       return;
     }
 
@@ -900,7 +942,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
 
     // Check if there are cancelled visits to reschedule
     if (cancelledVisits === 0) {
-      alert('No cancelled visits to reschedule. This feature is only available when you have cancelled visits.');
+      toast('warning', 'No cancelled visits to reschedule. This feature is only available when you have cancelled visits.');
       return;
     }
 
@@ -914,9 +956,8 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       confirmMessage += `\n\nYou will create ${cancelledVisits} new visit(s).`;
     }
 
-    if (!confirm(confirmMessage)) {
-      return;
-    }
+    const ok = await confirm({ title: 'Reschedule Visits', message: confirmMessage, confirmLabel: 'Reschedule' });
+    if (!ok) return;
 
     try {
       setLoadingSchedule(true);
@@ -933,16 +974,16 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
 
       if (response.ok) {
         const result = await response.json();
-        alert(result.message || 'Cancelled visits have been rescheduled successfully!');
+        toast('error', result.message || 'Cancelled visits have been rescheduled successfully!');
         setShowGenerateSchedule(false);
         await fetchVisits(); // Refresh visits
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to reschedule cancelled visits');
+        toast('error', error.message || 'Failed to reschedule cancelled visits');
       }
     } catch (error) {
       console.error('Error rescheduling visits:', error);
-      alert('Failed to reschedule cancelled visits');
+      toast('error', 'Failed to reschedule cancelled visits');
     } finally {
       setLoadingSchedule(false);
     }
@@ -1078,7 +1119,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   const handleUpdateDate = async () => {
     // Validate required fields
     if (!editCustomerName.trim() || !editContact.trim() || !editAddress.trim() || !editCity.trim() || !newDate.trim()) {
-      alert('Please fill in all required fields (marked with *)');
+      toast('warning', 'Please fill in all required fields (marked with *)');
       return;
     }
 
@@ -1103,16 +1144,16 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       });
 
       if (response.ok) {
-        alert('Customer updated successfully');
+        toast('success', 'Customer updated successfully');
         setShowUpdateDate(false);
         fetchCustomer(); // Refresh customer data
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to update customer');
+        toast('error', error.error || 'Failed to update customer');
       }
     } catch (error) {
       console.error('Error updating customer:', error);
-      alert('Failed to update customer');
+      toast('error', 'Failed to update customer');
     } finally {
       setActionLoading(false);
     }
@@ -1131,16 +1172,16 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       });
 
       if (response.ok) {
-        alert('Cleaners assigned successfully');
+        toast('success', 'Cleaners assigned successfully');
         setShowAssignCleaner(false);
         fetchCustomer(); // Refresh customer data
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to assign cleaners');
+        toast('error', error.error || 'Failed to assign cleaners');
       }
     } catch (error) {
       console.error('Error assigning cleaners:', error);
-      alert('Failed to assign cleaners');
+      toast('error', 'Failed to assign cleaners');
     } finally {
       setActionLoading(false);
     }
@@ -1279,7 +1320,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
             <button
               onClick={async () => {
                 if (!newVisitDate || !newVisitMitra) {
-                  alert('Please select visit date and assign a mitra');
+                  toast('warning', 'Please select visit date and assign a mitra');
                   return;
                 }
 
@@ -1290,7 +1331,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                 today.setHours(0, 0, 0, 0);
 
                 if (selectedDate < today) {
-                  alert('Visit date cannot be in the past');
+                  toast('warning', 'Visit date cannot be in the past');
                   return;
                 }
                 */
@@ -1307,7 +1348,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
 
                   if (response.ok) {
                     const result = await response.json();
-                    alert(result.message || 'Visit added successfully');
+                    toast('error', result.message || 'Visit added successfully');
 
                     // Reset form
                     setNewVisitDate('');
@@ -1318,11 +1359,11 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                     await fetchVisits();
                   } else {
                     const error = await response.json();
-                    alert(error.message || 'Failed to add visit');
+                    toast('error', error.message || 'Failed to add visit');
                   }
                 } catch (error) {
                   console.error('Error adding visit:', error);
-                  alert('Failed to add visit');
+                  toast('error', 'Failed to add visit');
                 }
               }}
               disabled={!newVisitDate || !newVisitMitra}
@@ -1339,28 +1380,28 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Basic Information */}
         <div className="card p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
-          <div className="space-y-3">
+          <h3 className="text-xl font-bold text-gray-900 mb-6">Basic Information</h3>
+          <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Customer Name</label>
-              <div className="mt-1 text-sm text-gray-900">{customer.customerName}</div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Customer Name</label>
+              <div className="text-base font-medium text-gray-900">{customer.customerName}</div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Acquisition</label>
-              <div className="mt-1">
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${acquisitionColors[customer.acquisition]}`}>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Acquisition</label>
+              <div>
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${acquisitionColors[customer.acquisition]}`}>
                   {customer.acquisition}
                 </span>
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Contact</label>
-              <div className="mt-1 text-sm text-gray-900">{customer.contact}</div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Contact</label>
+              <div className="text-sm text-gray-900 font-mono">{customer.contact}</div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Residential Type</label>
-              <div className="mt-1">
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${residentialColors[customer.residentialType]}`}>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Residential Type</label>
+              <div>
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${residentialColors[customer.residentialType]}`}>
                   {customer.residentialType}
                 </span>
               </div>
@@ -1370,28 +1411,28 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
 
         {/* Location Information */}
         <div className="card p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Location Information</h3>
-          <div className="space-y-3">
+          <h3 className="text-xl font-bold text-gray-900 mb-6">Location Information</h3>
+          <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Address</label>
-              <div className="mt-1 text-sm text-gray-900">{customer.address}</div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Address</label>
+              <div className="text-sm text-gray-900 leading-relaxed">{customer.address}</div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Village</label>
-              <div className="mt-1 text-sm text-gray-900">{customer.village}</div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Village</label>
+              <div className="text-sm text-gray-900">{customer.village}</div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">District</label>
-              <div className="mt-1 text-sm text-gray-900">{customer.district}</div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">District</label>
+              <div className="text-sm text-gray-900">{customer.district}</div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">City</label>
-                <div className="mt-1 text-sm text-gray-900">{customer.city}</div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">City</label>
+                <div className="text-sm text-gray-900">{customer.city}</div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Postal Code</label>
-                <div className="mt-1 text-sm text-gray-900">{customer.postalCode}</div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Postal Code</label>
+                <div className="text-sm text-gray-900">{customer.postalCode}</div>
               </div>
             </div>
           </div>
@@ -1399,75 +1440,96 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
 
         {/* Subscription Information */}
         <div className="card p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Subscription Information</h3>
-          <div className="space-y-3">
+          <h3 className="text-xl font-bold text-gray-900 mb-6">Subscription Information</h3>
+          <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Subscription Package</label>
-              <div className="mt-1 text-sm text-gray-900">{customer.subscriptionPackage}</div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Subscription Package</label>
+              <div className="text-sm text-gray-900 leading-relaxed">{customer.subscriptionPackage}</div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Qty Package</label>
-                <div className="mt-1 text-sm text-gray-900">{customer.qtyPackage}</div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Qty Package</label>
+                <div className="text-sm font-medium text-gray-900">{customer.qtyPackage}</div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">LTV (months)</label>
-                <div className="mt-1 text-sm text-gray-900">{customer.ltv}</div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">LTV (months)</label>
+                <div className="text-sm font-medium text-gray-900">{customer.ltv}</div>
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Monthly Fee</label>
-              <div className="mt-1 text-sm text-gray-900">
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Monthly Fee</label>
+              <div className="text-base font-semibold text-indigo-600">
                 Rp {((customer as any).monthlyFee || 0).toLocaleString('id-ID')}
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">First Date Subscription</label>
-              <div className="mt-1 text-sm text-gray-900">{customer.firstDateSubscription}</div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">First Date Subscription</label>
+              <div className="text-sm text-gray-900 font-mono">{customer.firstDateSubscription}</div>
             </div>
             {customer.subscriptionEnd && (
               <div>
-                <label className="block text-sm font-medium text-gray-700">EndDate Subscription</label>
-                <div className="mt-1 text-sm text-gray-900">{customer.subscriptionEnd}</div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">End Date Subscription</label>
+                <div className="text-sm text-gray-900 font-mono">{customer.subscriptionEnd}</div>
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Status Customer</label>
-              <div className="mt-1">
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColors[customer.status] || 'bg-gray-100 text-gray-800'}`}>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Status</label>
+              <div>
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[customer.status] || 'bg-gray-100 text-gray-800'}`}>
                   {customer.status}
                 </span>
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Churn Tag</label>
-              <div className="mt-1">
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${churnTagColors[customer.churnTag]}`}>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Churn Tag</label>
+              <div>
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${churnTagColors[customer.churnTag]}`}>
                   {customer.churnTag}
                 </span>
               </div>
             </div>
             {customer.churnReason && (
               <div>
-                <label className="block text-sm font-medium text-gray-700">Churn Reason</label>
-                <div className="mt-1 text-sm text-gray-900 bg-yellow-50 p-2 rounded">{customer.churnReason}</div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Churn Reason</label>
+                <div className="text-sm text-gray-900 bg-yellow-50 p-3 rounded-md leading-relaxed">{customer.churnReason}</div>
               </div>
             )}
           </div>
         </div>
 
+        {/* Invoices */}
+        {invoices.length > 0 && (
+          <div className="card p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Invoices</h3>
+            <div className="space-y-2">
+              {invoices.map((inv) => (
+                <div key={inv.id} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded">
+                  <span className="text-sm font-mono text-gray-700">{inv.invoiceNumber}</span>
+                  <button
+                    onClick={() => openInvoicePreview(inv.id, inv.invoiceNumber)}
+                    className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded"
+                  >
+                    <Icons.download className="h-3.5 w-3.5" />
+                    Preview & Download
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Mitra Information */}
         <div className="card p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Mitra Information</h3>
+          <h3 className="text-xl font-bold text-gray-900 mb-6">Mitra Information</h3>
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Assigned Mitra (Primary)</label>
-                <div className="mt-1 text-sm text-gray-900">{customer.cleaner1 || 'Not assigned'}</div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Primary Mitra</label>
+                <div className="text-base font-medium text-gray-900">{customer.cleaner1 || '—'}</div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Assigned Mitra (Backup)</label>
-                <div className="mt-1 text-sm text-gray-900">{customer.cleaner2 || 'Not assigned'}</div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Backup Mitra</label>
+                <div className="text-base font-medium text-gray-900">{customer.cleaner2 || '—'}</div>
               </div>
             </div>
 
@@ -1508,42 +1570,9 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                                   <span className="text-sm font-medium text-gray-900">
                                     Visit #{visit.visitNumber}
                                   </span>
-                                  {!isLocked && !isCancelled && isEditingThisDate ? (
-                                    <div className="flex items-center space-x-2">
-                                      <input
-                                        type="date"
-                                        value={editingDateValue}
-                                        onChange={(e) => setEditingDateValue(e.target.value)}
-                                        className="text-sm border border-gray-300 rounded px-2 py-1"
-                                      />
-                                      <button
-                                        onClick={() => saveEditedDate(visit.id)}
-                                        className="text-xs text-green-600 hover:text-green-800"
-                                      >
-                                        ✓ Save
-                                      </button>
-                                      <button
-                                        onClick={cancelEditingDate}
-                                        className="text-xs text-red-600 hover:text-red-800"
-                                      >
-                                        ✗ Cancel
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <span className={`text-sm ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-600'}`}>
-                                        {visit.scheduledDate} ({visit.scheduledDay})
-                                      </span>
-                                      {!isCancelled && (
-                                        <button
-                                          onClick={() => startEditingDate(visit)}
-                                          className="text-xs text-indigo-600 hover:text-indigo-800"
-                                        >
-                                          ✏️ Edit
-                                        </button>
-                                      )}
-                                    </>
-                                  )}
+                                  <span className={`text-sm ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-600'}`}>
+                                    {visit.scheduledDate} ({visit.scheduledDay})
+                                  </span>
                                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${visit.status === 'Done'
                                     ? 'bg-green-100 text-green-800'
                                     : visit.status === 'Cancelled'
@@ -1556,13 +1585,14 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
 
                                 <div className="space-y-1">
                                   {packageName && (
-                                    <div className="text-xs text-gray-600 mb-1">
-                                      📦 Package: <span className="font-medium">{packageName}</span>
+                                    <div className="flex items-center gap-1 text-xs text-gray-600 mb-1">
+                                      <Icons.package2 className="w-3 h-3 shrink-0" />
+                                      <span>Package: <span className="font-medium">{packageName}</span></span>
                                     </div>
                                   )}
 
                                   <div className="flex items-center space-x-2 text-sm">
-                                    <span className="text-gray-600">👤 Mitra:</span>
+                                    <span className="text-gray-600 flex items-center gap-1"><Icons.user className="w-3 h-3" /> Mitra:</span>
                                     <span className={`font-medium ${visit.status === 'Cancelled' ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
                                       {visit.mitraName || 'Not assigned'}
                                     </span>
@@ -1575,7 +1605,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
 
                                   {visit.actualDate && (
                                     <div className="text-xs text-gray-500 space-y-0.5">
-                                      <div>✓ Completed on: {visit.actualDate}</div>
+                                      <div className="flex items-center gap-1"><Icons.check className="w-3 h-3 text-green-500" /> Completed on: {visit.actualDate}</div>
                                       {visit.updatedBy && (
                                         <div className="text-gray-400">
                                           Updated by: {visit.updatedBy}
@@ -1585,8 +1615,8 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                                   )}
 
                                   {visit.status === 'Cancelled' && (
-                                    <div className="text-xs text-red-600 font-medium">
-                                      ✕ This visit has been cancelled
+                                    <div className="flex items-center gap-1 text-xs text-red-600 font-medium">
+                                      <Icons.close className="w-3 h-3" /> This visit has been cancelled
                                     </div>
                                   )}
                                 </div>
@@ -2128,44 +2158,78 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
               <p className="text-sm text-gray-600">
                 <strong>Current Mitra:</strong> {selectedVisitForChange.mitraName}
               </p>
-              <p className="text-sm text-gray-600">
-                <strong>Date:</strong> {selectedVisitForChange.scheduledDate} ({selectedVisitForChange.scheduledDay})
-              </p>
             </div>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Search Mitra
+                  Visit Date
+                </label>
+                <input
+                  type="date"
+                  value={changeMitraDate}
+                  onChange={(e) => setChangeMitraDate(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New Mitra *
                 </label>
                 <input
                   type="text"
                   value={mitraSearchQuery}
-                  onChange={(e) => setMitraSearchQuery(e.target.value)}
-                  placeholder="Type mitra name to search..."
+                  onChange={(e) => {
+                    setMitraSearchQuery(e.target.value);
+                    setSelectedNewMitra(''); // clear selection when typing
+                  }}
+                  onFocus={() => setMitraSearchQuery(mitraSearchQuery)}
+                  placeholder="Type to search mitra..."
                   className="input-field"
+                  autoComplete="off"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  New Mitra *
-                </label>
-                <select
-                  value={selectedNewMitra}
-                  onChange={(e) => setSelectedNewMitra(e.target.value)}
-                  className="input-field"
-                >
-                  <option value="">Select new mitra</option>
-                  {availableMitrasForChange
-                    .filter(mitra =>
-                      mitraSearchQuery === '' ||
-                      mitra.mitraName.toLowerCase().includes(mitraSearchQuery.toLowerCase())
-                    )
-                    .map((mitra) => (
-                    <option key={mitra.mitraId} value={mitra.mitraId}>
-                      {mitra.mitraName} (Available: {mitra.availableSlots} slots)
-                    </option>
-                  ))}
-                </select>
+                {/* Selected mitra badge */}
+                {selectedNewMitra && (
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="flex items-center gap-1 text-sm text-green-700 font-medium">
+                      <Icons.check className="w-3 h-3" />
+                      {availableMitrasForChange.find(m => m.mitraId === selectedNewMitra)?.mitraName}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedNewMitra(''); setMitraSearchQuery(''); }}
+                      className="flex items-center gap-0.5 text-xs text-gray-400 hover:text-gray-600"
+                    >
+                      <Icons.close className="w-3 h-3" /> Clear
+                    </button>
+                  </div>
+                )}
+                {/* Dropdown list */}
+                {!selectedNewMitra && mitraSearchQuery && (
+                  <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                    {availableMitrasForChange
+                      .filter(mitra =>
+                        mitra.mitraName.toLowerCase().includes(mitraSearchQuery.toLowerCase())
+                      )
+                      .map((mitra) => (
+                        <li
+                          key={mitra.mitraId}
+                          onClick={() => {
+                            setSelectedNewMitra(mitra.mitraId);
+                            setMitraSearchQuery(mitra.mitraName);
+                          }}
+                          className="px-3 py-2 text-sm cursor-pointer hover:bg-indigo-50 hover:text-indigo-700"
+                        >
+                          {mitra.mitraName}
+                          <span className="ml-2 text-xs text-gray-400">({mitra.availableSlots} slots)</span>
+                        </li>
+                      ))}
+                    {availableMitrasForChange.filter(m =>
+                      m.mitraName.toLowerCase().includes(mitraSearchQuery.toLowerCase())
+                    ).length === 0 && (
+                      <li className="px-3 py-2 text-sm text-gray-400">No mitra found</li>
+                    )}
+                  </ul>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2270,8 +2334,8 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
               <p className="text-sm text-gray-700">
                 📅 {selectedVisitForReschedule.scheduledDate} ({selectedVisitForReschedule.scheduledDay})
               </p>
-              <p className="text-sm text-gray-700">
-                👤 {selectedVisitForReschedule.mitraName}
+              <p className="flex items-center gap-1 text-sm text-gray-700">
+                <Icons.user className="w-3.5 h-3.5 text-gray-500" /> {selectedVisitForReschedule.mitraName}
               </p>
             </div>
 
@@ -2448,6 +2512,58 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
               >
                 Continue Anyway
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invoice PDF Preview Modal */}
+      {previewInvoice && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4"
+          onClick={closeInvoicePreview}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl flex flex-col w-full max-w-4xl"
+            style={{ height: '88vh' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
+              <h2 className="text-sm font-semibold text-gray-800">Preview Invoice</h2>
+              <div className="flex items-center gap-2">
+                {previewInvoice.blobUrl && (
+                  <a
+                    href={previewInvoice.blobUrl}
+                    download={`invoice-${previewInvoice.number.replace(/\//g, '-')}.pdf`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Icons.download className="h-3.5 w-3.5" />
+                    Download
+                  </a>
+                )}
+                <button
+                  onClick={closeInvoicePreview}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <Icons.x className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            {/* PDF iframe */}
+            <div className="flex-1 overflow-hidden rounded-b-xl">
+              {previewInvoice.blobUrl ? (
+                <iframe
+                  src={previewInvoice.blobUrl}
+                  className="w-full h-full border-0"
+                  title="Invoice Preview"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-sm text-gray-400 gap-2">
+                  <Icons.loader className="h-4 w-4 animate-spin" />
+                  Loading preview...
+                </div>
+              )}
             </div>
           </div>
         </div>

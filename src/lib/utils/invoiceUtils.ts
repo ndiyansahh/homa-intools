@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { invoiceDB, customerDB } from '@/lib/schema';
-import { eq, and, or, sql, max } from 'drizzle-orm';
+import { eq, and, or, sql } from 'drizzle-orm';
 
 /**
  * Generates invoice number in format: INV/Cleaning/yyyy.mm.dd-#####
@@ -54,8 +54,8 @@ export function generateInvoiceSequenceNumber(): number {
 export interface CreateInvoiceParams {
   customerId: string;
   invoiceSequenceNumber?: number; // Optional: will be auto-generated if not provided
-  invoicePromoCode?: string;
-  invoicePromoDiscount?: number;
+  invoicePromoCode?: string;      // Optional promo code label (e.g. "REG990")
+  invoicePromoDiscount?: number;  // Optional discount amount in IDR
   dueDate?: Date;
   paymentMethod?: string;
   notes?: string;
@@ -73,8 +73,8 @@ export async function createInvoice(params: CreateInvoiceParams) {
         contact: customerDB.contact,
         address: customerDB.address,
         subscriptionStart: customerDB.subscriptionStart,
-        // subscriptionQTY: customerDB.subscriptionQTY, // Column doesn't exist in actual database
-        // subscriptionPerQTY: customerDB.subscriptionPerQTY, // Column doesn't exist in actual database
+        subscriptionEnd: customerDB.subscriptionEnd,
+        subscriptionPackage: customerDB.subscriptionPackage,
         monthlyFee: customerDB.monthlyFee,
       })
       .from(customerDB)
@@ -108,49 +108,52 @@ export async function createInvoice(params: CreateInvoiceParams) {
     const invoiceMonths = subscriptionStartDate.getMonth() + 1; // 1-based month
     const invoiceDays = subscriptionStartDate.getDate();
 
-    // Calculate totals - use default values since subscriptionQTY/subscriptionPerQTY don't exist in DB
-    const qty = 1; // Default quantity since subscriptionQTY column doesn't exist
-    const pricePerQty = parseFloat(customer.monthlyFee?.toString() || '0'); // Use monthlyFee as price
+    // Calculate totals
+    const qty = 1;
+    const pricePerQty = parseFloat(customer.monthlyFee?.toString() || '0');
     const subtotal = qty * pricePerQty;
     const promoDiscount = params.invoicePromoDiscount || 0;
     const totalAmount = subtotal - promoDiscount;
 
+    // Build subscription description from package name (varchar(50) limit)
+    const subscriptionDescription = (customer.subscriptionPackage || 'Cleaning').substring(0, 50);
+
     // Create invoice data
     const invoiceData = {
       customerId: params.customerId,
-      
+
       // Invoice number and sequence
       invoiceNumber: invoiceNumber,
       invoiceNo: sequenceNumber,
-      
+
       // Date fields from customer subscription start
       invoiceStartDate: subscriptionStartDate.toISOString().split('T')[0],
       invoiceYears: invoiceYears,
       invoiceMonths: invoiceMonths,
       invoiceDays: invoiceDays,
-      invoiceSubscription: 'Cleaning', // Hardcoded
-      
+      invoiceSubscription: subscriptionDescription,
+
       // Customer info from customerDB
       invoiceCustomerName: customer.customerName,
       invoiceAddress: customer.address || '',
-      invoicePhoneNumber: customer.contact,
-      
-      // Invoice line items from customerDB
+      invoicePhoneNumber: (customer.contact || '').substring(0, 20), // varchar(20) limit
+
+      // Invoice line items
       invoiceQty: qty,
-      invoicePricePerQty: '0', // subscriptionPerQTY field doesn't exist in schema
-      
+      invoicePricePerQty: pricePerQty.toString(),
+
       // Promo and discount
       invoicePromoCode: params.invoicePromoCode || null,
       invoicePromoDiscount: promoDiscount.toString(),
-      
+
       // Legacy invoice details
       invoiceDate: new Date(),
-      dueDate: params.dueDate || null,
+      dueDate: params.dueDate || (() => { const d = new Date(); d.setDate(d.getDate() + 2); return d; })(),
       subtotal: subtotal.toString(),
       tax: '0',
       discount: promoDiscount.toString(),
       totalAmount: totalAmount.toString(),
-      
+
       // Status and metadata
       status: 'Pending',
       paymentMethod: params.paymentMethod || null,

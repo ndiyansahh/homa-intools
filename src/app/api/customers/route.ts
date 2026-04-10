@@ -97,8 +97,10 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
     // Add soft delete condition (only show non-deleted customers)
     conditions.push(or(eq(customerDB.isDeleted, false), sql`${customerDB.isDeleted} IS NULL`));
 
-    // Exclude only active Trial customers - Converted trials should appear here
-    conditions.push(sql`${customerDB.subscriptionStatus} != 'Trial' OR ${customerDB.subscriptionStatus} IS NULL`);
+    // Exclude all trial customers regardless of status — only show real customers (Active, Converted, Inactive, etc.)
+    // Trial customers (including Cancelled trials) belong in the Trial management page, not here
+    conditions.push(sql`(${customerDB.subscriptionStatus} NOT IN ('Trial', 'Trial Scheduled') OR ${customerDB.subscriptionStatus} IS NULL)`);
+    conditions.push(sql`(${customerDB.subscriptionPackage} != 'Trial' OR ${customerDB.subscriptionPackage} IS NULL)`);
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -123,6 +125,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
         createdAt: customerDB.createdAt,
         updatedAt: customerDB.updatedAt,
         invoiceNumber: invoiceDB.invoiceNumber, // 7a: Invoice ID Display
+        invoiceDbId: invoiceDB.id, // UUID for PDF download
       })
       .from(customerDB)
       .leftJoin(
@@ -156,6 +159,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
       monthlyFee: Number(customer.monthlyFee) || 0,
       city: customer.city,
       invoiceId: customer.invoiceNumber || undefined, // 7a: Invoice ID Display
+      invoiceDbId: customer.invoiceDbId || undefined, // UUID for PDF download
       ltv: customer.ltv || 0,
       createdAt: customer.createdAt?.toISOString() || new Date().toISOString(),
       updatedAt: customer.updatedAt?.toISOString() || new Date().toISOString(),
@@ -300,6 +304,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         try {
           const invoice = await createInvoice({
             customerId: newCustomerId,
+            invoicePromoCode: (body as any).promoCode || undefined,
+            invoicePromoDiscount: (body as any).promoDiscount ? Number((body as any).promoDiscount) : undefined,
           });
           invoiceId = invoice.id;
 

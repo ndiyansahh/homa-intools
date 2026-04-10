@@ -245,28 +245,28 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Validate partnership type
-    if (!body.mitraPartnership || !['Full Time', 'Part Time'].includes(body.mitraPartnership)) {
+    // Validate partnership type if provided (optional, defaults to 'Full Time')
+    if (body.mitraPartnership && !['Full Time', 'Part Time'].includes(body.mitraPartnership)) {
       return NextResponse.json({
         error: 'Partnership type must be "Full Time" or "Part Time"'
       }, { status: 400 });
     }
 
-    // Validate lainnya commission
-    if (!body.mitraBonusCommission || !['Eligible', 'Not Eligible'].includes(body.mitraBonusCommission)) {
+    // Validate bonus commission if provided (optional, defaults to 'Eligible')
+    if (body.mitraBonusCommission && !['Eligible', 'Not Eligible'].includes(body.mitraBonusCommission)) {
       return NextResponse.json({
         error: 'Bonus commission must be "Eligible" or "Not Eligible"'
       }, { status: 400 });
     }
 
-    // Validate subscription type if provided
+    // Validate subscription type if provided (optional, defaults to 'Regular')
     if (body.subscriptionType && !['Basic', 'Regular', 'Frequent'].includes(body.subscriptionType)) {
       return NextResponse.json({
         error: 'Subscription type must be "Basic", "Regular", or "Frequent"'
       }, { status: 400 });
     }
 
-    // Validate payout rate is a positive number if provided
+    // Validate payout rate is a positive number if provided (optional)
     const payoutRateValue = body.payoutRate ?? body.monthlyBaseRate;
     if (payoutRateValue !== undefined && (typeof payoutRateValue !== 'number' || payoutRateValue < 0)) {
       return NextResponse.json({
@@ -274,18 +274,11 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Validate bonus rate (only allowed when bonus eligible)
-    if (body.bonusRate !== undefined) {
-      if (typeof body.bonusRate !== 'number' || body.bonusRate < 0) {
-        return NextResponse.json({
-          error: 'Bonus rate must be a non-negative number'
-        }, { status: 400 });
-      }
-      if (body.mitraBonusCommission === 'Not Eligible') {
-        return NextResponse.json({
-          error: 'Bonus rate can only be set when Bonus Commission is "Eligible"'
-        }, { status: 400 });
-      }
+    // Validate bonus rate if provided (always optional now)
+    if (body.bonusRate !== undefined && (typeof body.bonusRate !== 'number' || body.bonusRate < 0)) {
+      return NextResponse.json({
+        error: 'Bonus rate must be a non-negative number'
+      }, { status: 400 });
     }
 
     // Validate required banking information
@@ -369,10 +362,10 @@ export async function POST(request: NextRequest) {
         // Assignment details
         mitraCityAssignment: body.mitraCityAssignment,
         mitraLocationAssignment: JSON.stringify(body.mitraLocationAssignment),
-        mitraPartnership: body.mitraPartnership,
+        mitraPartnership: body.mitraPartnership || 'Full Time', // Default to Full Time
         mitraTenure: body.mitraTenure || 0,
         mitraExitDate: body.mitraExitDate || null,
-        mitraBonusCommission: body.mitraBonusCommission,
+        mitraBonusCommission: body.mitraBonusCommission || 'Eligible', // Default to Eligible
 
         // Legacy mitra details
         mitraType: 'Cleaner',
@@ -394,9 +387,9 @@ export async function POST(request: NextRequest) {
         isDeleted: false,
 
         // Subscription and rate fields (NEW)
-        subscriptionType: body.subscriptionType || 'Regular',
+        subscriptionType: body.subscriptionType || 'Regular', // Default to Regular
         monthlyBaseRate: (payoutRateValue ?? 0).toString(),
-        bonusRate: body.mitraBonusCommission === 'Eligible' && body.bonusRate ? body.bonusRate.toString() : '0',
+        bonusRate: body.bonusRate ? body.bonusRate.toString() : '0', // Always accept bonus rate (not conditional)
       };
 
       const result = await db
@@ -576,6 +569,7 @@ export async function GET(request: NextRequest) {
         monthlyBaseRate: mitraDB.monthlyBaseRate,
         subscriptionType: mitraDB.subscriptionType,
         bonusRate: mitraDB.bonusRate,
+        trialRatePerVisit: mitraDB.trialRatePerVisit,
       })
       .from(mitraDB)
       .where(whereClause)
@@ -604,6 +598,7 @@ export async function GET(request: NextRequest) {
       payoutRate: mitra.monthlyBaseRate || '0',
       bonusRate: mitra.bonusRate || '0',
       bonusCommission: (mitra.mitraBonusCommission as MitraBonusCommission) || 'Eligible',
+      trialRatePerVisit: mitra.trialRatePerVisit || null,
     }));
 
     const totalPages = Math.ceil(total / limit);

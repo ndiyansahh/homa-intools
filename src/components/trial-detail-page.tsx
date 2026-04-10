@@ -6,6 +6,8 @@ import { SessionData } from '@/types/auth';
 import { TrialListItem, TrialStatus } from '@/types/trial';
 import { Icons } from './icons';
 import { useBreadcrumbOverride } from '@/lib/breadcrumb-context';
+import { useToast } from '@/lib/toast';
+import { useConfirm } from '@/components/confirm-dialog';
 
 interface TrialDetailPageProps {
   trialId: string;
@@ -57,6 +59,8 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
   const router = useRouter();
   const pathname = usePathname();
   const { setOverride } = useBreadcrumbOverride();
+  const { toast } = useToast();
+  const confirm = useConfirm();
   const [trial, setTrial] = useState<TrialListItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState<string | null>(null);
@@ -404,7 +408,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
   // Add single trial visit
   const addTrialVisit = async () => {
     if (!trial || !newTrialDate || !newTrialMitra) {
-      alert('Please select trial date and assign a mitra');
+      toast('warning', 'Please select trial date and assign a mitra');
       return;
     }
 
@@ -415,7 +419,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
     today.setHours(0, 0, 0, 0);
   
     if (selectedDate < today) {
-      alert('Trial date cannot be in the past');
+      toast('warning', 'Trial date cannot be in the past');
       return;
     }
     */
@@ -432,7 +436,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
 
       if (response.ok) {
         const result = await response.json();
-        alert(result.message || 'Trial visit added successfully');
+        toast('error', result.message || 'Trial visit added successfully');
 
         // Reset form
         setNewTrialDate('');
@@ -442,11 +446,11 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
         await fetchTrialVisits(); // Refresh visits
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to add trial visit');
+        toast('error', error.message || 'Failed to add trial visit');
       }
     } catch (error) {
       console.error('Error adding trial visit:', error);
-      alert('Failed to add trial visit');
+      toast('error', 'Failed to add trial visit');
     } finally {
       setLoadingVisits(false);
     }
@@ -469,11 +473,11 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
         await fetchTrialVisits(); // Refresh visits
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to update attendance');
+        toast('error', error.message || 'Failed to update attendance');
       }
     } catch (error) {
       console.error('Error updating attendance:', error);
-      alert('Failed to update attendance');
+      toast('error', 'Failed to update attendance');
     }
   };
 
@@ -584,11 +588,11 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
         }
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to update date');
+        toast('error', error.message || 'Failed to update date');
       }
     } catch (error) {
       console.error('Error updating date:', error);
-      alert('Failed to update date');
+      toast('error', 'Failed to update date');
     }
   };
 
@@ -601,7 +605,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
 
   const saveCancelVisit = async () => {
     if (!cancelReason.trim()) {
-      alert('Please provide a reason for cancelling');
+      toast('warning', 'Please provide a reason for cancelling');
       return;
     }
     try {
@@ -620,7 +624,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
         });
         if (!response.ok) {
           const error = await response.json();
-          alert(error.message || 'Failed to cancel visit');
+          toast('error', error.message || 'Failed to cancel visit');
           return;
         }
       } else if (pendingCancelStatus === 'Cancelled') {
@@ -649,7 +653,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
       await fetchTrialVisits();
     } catch (error) {
       console.error('Error cancelling visit:', error);
-      alert('Failed to cancel visit');
+      toast('error', 'Failed to cancel visit');
     } finally {
       setLoadingCancelVisit(false);
     }
@@ -684,7 +688,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
   // Handle mitra change submission
   const handleChangeMitra = async () => {
     if (!selectedVisitForChange || !newMitraId || !changeReason.trim()) {
-      alert('Please select a mitra and provide a reason for the change');
+      toast('warning', 'Please select a mitra and provide a reason for the change');
       return;
     }
 
@@ -718,14 +722,14 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
           fetchTrialVisits()
         ]);
 
-        alert(result.message || 'Mitra changed successfully.');
+        toast('error', result.message || 'Mitra changed successfully.');
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to change mitra');
+        toast('error', error.message || 'Failed to change mitra');
       }
     } catch (error) {
       console.error('Error changing mitra:', error);
-      alert('Failed to change mitra');
+      toast('error', 'Failed to change mitra');
     } finally {
       setChangingMitra(false);
     }
@@ -796,17 +800,17 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
       if (response.ok) {
         const result = await response.json();
         if (!result.success) {
-          alert(result.message || 'Failed to update trial');
+          toast('error', result.message || 'Failed to update trial');
         }
         // DON'T refresh trial data - it causes unnecessary re-render/reload
         // await fetchTrial(); // ← REMOVED THIS LINE
       } else {
         const errorData = await response.json();
-        alert(errorData.message || 'Failed to update trial');
+        toast('error', errorData.message || 'Failed to update trial');
       }
     } catch (error) {
       console.error('Error updating trial:', error);
-      alert('Network error: Failed to update trial');
+      toast('error', 'Network error: Failed to update trial');
     } finally {
       setUpdateLoading(null);
     }
@@ -846,7 +850,8 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
     promo_code?: string;
     promo_discount?: number;
   }) => {
-    if (!confirm('Are you sure you want to convert this trial to a customer?')) return;
+    const ok = await confirm({ title: 'Convert Trial', message: 'Convert this trial to a customer?', confirmLabel: 'Convert' });
+    if (!ok) return;
 
     try {
       const response = await fetch('/api/trial', {
@@ -872,19 +877,19 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          alert('Trial successfully converted to customer! Redirecting to customer page...');
+          toast('success', 'Trial successfully converted to customer! Redirecting to customer page...');
           // Redirect to customer page instead of refreshing trial data
           router.push(`/app/customers/${trialId}`);
         } else {
-          alert(result.message || 'Failed to convert trial');
+          toast('error', result.message || 'Failed to convert trial');
         }
       } else {
         const errorData = await response.json();
-        alert(errorData.message || 'Failed to convert trial');
+        toast('error', errorData.message || 'Failed to convert trial');
       }
     } catch (error) {
       console.error('Error converting trial:', error);
-      alert('Network error: Failed to convert trial');
+      toast('error', 'Network error: Failed to convert trial');
     }
   };
 
@@ -1006,17 +1011,17 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
     const requiredDays = selectedPackageObj?.visitsPerWeek || 0;
 
     if (!selectedPackage || !startDate) {
-      alert('Please fill in all required fields for conversion (Package, Start Date)');
+      toast('warning', 'Please fill in all required fields for conversion (Package, Start Date)');
       return;
     }
 
     if (requiredDays === 0) {
-      alert('Package configuration is invalid (visits per week = 0). Please contact admin.');
+      toast('warning', 'Package configuration is invalid (visits per week = 0). Please contact admin.');
       return;
     }
 
     if (selectedDaysArray.length !== requiredDays) {
-      alert(`Please select exactly ${requiredDays} service days for this package`);
+      toast('info', `Please select exactly ${requiredDays} service days for this package`);
       return;
     }
 

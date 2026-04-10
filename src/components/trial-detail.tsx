@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { TrialDetail, TrialData, TrialStatus } from '@/types/trial';
 import { Icons } from './icons';
+import { useToast } from '@/lib/toast';
+import { useConfirm } from '@/components/confirm-dialog';
 
 // Mitra interface for dropdown
 interface Mitra {
@@ -16,10 +18,10 @@ interface TrialDetailProps {
   onClose: () => void;
 }
 
-const statusColors = {
+const statusColors: Record<string, string> = {
+  'Trial Scheduled': 'bg-blue-100 text-blue-800',
   'Converted': 'bg-green-100 text-green-800',
   'Not Converted': 'bg-red-100 text-red-800',
-  'Stalling/Postpone': 'bg-yellow-100 text-yellow-800',
   'Cancelled': 'bg-gray-100 text-gray-800',
 };
 
@@ -35,6 +37,8 @@ const residentialColors = {
 };
 
 export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) {
+  const { toast } = useToast();
+  const confirm = useConfirm();
   const [trial, setTrial] = useState<TrialData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +65,8 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
   const [subscriptionData, setSubscriptionData] = useState<any>(null);
   const [creatingSubscription, setCreatingSubscription] = useState(false);
   const [convertingToCustomer, setConvertingToCustomer] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoDiscount, setPromoDiscount] = useState<number>(0);
   
   // Edit form data
   const [editData, setEditData] = useState({
@@ -209,7 +215,7 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
   // Step 1: Create subscription only (don't convert trial yet)
   const handleCreateSubscription = async () => {
     if (!selectedPackageId || !subscriptionStartDate || !selectedMitraForSubscription) {
-      alert('Please complete all subscription requirements');
+      toast('warning', 'Please complete all subscription requirements');
       return;
     }
 
@@ -235,15 +241,15 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
           setSubscriptionCreated(true);
           // Don't close popup yet - wait for customer conversion
         } else {
-          alert(data.message || 'Failed to create subscription');
+          toast('error', data.message || 'Failed to create subscription');
         }
       } else {
         const errorData = await response.json();
-        alert(errorData.message || 'Failed to create subscription');
+        toast('error', errorData.message || 'Failed to create subscription');
       }
     } catch (error) {
       console.error('Error creating subscription:', error);
-      alert('Failed to create subscription');
+      toast('error', 'Failed to create subscription');
     } finally {
       setCreatingSubscription(false);
     }
@@ -252,7 +258,7 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
   // Step 2: Convert trial to customer (includes notes update)
   const handleConvertToCustomer = async () => {
     if (!subscriptionData) {
-      alert('No subscription data available');
+      toast('warning', 'No subscription data available');
       return;
     }
 
@@ -280,25 +286,27 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
           total_sessions: subscriptionData.totalVisits || editData.totalSessions,
           chosen_days: dayPattern ? Object.values(dayPattern).filter(day => day) : editData.chosenDays,
           qty_package: subscriptionData.quantity || 1, // Include quantity for proper pricing and LTV
-          convert_to_customer: true // Use dynamic conversion logic
+          convert_to_customer: true, // Use dynamic conversion logic
+          promo_code: promoCode || undefined,
+          promo_discount: promoDiscount || undefined,
         })
       });
 
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          alert(`Trial successfully converted to customer! Subscription created with ${subscriptionData.totalVisits} visits.`);
+          toast('info', `Trial successfully converted to customer! Subscription created with ${subscriptionData.totalVisits} visits.`);
           onClose(); // Now we can close the popup
         } else {
-          alert(data.message || 'Failed to convert trial to customer');
+          toast('error', data.message || 'Failed to convert trial to customer');
         }
       } else {
         const errorData = await response.json();
-        alert(errorData.message || 'Failed to convert trial to customer');
+        toast('error', errorData.message || 'Failed to convert trial to customer');
       }
     } catch (error) {
       console.error('Error converting to customer:', error);
-      alert('Failed to convert trial to customer');
+      toast('error', 'Failed to convert trial to customer');
     } finally {
       setConvertingToCustomer(false);
     }
@@ -381,9 +389,8 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
   const handleLegacyConvertToCustomer = async () => {
     if (!trial || updating) return;
 
-    if (!confirm(`Are you sure you want to convert trial "${trial.customerName}" to a customer? This will update the trial information and convert it to an active customer.`)) {
-      return;
-    }
+    const ok = await confirm({ title: 'Convert Trial', message: `Convert "${trial.customerName}" to a customer?`, confirmLabel: 'Convert' });
+    if (!ok) return;
 
     try {
       setUpdating(true);
@@ -431,18 +438,18 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          alert('Trial successfully converted to customer!');
+          toast('success', 'Trial successfully converted to customer!');
           onClose(); // Close the modal after conversion
         } else {
-          alert(result.message || 'Failed to convert trial');
+          toast('error', result.message || 'Failed to convert trial');
         }
       } else {
         const errorData = await response.json().catch(() => ({}));
-        alert(errorData.message || 'Failed to convert trial');
+        toast('error', errorData.message || 'Failed to convert trial');
       }
     } catch (err) {
       console.error('Error converting trial:', err);
-      alert(`Failed to convert trial: ${err instanceof Error ? err.message : String(err)}`);
+      toast('info', `Failed to convert trial: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setUpdating(false);
     }
@@ -478,21 +485,21 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          alert('Trial data updated successfully!');
+          toast('success', 'Trial data updated successfully!');
           // Refresh trial data
           fetchTrialData();
           // Exit edit mode
           setIsEditMode(false);
         } else {
-          alert(result.message || 'Failed to update trial data');
+          toast('error', result.message || 'Failed to update trial data');
         }
       } else {
         const errorData = await response.json();
-        alert(errorData.message || 'Failed to update trial data');
+        toast('error', errorData.message || 'Failed to update trial data');
       }
     } catch (error) {
       console.error('Error updating trial data:', error);
-      alert('Failed to update trial data');
+      toast('error', 'Failed to update trial data');
     } finally {
       setUpdating(false);
     }
@@ -1071,6 +1078,29 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
       {isEditMode && subscriptionCreated && subscriptionData && (
         <div className="card">
           <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Kode Promo <span className="text-gray-400">(opsional)</span></label>
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value)}
+                  placeholder="Contoh: REG990"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Diskon / Promotion (Rp) <span className="text-gray-400">(opsional)</span></label>
+                <input
+                  type="number"
+                  value={promoDiscount}
+                  onChange={(e) => setPromoDiscount(Number(e.target.value))}
+                  placeholder="0"
+                  min={0}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
             <div className="flex items-center justify-between gap-4">
               <button
                 onClick={toggleEditMode}

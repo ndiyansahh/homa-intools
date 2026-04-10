@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { customerDB, regionDB, mitraDB, subscriptionPackageDB } from '@/lib/schema';
 import { sql, and, or, eq } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
-import { TrialDetail, TrialData } from '@/types/trial';
+import { TrialDetail, TrialData, TrialStatus } from '@/types/trial';
 import { logAuditEvent } from '@/lib/logger';
 
 interface RouteParams {
@@ -109,7 +109,9 @@ export async function GET(
             eq(customerDB.id, trialId),
             or(
               eq(customerDB.subscriptionStatus, 'Trial'),
-              eq(customerDB.subscriptionStatus, 'Trial Scheduled')
+              eq(customerDB.subscriptionStatus, 'Trial Scheduled'),
+              eq(customerDB.subscriptionStatus, 'Not Converted'),
+              eq(customerDB.subscriptionStatus, 'Cancelled')
             ),
             or(eq(customerDB.isDeleted, false), sql`${customerDB.isDeleted} IS NULL`)
           )
@@ -165,7 +167,9 @@ export async function GET(
           trialStart: trialStartFormatted,
           trialEnd: trialEndFormatted,
           assignedCleaner,
-          status: 'Not Converted' as const, // Default status for trials
+          status: (['Trial Scheduled', 'Converted', 'Not Converted', 'Cancelled'].includes(customer.subscriptionStatus || '')
+            ? customer.subscriptionStatus
+            : 'Trial Scheduled') as TrialStatus,
           reasonForNotConverting: undefined,
           ltv,
         });
@@ -203,7 +207,9 @@ export async function GET(
         monthlyFee: customer.monthlyFee ? parseFloat(customer.monthlyFee.toString()) : 0,
         totalSessions: 0, // customer.totalSessions || 0, // Default to 0 until DB migration
         chosenDays: chosenDays,
-        overallStatus: assignments[0]?.status || 'Not Converted', // Extract status from assignments
+        overallStatus: (['Trial Scheduled', 'Converted', 'Not Converted', 'Cancelled'].includes(customer.subscriptionStatus || '')
+            ? customer.subscriptionStatus
+            : 'Trial Scheduled') as TrialStatus,
         createdAt: customer.createdAt?.toISOString() || new Date().toISOString(),
         updatedAt: customer.updatedAt?.toISOString() || new Date().toISOString(),
         isDeleted: customer.isDeleted || false,

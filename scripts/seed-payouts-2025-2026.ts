@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Seed Payouts for January 2025 - February 2026
  *

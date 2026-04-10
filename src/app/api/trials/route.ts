@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { customerDB, regionDB, mitraDB, subscriptionPackageDB, visitDB } from '@/lib/schema';
 import { sql, and, or, ilike, eq, desc, count } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
-import { CreateTrialRequest, TrialListItem, TrialsResponse, TrialData } from '@/types/trial';
+import { CreateTrialRequest, TrialListItem, TrialsResponse, TrialData, TrialStatus } from '@/types/trial';
 import { logAuditEvent } from '@/lib/logger';
 
 // Helper function to calculate LTV in months using the formula: DATEDIF(start, end || today, "m")
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // Create trial customer in customerDB with Trial package from database
       const trialCustomerData = {
         customerName: body.customerName.trim(),
-        contact: '628000000000', // Default contact for trials
+        contact: body.contact?.trim() || '',
         address: body.address.trim(),
         district: body.district.trim(),
         city: body.city.trim(),
@@ -324,13 +324,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // Build where conditions for trial customers from customerDB  
       const conditions = [];
 
-      // Only show customers with Trial Scheduled status (fallback to Trial for existing data)
-      conditions.push(
-        or(
-          eq(customerDB.subscriptionStatus, 'Trial Scheduled'),
-          eq(customerDB.subscriptionStatus, 'Trial')
-        )
-      );
+      // Show all trial customers (Trial Scheduled, Not Converted, Cancelled, and legacy Trial)
+      if (status) {
+        // If filtering by specific status, match exactly
+        conditions.push(eq(customerDB.subscriptionStatus, status));
+      } else {
+        // Default: show all trial statuses
+        conditions.push(
+          or(
+            eq(customerDB.subscriptionStatus, 'Trial Scheduled'),
+            eq(customerDB.subscriptionStatus, 'Not Converted'),
+            eq(customerDB.subscriptionStatus, 'Cancelled'),
+            eq(customerDB.subscriptionStatus, 'Trial') // legacy
+          )
+        );
+      }
 
       // Search in customer name, address, or district
       if (q) {
@@ -443,7 +451,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           nextTrialEndDate,
           assignedCleaners,
           assignedMitraId: customer.assignedMitraId || undefined, // Include mitra ID for editing
-          overallStatus: 'Not Converted' as const, // Default trial status
+          overallStatus: (['Trial Scheduled', 'Converted', 'Not Converted', 'Cancelled'].includes(customer.subscriptionStatus || '')
+            ? customer.subscriptionStatus
+            : 'Trial Scheduled') as TrialStatus,
           ltv,
           createdAt: customer.createdAt?.toISOString() || new Date().toISOString(),
           isDeleted: customer.isDeleted || false,

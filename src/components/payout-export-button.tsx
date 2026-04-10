@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Download, Loader2 } from 'lucide-react';
 import { exportPayoutData, ExportPayoutOptions } from '@/lib/export-utils';
+import { useToast } from '@/lib/toast';
 
 interface PayoutExportButtonProps {
   year?: number;
@@ -19,6 +20,7 @@ export function PayoutExportButton({
   variant = 'outline',
   className,
 }: PayoutExportButtonProps) {
+  const { toast } = useToast();
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExport = async () => {
@@ -33,13 +35,13 @@ export function PayoutExportButton({
       });
 
       if (result.success) {
-        alert('Export successful! Payout data has been downloaded.');
+        toast('success', 'Export successful! Payout data has been downloaded.');
       } else {
         // Show specific message for no data
-        alert(result.message || `No ${status.toLowerCase()} payouts to export for transfer`);
+        toast('error', result.message || `No ${status.toLowerCase()} payouts to export for transfer`);
       }
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to export data');
+      toast('error', error instanceof Error ? error.message : 'Failed to export data');
     } finally {
       setIsExporting(false);
     }
@@ -89,6 +91,7 @@ export function PayoutExportButton({
 
 // Advanced version with filter options
 export function PayoutExportWithFilters() {
+  const { toast } = useToast();
   const [year, setYear] = useState(2025);
   const [selectedMonths, setSelectedMonths] = useState<number[]>([9, 10]);
   const [status, setStatus] = useState<'Pending' | 'Paid' | 'Cancelled'>('Paid');
@@ -106,13 +109,13 @@ export function PayoutExportWithFilters() {
       });
 
       if (result.success) {
-        alert(`Export successful! Exported ${selectedMonths.length} month(s) of ${status} payouts.`);
+        toast('info', `Export successful! Exported ${selectedMonths.length} month(s) of ${status} payouts.`);
       } else {
         // Show info message for no data
-        alert(result.message || `No ${status.toLowerCase()} payouts to export for transfer`);
+        toast('error', result.message || `No ${status.toLowerCase()} payouts to export for transfer`);
       }
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to export data');
+      toast('error', error instanceof Error ? error.message : 'Failed to export data');
     } finally {
       setIsExporting(false);
     }

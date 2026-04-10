@@ -67,6 +67,7 @@ export interface CustomerListItem {
   monthlyFee: number;
   city: string;
   invoiceId?: string; // Invoice number format: INV/Cleaning/YYYY.MM.DD-#### (7a)
+  invoiceDbId?: string; // UUID of invoiceDB record, used to download PDF
   createdAt: string;
   updatedAt: string;
 }

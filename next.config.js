@@ -49,6 +49,7 @@ const nextConfig = {
               "img-src 'self' data: https:",
               "font-src 'self' data:",
               "connect-src 'self'",
+              "frame-src 'self' blob:", // Allow blob: URLs for PDF preview in iframe
               "frame-ancestors 'self'",
               "base-uri 'self'",
               "form-action 'self'"

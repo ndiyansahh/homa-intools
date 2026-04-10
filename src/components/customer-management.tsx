@@ -29,6 +29,25 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
   const [showFilterPopup, setShowFilterPopup] = useState(false);
   const filterPopupRef = useRef<HTMLDivElement>(null);
 
+  // Invoice preview modal state
+  const [previewInvoice, setPreviewInvoice] = useState<{ id: string; number: string; blobUrl?: string } | null>(null);
+
+  const openInvoicePreview = async (id: string, number: string) => {
+    try {
+      const res = await fetch(`/api/invoice/${id}/pdf`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      setPreviewInvoice({ id, number, blobUrl });
+    } catch (e) {
+      console.error('Failed to load invoice preview', e);
+    }
+  };
+
+  const closeInvoicePreview = () => {
+    if (previewInvoice?.blobUrl) URL.revokeObjectURL(previewInvoice.blobUrl);
+    setPreviewInvoice(null);
+  };
+
   // Filter state
   const [filters, setFilters] = useState<CustomerFilters>({
     q: '',
@@ -426,9 +445,23 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {customer.invoiceId ? (
-                            <div className="text-sm text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded inline-block"
-                              title={customer.invoiceId}>
-                              {customer.invoiceId}
+                            <div className="flex items-center gap-2">
+                              <div className="text-sm text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded inline-block"
+                                title={customer.invoiceId}>
+                                {customer.invoiceId}
+                              </div>
+                              {customer.invoiceDbId && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openInvoicePreview(customer.invoiceDbId!, customer.invoiceId || '');
+                                  }}
+                                  className="p-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded"
+                                  title="Preview & Download Invoice"
+                                >
+                                  <Icons.download className="h-3.5 w-3.5" />
+                                </button>
+                              )}
                             </div>
                           ) : (
                             <div className="text-sm text-gray-400">-</div>
@@ -505,6 +538,58 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
           )}
         </div>
       </div>
+
+      {/* Invoice PDF Preview Modal */}
+      {previewInvoice && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4"
+          onClick={closeInvoicePreview}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl flex flex-col w-full max-w-4xl"
+            style={{ height: '88vh' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
+              <h2 className="text-sm font-semibold text-gray-800">Preview Invoice</h2>
+              <div className="flex items-center gap-2">
+                {previewInvoice.blobUrl && (
+                  <a
+                    href={previewInvoice.blobUrl}
+                    download={`invoice-${previewInvoice.number.replace(/\//g, '-')}.pdf`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Icons.download className="h-3.5 w-3.5" />
+                    Download
+                  </a>
+                )}
+                <button
+                  onClick={closeInvoicePreview}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <Icons.x className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            {/* PDF iframe */}
+            <div className="flex-1 overflow-hidden rounded-b-xl">
+              {previewInvoice.blobUrl ? (
+                <iframe
+                  src={previewInvoice.blobUrl}
+                  className="w-full h-full border-0"
+                  title="Invoice Preview"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-sm text-gray-400 gap-2">
+                  <Icons.loader className="h-4 w-4 animate-spin" />
+                  Loading preview...
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

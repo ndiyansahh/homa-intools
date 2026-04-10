@@ -6,6 +6,8 @@ import { MitraListItem, MitraResponse, MitraStatus, CreateMitraRequest, MitraFil
 import { Icons } from './icons';
 import MitraDetailView from './mitra-detail';
 import RateEditModal, { RateEditMitraData } from './rate-edit-modal';
+import { useToast } from '@/lib/toast';
+import { useConfirm } from '@/components/confirm-dialog';
 
 interface MitraManagementProps {
   session: SessionData;
@@ -39,6 +41,8 @@ const parseFormattedNumber = (value: string): number => {
 };
 
 export default function MitraManagement({ session }: MitraManagementProps) {
+  const { toast } = useToast();
+  const confirm = useConfirm();
   const [mitras, setMitras] = useState<MitraListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -193,42 +197,42 @@ export default function MitraManagement({ session }: MitraManagementProps) {
 
     // Validate required fields
     if (!formData.mitraName.trim()) {
-      alert('Mitra name is required');
+      toast('warning', 'Mitra name is required');
       return;
     }
 
     if (!formData.mitraNIK || formData.mitraNIK.length !== 16) {
-      alert('NIK must be exactly 16 digits');
+      toast('warning', 'NIK must be exactly 16 digits');
       return;
     }
 
     if (!formData.mitraPhone || formData.mitraPhone.length < 10 || formData.mitraPhone.length > 12) {
-      alert('Phone must be 10-12 digits');
+      toast('warning', 'Phone must be 10-12 digits');
       return;
     }
 
     if (!formData.mitraCityAssignment) {
-      alert('City assignment is required');
+      toast('warning', 'City assignment is required');
       return;
     }
 
     if (formData.mitraLocationAssignment.length === 0) {
-      alert('Please select at least one district for location assignment');
+      toast('warning', 'Please select at least one district for location assignment');
       return;
     }
 
     if (!formData.mitraBankAccount.trim()) {
-      alert('Bank account is required');
+      toast('warning', 'Bank account is required');
       return;
     }
 
     if (!formData.mitraBankHolderName.trim()) {
-      alert('Bank account holder name is required');
+      toast('warning', 'Bank account holder name is required');
       return;
     }
 
     if (!formData.mitraBankAccountNumber.trim()) {
-      alert('Bank account number is required');
+      toast('warning', 'Bank account number is required');
       return;
     }
 
@@ -248,12 +252,12 @@ export default function MitraManagement({ session }: MitraManagementProps) {
           : age;
 
         if (actualAge < 17) {
-          alert('Mitra must be at least 17 years old');
+          toast('warning', 'Mitra must be at least 17 years old');
           return;
         }
 
         if (actualAge > 80) {
-          alert('Please verify the date of birth. Age appears to be over 80 years.');
+          toast('warning', 'Please verify the date of birth. Age appears to be over 80 years.');
           return;
         }
       }
@@ -312,6 +316,7 @@ export default function MitraManagement({ session }: MitraManagementProps) {
             bonusCommission: (formData.mitraBonusCommission as string) === 'Eligible' ? 'Eligible' : 'Not Eligible',
             trialRatePerVisit: null,
             rateConfigs: [],
+            bonusRate: null,
           });
 
           // Real-time data refresh with indicator
@@ -326,33 +331,34 @@ export default function MitraManagement({ session }: MitraManagementProps) {
           }, 8000);
 
         } else {
-          alert(result.message || result.error || 'Failed to create mitra');
+          toast('error', result.message || result.error || 'Failed to create mitra');
         }
       } else {
         const error = await response.json();
-        alert(error.message || error.error || 'Failed to create mitra');
+        toast('error', error.message || error.error || 'Failed to create mitra');
       }
     } catch (error) {
       console.error('Error creating mitra:', error);
-      alert('Failed to create mitra');
+      toast('error', 'Failed to create mitra');
     } finally {
       setCreating(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this mitra?')) return;
+    const ok = await confirm({ title: 'Delete Mitra', message: 'Delete this mitra? This cannot be undone.', confirmLabel: 'Delete', danger: true });
+    if (!ok) return;
 
     try {
       const response = await fetch(`/api/mitra/${id}`, { method: 'DELETE' });
       if (response.ok) {
         fetchMitras();
       } else {
-        alert('Failed to delete mitra');
+        toast('error', 'Failed to delete mitra');
       }
     } catch (error) {
       console.error('Error deleting mitra:', error);
-      alert('Failed to delete mitra');
+      toast('error', 'Failed to delete mitra');
     }
   };
 

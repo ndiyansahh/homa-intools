@@ -72,6 +72,8 @@ export interface CreateMitraRequest {
   // Legacy field (kept for backward compatibility)
   monthlyBaseRate?: number; // Alias for payoutRate
 
+  trialRatePerVisit?: number | null; // Trial rate per visit in Rupiah
+
   status?: MitraStatus; // Optional, defaults to Active
 
   // Legacy fields (optional for backward compatibility)
@@ -103,6 +105,7 @@ export interface MitraListItem {
   payoutRate?: string;
   bonusRate?: string;
   bonusCommission?: MitraBonusCommission;
+  trialRatePerVisit?: string | null;
 }
 
 export interface MitraResponse {

@@ -4,6 +4,7 @@ import { customerDB } from '@/lib/schema';
 import { sql, and, or, eq } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/logger';
+import { randomUUID } from 'crypto';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -61,12 +62,16 @@ export async function POST(
 
       const trialCustomer = existingTrial[0];
 
+      // Generate invoice ID for the converted customer
+      const invoiceId = randomUUID();
+
       // Convert trial to customer by updating subscription status
       await db
         .update(customerDB)
         .set({
           subscriptionStatus: 'Converted', // New status indicating converted from trial
           monthlyFee: '150000', // Set appropriate monthly fee for converted customer
+          invoiceId: invoiceId, // Generate unique invoice ID
           customerNotes: `${trialCustomer.customerNotes || ''} - CONVERTED FROM TRIAL on ${new Date().toLocaleDateString('en-GB')}`,
           updatedAt: new Date(),
         })
@@ -83,6 +88,7 @@ export async function POST(
             customerName: trialCustomer.customerName,
             originalStatus: 'Trial',
             newStatus: 'Converted',
+            invoiceId: invoiceId,
             convertedAt: new Date().toISOString(),
           }
         });

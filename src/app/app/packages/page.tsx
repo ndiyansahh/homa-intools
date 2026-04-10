@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Icons } from '@/components/icons';
+import { useToast } from '@/lib/toast';
+import { useConfirm } from '@/components/confirm-dialog';
 
 interface Package {
   id: string;
@@ -10,12 +12,15 @@ interface Package {
   pricePerQty: string;
   priceNumeric: number;
   visitsPerWeek: number;
+  activeCustomers: number;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export default function PackageManagementPage() {
   const router = useRouter();
+  const { toast } = useToast();
+  const confirm = useConfirm();
   const [packages, setPackages] = useState<Package[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -53,13 +58,13 @@ export default function PackageManagementPage() {
     e.preventDefault();
 
     if (!packageName.trim() || !price.trim()) {
-      alert('Please fill in all fields');
+      toast('warning', 'Please fill in all fields');
       return;
     }
 
     const priceNum = parseFloat(price);
     if (isNaN(priceNum) || priceNum < 0) {
-      alert('Please enter a valid price (cannot be negative)');
+      toast('warning', 'Please enter a valid price (cannot be negative)');
       return;
     }
 
@@ -80,16 +85,16 @@ export default function PackageManagementPage() {
       });
 
       if (response.ok) {
-        alert(editingPackage ? 'Package updated successfully' : 'Package created successfully');
+        toast('success', editingPackage ? 'Package updated successfully' : 'Package created successfully');
         resetForm();
         await fetchPackages();
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to save package');
+        toast('error', error.message || 'Failed to save package');
       }
     } catch (error) {
       console.error('Error saving package:', error);
-      alert('Failed to save package');
+      toast('error', 'Failed to save package');
     } finally {
       setSaving(false);
     }
@@ -104,9 +109,18 @@ export default function PackageManagementPage() {
   };
 
   const handleDelete = async (pkg: Package) => {
-    if (!confirm(`Are you sure you want to delete "${pkg.subscriptionPackage}"?\n\nThis cannot be undone.`)) {
+    if (pkg.activeCustomers > 0) {
+      toast('error', `Cannot delete — ${pkg.activeCustomers} active customer(s) are using this package.`);
       return;
     }
+
+    const ok = await confirm({
+      title: 'Delete Package',
+      message: `Delete "${pkg.subscriptionPackage}"? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
 
     try {
       setDeleting(pkg.id);
@@ -115,15 +129,15 @@ export default function PackageManagementPage() {
       });
 
       if (response.ok) {
-        alert('Package deleted successfully');
+        toast('success', 'Package deleted successfully');
         await fetchPackages();
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to delete package');
+        toast('error', error.message || 'Failed to delete package');
       }
     } catch (error) {
       console.error('Error deleting package:', error);
-      alert('Failed to delete package');
+      toast('error', 'Failed to delete package');
     } finally {
       setDeleting(null);
     }
@@ -356,6 +370,16 @@ export default function PackageManagementPage() {
                         <Icons.currency className="w-4 h-4 mr-3 text-gray-400" />
                         <span>Rp {pkg.priceNumeric.toLocaleString('id-ID')}</span>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <Icons.users className="w-4 h-4 text-gray-400 shrink-0" />
+                        {pkg.activeCustomers > 0 ? (
+                          <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                            {pkg.activeCustomers} active customer{pkg.activeCustomers > 1 ? 's' : ''}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">No active customers</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -370,8 +394,9 @@ export default function PackageManagementPage() {
                     </button>
                     <button
                       onClick={() => handleDelete(pkg)}
-                      disabled={deleting === pkg.id}
-                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={deleting === pkg.id || pkg.activeCustomers > 0}
+                      title={pkg.activeCustomers > 0 ? `${pkg.activeCustomers} active customer(s) are using this package` : undefined}
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       {deleting === pkg.id ? (
                         <>

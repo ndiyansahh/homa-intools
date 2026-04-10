@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { SessionData } from '@/types/auth';
 import { TrialListItem, TrialsResponse, TrialStatus, CreateTrialRequest, TrialFilters, AcquisitionType, ResidentialType } from '@/types/trial';
 import { Icons } from './icons';
+import { useToast } from '@/lib/toast';
+import { useConfirm } from '@/components/confirm-dialog';
 
 // Region interfaces
 interface City {
@@ -37,9 +39,9 @@ interface TrialManagementProps {
 }
 
 const statusColors = {
+  'Trial Scheduled': 'bg-blue-100 text-blue-800',
   'Converted': 'bg-green-100 text-green-800',
   'Not Converted': 'bg-red-100 text-red-800',
-  'Stalling/Postpone': 'bg-yellow-100 text-yellow-800',
   'Cancelled': 'bg-gray-100 text-gray-800',
 };
 
@@ -80,6 +82,8 @@ const convertFromDateInputFormat = (yyyymmdd: string): string => {
 
 export default function TrialManagement({ session }: TrialManagementProps) {
   const router = useRouter();
+  const { toast } = useToast();
+  const confirm = useConfirm();
   const [trials, setTrials] = useState<TrialListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -518,6 +522,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
       // Build CreateTrialRequest payload
       const requestPayload: CreateTrialRequest = {
         customerName: formData.customer_name.trim(),
+        contact: formData.contact.trim(),
         acquisition: 'HOMA', // Default to HOMA
         address: formData.address.trim(),
         district: selectedDistrict.name,
@@ -531,7 +536,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
             trialStart: trialStartFormatted,
             assignedCleaner: selectedMitra.name,
             assignedMitraId: selectedMitra.id, // Include mitra ID for DB storage
-            status: 'Not Converted', // Default status
+            status: 'Trial Scheduled', // Default status
           },
           // Additional trial dates
           ...additionalTrialDates
@@ -545,7 +550,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                 trialStart: formattedDate,
                 assignedCleaner: mitra?.name || '',
                 assignedMitraId: td.mitraId, // Include mitra ID for DB storage
-                status: 'Not Converted' as TrialStatus,
+                status: 'Trial Scheduled' as TrialStatus,
               };
             })
         ],
@@ -596,7 +601,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
           // Show success message
           const visitsCreated = result.data?.visitsCreated || 0;
           setFormError(''); // Clear any previous errors
-          alert(`Trial created successfully with ${visitsCreated} visit(s) scheduled!`);
+          toast('info', `Trial created successfully with ${visitsCreated} visit(s) scheduled!`);
         } else {
           setFormError(result.message || 'Failed to create trial');
         }
@@ -618,18 +623,19 @@ export default function TrialManagement({ session }: TrialManagementProps) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this trial?')) return;
+    const ok = await confirm({ title: 'Delete Trial', message: 'Delete this trial? This cannot be undone.', confirmLabel: 'Delete', danger: true });
+    if (!ok) return;
 
     try {
       const response = await fetch(`/api/trials/${id}`, { method: 'DELETE' });
       if (response.ok) {
         fetchTrials();
       } else {
-        alert('Failed to delete trial');
+        toast('error', 'Failed to delete trial');
       }
     } catch (error) {
       console.error('Error deleting trial:', error);
-      alert('Failed to delete trial');
+      toast('error', 'Failed to delete trial');
     }
   };
 
@@ -766,9 +772,9 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                     className="input-field"
                   >
                     <option value="">All Statuses</option>
+                    <option value="Trial Scheduled">Trial Scheduled</option>
                     <option value="Converted">Converted</option>
                     <option value="Not Converted">Not Converted</option>
-                    <option value="Stalling/Postpone">Stalling/Postpone</option>
                     <option value="Cancelled">Cancelled</option>
                   </select>
                 </div>
@@ -1328,7 +1334,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                         <tr
                           className="hover:bg-gray-50 cursor-pointer"
                           onClick={() => {
-                            router.push(`/app/trial/${trial.id}` as any);
+                            router.push(`/app/trials/${trial.id}` as any);
                           }}
                         >
                           <td className="px-6 py-4 whitespace-nowrap">

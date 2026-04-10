@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { subscriptionPackageDB } from '@/lib/schema';
+import { subscriptionPackageDB, customerDB } from '@/lib/schema';
 import { extractVisitsPerWeek } from '@/lib/utils/subscriptionUtils';
 import { getSession } from '@/lib/auth';
-import { eq } from 'drizzle-orm';
+import { eq, count } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,15 +16,25 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .from(subscriptionPackageDB)
       .orderBy(subscriptionPackageDB.priceNumeric);
 
+    // Count active customers per package
+    const customerCounts = await db
+      .select({ subscriptionPackageId: customerDB.subscriptionPackageId, count: count() })
+      .from(customerDB)
+      .where(eq(customerDB.subscriptionStatus, 'Active'))
+      .groupBy(customerDB.subscriptionPackageId);
+
+    const countMap = new Map(customerCounts.map(r => [r.subscriptionPackageId, Number(r.count)]));
+
     // Transform packages to include visitsPerWeek from database
     const transformedPackages = packages.map(pkg => ({
       id: pkg.id,
       subscriptionPackage: pkg.subscriptionPackage,
       pricePerQty: pkg.pricePerQty,
       priceNumeric: parseFloat(pkg.priceNumeric.toString()),
-      visitsPerWeek: pkg.visitsPerWeek ?? extractVisitsPerWeek(pkg.subscriptionPackage), // Bug #4 fix: Read from DB column, fallback to parsing
-      packageName: pkg.subscriptionPackage, // For compatibility
+      visitsPerWeek: pkg.visitsPerWeek ?? extractVisitsPerWeek(pkg.subscriptionPackage),
+      packageName: pkg.subscriptionPackage,
       description: `${pkg.subscriptionPackage} - ${pkg.pricePerQty}`,
+      activeCustomers: countMap.get(pkg.id) ?? 0,
       createdAt: pkg.createdAt,
       updatedAt: pkg.updatedAt
     }));

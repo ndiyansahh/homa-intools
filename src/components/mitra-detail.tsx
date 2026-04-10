@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { MitraData, MitraSubscriptionType, MitraBonusCommission } from '@/types/mitra';
 import { Icons } from './icons';
 import MitraRateConfig from './mitra-rate-config';
+import { useToast } from '@/lib/toast';
 
 interface MitraDetailProps {
   mitraId: string;
@@ -43,6 +44,7 @@ const parseFormattedNumber = (value: string): number => {
 };
 
 export default function MitraDetailView({ mitraId, onClose, onUpdate }: MitraDetailProps) {
+  const { toast } = useToast();
   const [mitra, setMitra] = useState<MitraData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -85,16 +87,16 @@ export default function MitraDetailView({ mitraId, onClose, onUpdate }: MitraDet
       });
 
       if (response.ok) {
-        alert('Mitra updated successfully');
+        toast('success', 'Mitra updated successfully');
         await fetchMitra(); // Refresh data
         if (onUpdate) onUpdate(); // Trigger parent refresh
       } else {
         const errorData = await response.json();
-        alert(`Failed to update mitra: ${errorData.message || 'Unknown error'}`);
+        toast('info', `Failed to update mitra: ${errorData.message || 'Unknown error'}`);
       }
     } catch (err) {
       console.error('Error updating mitra:', err);
-      alert('Failed to update mitra');
+      toast('error', 'Failed to update mitra');
     } finally {
       setSaving(false);
     }

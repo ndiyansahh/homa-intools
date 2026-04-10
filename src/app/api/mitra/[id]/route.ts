@@ -244,20 +244,24 @@ export async function PUT(
       updateData.subscriptionType = body.subscriptionType;
     }
 
-    // Handle bonus rate (only when bonus eligible)
+    // Handle bonus rate — only apply if commission is (or will be) Eligible
     if (body.bonusRate !== undefined) {
       const bonusCommission = body.mitraBonusCommission || existingMitra[0].mitraBonusCommission;
-      if (bonusCommission === 'Not Eligible') {
-        return NextResponse.json({
-          error: 'Bonus rate can only be set when Bonus Commission is "Eligible"'
-        }, { status: 400 });
+      if (bonusCommission !== 'Not Eligible') {
+        updateData.bonusRate = typeof body.bonusRate === 'number' ? body.bonusRate.toString() : body.bonusRate;
       }
-      updateData.bonusRate = typeof body.bonusRate === 'number' ? body.bonusRate.toString() : body.bonusRate;
     }
 
     // If changing bonus commission to 'Not Eligible', reset bonus rate
     if (body.mitraBonusCommission === 'Not Eligible') {
       updateData.bonusRate = '0';
+    }
+
+    // Handle trial rate per visit
+    if (body.trialRatePerVisit !== undefined) {
+      updateData.trialRatePerVisit = body.trialRatePerVisit !== null
+        ? (typeof body.trialRatePerVisit === 'number' ? body.trialRatePerVisit.toString() : body.trialRatePerVisit)
+        : null;
     }
 
     // Update the mitra in database

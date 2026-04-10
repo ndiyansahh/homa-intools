@@ -15,6 +15,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<Subscripti
         subscriptionPackage: subscriptionPackageDB.subscriptionPackage,
         pricePerQty: subscriptionPackageDB.pricePerQty,
         priceNumeric: subscriptionPackageDB.priceNumeric,
+        visitsPerWeek: subscriptionPackageDB.visitsPerWeek,
         createdAt: subscriptionPackageDB.createdAt,
         updatedAt: subscriptionPackageDB.updatedAt,
       })
@@ -32,11 +33,11 @@ export async function GET(request: NextRequest): Promise<NextResponse<Subscripti
     }
 
     // Convert decimal fields to numbers for TypeScript compatibility
-    // Also calculate visitsPerWeek from package name
+    // Use visitsPerWeek from DB column, fall back to parsing from package name if 0
     const formattedResult = result.map(pkg => ({
       ...pkg,
       priceNumeric: parseFloat(pkg.priceNumeric.toString()),
-      visitsPerWeek: extractVisitsPerWeek(pkg.subscriptionPackage),
+      visitsPerWeek: pkg.visitsPerWeek > 0 ? pkg.visitsPerWeek : extractVisitsPerWeek(pkg.subscriptionPackage),
       createdAt: pkg.createdAt || new Date(),
       updatedAt: pkg.updatedAt || new Date(),
     }));

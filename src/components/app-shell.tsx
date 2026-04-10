@@ -6,20 +6,25 @@ import { SessionData } from '@/types/auth';
 import { NavigationItem } from '@/types/navigation';
 import { getVisibleNavItems, generateBreadcrumbs } from '@/lib/navigation';
 import { logNavigationEvent } from '@/lib/logger';
+import { BreadcrumbProvider, useBreadcrumbOverride } from '@/lib/breadcrumb-context';
+import { ToastProvider } from '@/lib/toast';
+import { ConfirmProvider } from './confirm-dialog';
 import Sidebar from './sidebar';
 import Topbar from './topbar';
+import Toaster from './toaster';
 
 interface AppShellProps {
   children: React.ReactNode;
   session: SessionData;
 }
 
-export default function AppShell({ children, session }: AppShellProps) {
+function AppShellInner({ children, session }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const pathname = usePathname();
   const visibleNavItems = getVisibleNavItems(session.role);
-  const breadcrumbs = generateBreadcrumbs(pathname);
+  const { overrides } = useBreadcrumbOverride();
+  const breadcrumbs = generateBreadcrumbs(pathname, overrides);
 
   // Load collapsed state from localStorage on mount
   useEffect(() => {
@@ -88,5 +93,18 @@ export default function AppShell({ children, session }: AppShellProps) {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AppShell({ children, session }: AppShellProps) {
+  return (
+    <BreadcrumbProvider>
+      <ToastProvider>
+        <ConfirmProvider>
+          <AppShellInner session={session}>{children}</AppShellInner>
+          <Toaster />
+        </ConfirmProvider>
+      </ToastProvider>
+    </BreadcrumbProvider>
   );
 }

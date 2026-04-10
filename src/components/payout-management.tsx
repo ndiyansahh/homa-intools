@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { SessionData } from '@/types/auth';
 import { Icons } from './icons';
+import PayoutPdfPreviewModal from './payout-pdf-preview-modal';
+import { useToast } from '@/lib/toast';
+import { useConfirm } from '@/components/confirm-dialog';
 
 interface PayoutRecord {
   id: string;
@@ -30,13 +33,15 @@ interface PayoutManagementProps {
 }
 
 export default function PayoutManagement({ session }: PayoutManagementProps) {
+  const { toast } = useToast();
+  const confirm = useConfirm();
   const [payouts, setPayouts] = useState<PayoutRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   // Filter state
-  const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
+  const [filterYear, setFilterYear] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
   const [filterMitraName, setFilterMitraName] = useState('');
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
@@ -48,12 +53,36 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
     totalPages: 0,
   });
 
+  // PDF preview modal state
+  const [previewPayout, setPreviewPayout] = useState<PayoutRecord | null>(null);
+
   // Edit bonus modal state
   const [showBonusModal, setShowBonusModal] = useState(false);
   const [selectedPayout, setSelectedPayout] = useState<PayoutRecord | null>(null);
-  const [bonusAmount, setBonusAmount] = useState('');
-  const [bonusNotes, setBonusNotes] = useState('');
+  const [uangParkir, setUangParkir] = useState('');
+  const [kompensasiPromosi, setKompensasiPromosi] = useState('');
+  const [lainnyaAmount, setLainnyaAmount] = useState('');
+  const [lainnyaLabel, setLainnyaLabel] = useState('');
   const [updating, setUpdating] = useState(false);
+
+  function parseTunjanganNotes(notes: string | null): { uangParkir: number; kompensasiPromosi: number; lainnyaAmount: number; lainnyaLabel: string } {
+    if (!notes) return { uangParkir: 0, kompensasiPromosi: 0, lainnyaAmount: 0, lainnyaLabel: '' };
+    try {
+      const parsed = JSON.parse(notes);
+      if (typeof parsed === 'object' && parsed !== null) {
+        return {
+          uangParkir: Number(parsed.uangParkir) || 0,
+          kompensasiPromosi: Number(parsed.kompensasiPromosi) || 0,
+          lainnyaAmount: Number(parsed.lainnyaAmount) || 0,
+          lainnyaLabel: parsed.lainnyaLabel || '',
+        };
+      }
+    } catch {}
+    // Legacy plain text notes — treat as lainnyaLabel
+    return { uangParkir: 0, kompensasiPromosi: 0, lainnyaAmount: 0, lainnyaLabel: notes };
+  }
+
+  const totalTunjangan = (parseFloat(uangParkir) || 0) + (parseFloat(kompensasiPromosi) || 0) + (parseFloat(lainnyaAmount) || 0);
 
   const fetchPayouts = async () => {
     try {
@@ -88,18 +117,17 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
 
   const handleGeneratePayouts = async () => {
     if (!filterYear) {
-      alert('Please select year');
+      toast('warning', 'Please select year');
       return;
     }
 
     if (!filterMonth) {
-      alert('Please select month to generate payouts');
+      toast('warning', 'Please select month to generate payouts');
       return;
     }
 
-    if (!confirm(`Generate payouts for ${getMonthName(parseInt(filterMonth))} ${filterYear}?`)) {
-      return;
-    }
+    const ok = await confirm({ title: 'Generate Payouts', message: `Generate payouts for ${getMonthName(parseInt(filterMonth))} ${filterYear}?`, confirmLabel: 'Generate' });
+    if (!ok) return;
 
     try {
       setGenerating(true);
@@ -115,14 +143,14 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
       const result = await response.json();
 
       if (response.ok) {
-        alert(result.message);
+        toast('success', result.message);
         fetchPayouts();
       } else {
-        alert(result.error || result.message || 'Failed to generate payouts');
+        toast('error', result.error || result.message || 'Failed to generate payouts');
       }
     } catch (error) {
       console.error('Error generating payouts:', error);
-      alert('Failed to generate payouts');
+      toast('error', 'Failed to generate payouts');
     } finally {
       setGenerating(false);
     }
@@ -130,18 +158,29 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
 
   const handleEditBonus = (payout: PayoutRecord) => {
     if (!payout.bonusEligible) {
-      alert('This mitra is not eligible for lainnya');
+      toast('warning', 'This mitra is not eligible for tunjangan lainnya');
       return;
     }
 
+    const parsed = parseTunjanganNotes(payout.notes);
     setSelectedPayout(payout);
-    setBonusAmount(payout.bonusAmount);
-    setBonusNotes(payout.notes || '');
+    setUangParkir(parsed.uangParkir > 0 ? parsed.uangParkir.toString() : '');
+    setKompensasiPromosi(parsed.kompensasiPromosi > 0 ? parsed.kompensasiPromosi.toString() : '');
+    setLainnyaAmount(parsed.lainnyaAmount > 0 ? parsed.lainnyaAmount.toString() : '');
+    setLainnyaLabel(parsed.lainnyaLabel);
     setShowBonusModal(true);
   };
 
   const handleUpdateBonus = async () => {
     if (!selectedPayout) return;
+
+    const total = (parseFloat(uangParkir) || 0) + (parseFloat(kompensasiPromosi) || 0) + (parseFloat(lainnyaAmount) || 0);
+    const notesPayload = JSON.stringify({
+      uangParkir: parseFloat(uangParkir) || 0,
+      kompensasiPromosi: parseFloat(kompensasiPromosi) || 0,
+      lainnyaAmount: parseFloat(lainnyaAmount) || 0,
+      lainnyaLabel: lainnyaLabel.trim(),
+    });
 
     try {
       setUpdating(true);
@@ -149,23 +188,23 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bonusAmount: parseFloat(bonusAmount),
-          notes: bonusNotes,
+          tunjanganAmount: total,
+          notes: notesPayload,
         }),
       });
 
       if (response.ok) {
-        alert('Lainnya updated successfully');
+        toast('success', 'Tunjangan lainnya updated successfully');
         setShowBonusModal(false);
         setSelectedPayout(null);
         fetchPayouts();
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to update lainnya');
+        toast('error', error.message || 'Failed to update tunjangan lainnya');
       }
     } catch (error) {
       console.error('Error updating lainnya:', error);
-      alert('Failed to update lainnya');
+      toast('error', 'Failed to update tunjangan lainnya');
     } finally {
       setUpdating(false);
     }
@@ -176,7 +215,7 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
       setExporting(true);
 
       if (!filterMonth) {
-        alert('Please select a month to export monthly payout');
+        toast('warning', 'Please select a month to export monthly payout');
         setExporting(false);
         return;
       }
@@ -191,7 +230,7 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
 
       if (response.status === 404) {
         const errorData = await response.json();
-        alert(errorData.message || `No payouts found for ${getMonthName(parseInt(filterMonth))} ${filterYear}`);
+        toast('warning', errorData.message || `No payouts found for ${getMonthName(parseInt(filterMonth))} ${filterYear}`);
         setExporting(false);
         return;
       }
@@ -211,10 +250,10 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      alert(`Export successful! ${exportFormat.toUpperCase()} file has been downloaded.`);
+      toast('success', `${exportFormat.toUpperCase()} exported successfully`);
     } catch (error) {
       console.error('Error exporting monthly payout:', error);
-      alert('Failed to export monthly payout');
+      toast('error', 'Failed to export monthly payout');
     } finally {
       setExporting(false);
     }
@@ -234,7 +273,7 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
 
       if (response.status === 404) {
         const errorData = await response.json();
-        alert(errorData.message || `No payouts found for year ${filterYear}`);
+        toast('warning', errorData.message || `No payouts found for year ${filterYear}`);
         setExporting(false);
         return;
       }
@@ -254,10 +293,10 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      alert(`Export successful! Full yearly ${exportFormat.toUpperCase()} report has been downloaded.`);
+      toast('success', `Full yearly ${exportFormat.toUpperCase()} report exported`);
     } catch (error) {
       console.error('Error exporting full report:', error);
-      alert('Failed to export full report');
+      toast('error', 'Failed to export full report');
     } finally {
       setExporting(false);
     }
@@ -434,6 +473,7 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
               }}
               className="filter-input w-full px-3 py-2.5 rounded-lg bg-white"
             >
+              <option value="">All Years</option>
               {years.map(year => (
                 <option key={year} value={year}>{year}</option>
               ))}
@@ -615,16 +655,9 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="flex items-center justify-center gap-2">
                           <button
-                            onClick={() => {
-                              const link = document.createElement('a');
-                              link.href = `/api/payouts/${payout.id}/pdf`;
-                              link.download = `payout-slip-${payout.payoutId?.replace(/\//g, '-') || payout.id}.pdf`;
-                              document.body.appendChild(link);
-                              link.click();
-                              document.body.removeChild(link);
-                            }}
+                            onClick={() => setPreviewPayout(payout)}
                             className="action-btn p-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg"
-                            title="Download PDF"
+                            title="Preview & Download PDF"
                           >
                             <Icons.download className="h-4 w-4" />
                           </button>
@@ -690,53 +723,93 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 space-y-5">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">
-                  Lainnya Amount (Rp)
-                </label>
-                <input
-                  type="number"
-                  value={bonusAmount}
-                  onChange={(e) => setBonusAmount(e.target.value)}
-                  className="filter-input w-full px-4 py-3 rounded-lg bg-white text-lg font-semibold"
-                  min="0"
-                  step="1000"
-                />
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
+                    Uang Parkir
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 pointer-events-none">Rp</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={uangParkir ? Number(uangParkir).toLocaleString('id-ID') : ''}
+                      onChange={(e) => setUangParkir(e.target.value.replace(/[^\d]/g, ''))}
+                      className="filter-input w-full pl-9 pr-3 py-2.5 rounded-lg bg-white font-semibold text-right"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
+                    Kompensasi Promosi
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 pointer-events-none">Rp</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={kompensasiPromosi ? Number(kompensasiPromosi).toLocaleString('id-ID') : ''}
+                      onChange={(e) => setKompensasiPromosi(e.target.value.replace(/[^\d]/g, ''))}
+                      className="filter-input w-full pl-9 pr-3 py-2.5 rounded-lg bg-white font-semibold text-right"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">
-                  Notes
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
+                  Lainnya
                 </label>
-                <textarea
-                  value={bonusNotes}
-                  onChange={(e) => setBonusNotes(e.target.value)}
-                  className="filter-input w-full px-4 py-3 rounded-lg bg-white resize-none"
-                  rows={3}
-                  placeholder="Optional notes about adjustment..."
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={lainnyaLabel}
+                    onChange={(e) => setLainnyaLabel(e.target.value)}
+                    className="filter-input flex-1 px-3 py-2.5 rounded-lg bg-white"
+                    placeholder="Keterangan (cth: Transport, THR)"
+                  />
+                  <div className="relative w-40">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 pointer-events-none">Rp</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={lainnyaAmount ? Number(lainnyaAmount).toLocaleString('id-ID') : ''}
+                      onChange={(e) => setLainnyaAmount(e.target.value.replace(/[^\d]/g, ''))}
+                      className="filter-input w-full pl-9 pr-3 py-2.5 rounded-lg bg-white font-semibold text-right"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Calculation Preview */}
-              <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-5 rounded-xl border border-slate-200">
-                <div className="space-y-3">
+              <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200">
+                <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-slate-600 font-medium">Base Payout</span>
-                    <span className="text-base font-bold text-slate-900 currency-value">{formatCurrency(selectedPayout.basePayout)}</span>
+                    <span className="text-sm text-slate-600 font-medium">Komisi Imbal Jasa</span>
+                    <span className="text-sm font-semibold text-slate-900 currency-value">{formatCurrency(selectedPayout.basePayout)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-slate-600 font-medium">Lainnya Amount</span>
-                    <span className="text-base font-bold text-emerald-600 currency-value">
-                      +{formatCurrency(bonusAmount || '0')}
-                    </span>
+                    <span className="text-sm text-slate-600 font-medium">Bonus</span>
+                    <span className="text-sm font-semibold text-slate-900 currency-value">{formatCurrency(selectedPayout.bonusAmount)}</span>
                   </div>
+                  {totalTunjangan > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600 font-medium">Tunjangan Lainnya</span>
+                      <span className="text-sm font-semibold text-emerald-600 currency-value">
+                        +{formatCurrency(totalTunjangan.toString())}
+                      </span>
+                    </div>
+                  )}
                   <div className="h-px bg-slate-300"></div>
                   <div className="flex justify-between items-center pt-1">
                     <span className="text-sm font-bold text-slate-800 uppercase tracking-wide">Total Payout</span>
                     <span className="text-xl font-bold text-blue-600 currency-value">
                       {formatCurrency(
-                        parseFloat(selectedPayout.basePayout) + parseFloat(bonusAmount || '0')
+                        (parseFloat(selectedPayout.basePayout) + parseFloat(selectedPayout.bonusAmount) + totalTunjangan).toString()
                       )}
                     </span>
                   </div>
@@ -773,6 +846,15 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* PDF Preview Modal */}
+      {previewPayout && (
+        <PayoutPdfPreviewModal
+          payoutId={previewPayout.id}
+          payoutSlipId={previewPayout.payoutId || previewPayout.id}
+          onClose={() => setPreviewPayout(null)}
+        />
       )}
     </div>
   );

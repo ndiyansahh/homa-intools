@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { payoutDB, mitraDB, customerDB } from '@/lib/schema';
-import { eq, and } from 'drizzle-orm';
+import { payoutDB, mitraDB } from '@/lib/schema';
+import { eq } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -12,7 +12,6 @@ interface RouteParams {
     params: Promise<{ id: string }>;
 }
 
-// Company info - can be moved to config or environment variables
 const COMPANY_INFO = {
     name: 'PT. HOMA MITRA ANDALAN',
     address1: 'Office 8 - SCBD',
@@ -20,12 +19,10 @@ const COMPANY_INFO = {
     address3: 'Jakarta Selatan - 12910',
 };
 
-// Helper function to format currency
 function formatCurrency(amount: number): string {
     return `IDR ${Math.round(amount).toLocaleString('id-ID')}`;
 }
 
-// Helper function to format date (1-Dec-2025 format)
 function formatDate(dateStr: string): string {
     const date = new Date(dateStr);
     const day = date.getDate();
@@ -34,14 +31,86 @@ function formatDate(dateStr: string): string {
     return `${day}-${month}-${year}`;
 }
 
-// Helper function to get month name
 function getMonthName(month: number): string {
     const months = ['January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'];
     return months[month - 1] || '';
 }
 
-// GET /api/payouts/[id]/pdf - Generate PDF payout slip
+/**
+ * Expand a customer breakdown entry into per-invoice-period rows for the PDF.
+ *
+ * When a customer's billing cycle spans multiple calendar months, the payout
+ * generation stores a `monthlyPayoutSplit` array inside calculationDetails.
+ * Each entry in that array represents the portion of one calendar month.
+ *
+ * For the PDF we want one row per INVOICE PERIOD that falls (even partially)
+ * in the payout month, showing:
+ *   - Tanggal Awal / Tanggal Akhir  = intersection of invoice period with the payout month
+ *   - Perhitungan                   = completedVisitsInThisMonth / totalScheduledInFullCycle (%)
+ *
+ * For a single-month billing cycle (no split), one row is emitted directly.
+ */
+interface PdfRow {
+    customerName: string;
+    payout: number;
+    dateStart: string;
+    dateEnd: string;
+    completedVisits: number;
+    scheduledVisits: number;
+    percentage: number;
+    invoicePeriodLabel?: string; // e.g. "Invoice Period-1"
+}
+
+function buildPdfRows(customer: any, payoutYear: number, payoutMonth: number): PdfRow[] {
+    const details = customer.calculationDetails;
+    const customerName: string = customer.customerName || '-';
+    const scheduledVisits: number = customer.scheduledVisits || 1;
+
+    // Case 1: New formula with period splitting — multiple invoice periods
+    if (details?.monthlyPayoutSplit && details.monthlyPayoutSplit.length > 1) {
+        const splits: Array<{ month: number; year: number; amount: number; visitCount: number; percentage: number; invoicePeriodId: string }> =
+            details.monthlyPayoutSplit;
+
+        // Find the split entry for THIS payout month
+        const thisSplit = splits.find(s => s.month === payoutMonth && s.year === payoutYear);
+        if (!thisSplit) return [];
+
+        const completedInMonth = thisSplit.visitCount;
+        const percentage = Math.round(thisSplit.percentage);
+
+        return [{
+            customerName,
+            payout: thisSplit.amount,
+            dateStart: customer.billingCycleStart || '',
+            dateEnd: customer.billingCycleEnd || '',
+            completedVisits: completedInMonth,
+            scheduledVisits,
+            percentage,
+        }];
+    }
+
+    // Case 2: Single-month or fallback — one row
+    const completedVisits: number = customer.completedVisits || 0;
+    let percentage: number;
+
+    if (details?.totalPayoutPercentage !== undefined) {
+        percentage = Math.round(details.totalPayoutPercentage);
+    } else {
+        percentage = scheduledVisits > 0 ? Math.round((completedVisits / scheduledVisits) * 100) : 0;
+    }
+
+    return [{
+        customerName,
+        payout: customer.payout || 0,
+        dateStart: customer.billingCycleStart || '',
+        dateEnd: customer.billingCycleEnd || '',
+        completedVisits,
+        scheduledVisits,
+        percentage,
+    }];
+}
+
 export async function GET(
     request: NextRequest,
     { params }: RouteParams
@@ -56,8 +125,9 @@ export async function GET(
         }
 
         const { id } = await params;
+        const { searchParams } = new URL(request.url);
+        const format = searchParams.get('format'); // 'json' for preview, default = pdf
 
-        // Fetch payout with mitra data
         const payoutResult = await db
             .select({
                 id: payoutDB.id,
@@ -75,13 +145,13 @@ export async function GET(
                 bonusEligible: payoutDB.bonusEligible,
                 breakdown: payoutDB.breakdown,
                 notes: payoutDB.notes,
-                // Mitra info
                 mitraName: mitraDB.mitraName,
                 mitraCode: mitraDB.mitraCode,
                 mitraPhone: mitraDB.mitraPhone,
                 mitraBankAccount: mitraDB.mitraBankAccount,
                 mitraBankHolderName: mitraDB.mitraBankHolderName,
                 mitraBankAccountNumber: mitraDB.mitraBankAccountNumber,
+                mitraBonusRate: mitraDB.bonusRate,
             })
             .from(payoutDB)
             .leftJoin(mitraDB, eq(payoutDB.mitraId, mitraDB.id))
@@ -97,7 +167,6 @@ export async function GET(
 
         const payout = payoutResult[0];
 
-        // Parse breakdown
         let breakdown: any = { customers: [], adjustments: [] };
         try {
             if (typeof payout.breakdown === 'string') {
@@ -109,23 +178,82 @@ export async function GET(
             console.error('Error parsing breakdown:', e);
         }
 
-        const customers = breakdown.customers || [];
-        const adjustments = breakdown.adjustments || [];
+        const allCustomers: any[] = breakdown.customers || [];
+        const adjustments: any[] = breakdown.adjustments || [];
 
-        // Separate regular customers and trial customers
-        const regularCustomers = customers.filter((c: any) =>
+        const regularCustomers = allCustomers.filter((c: any) =>
             !c.subscriptionPackage?.toLowerCase().includes('trial')
         );
-        const trialCustomers = customers.filter((c: any) =>
+        const trialCustomers = allCustomers.filter((c: any) =>
             c.subscriptionPackage?.toLowerCase().includes('trial')
         );
 
-        // Calculate totals
-        const komisiImbalJasa = Number(payout.basePayout) || 0;
-        const bonusAmount = Number(payout.bonusAmount) || 0;
-        const totalPembayaran = Number(payout.totalPayout) || 0;
+        // Build expanded rows — one per invoice-period-month intersection
+        const regularRows: PdfRow[] = regularCustomers.flatMap((c: any) =>
+            buildPdfRows(c, payout.year, payout.month)
+        );
 
-        // Create PDF document (A4 size)
+        // Parse tunjangan from notes JSON
+        function parseTunjangan(notes: string | null) {
+            if (!notes) return { uangParkir: 0, kompensasiPromosi: 0, lainnyaAmount: 0, lainnyaLabel: '' };
+            try {
+                const p = JSON.parse(notes);
+                if (typeof p === 'object' && p !== null) {
+                    return {
+                        uangParkir: Number(p.uangParkir) || 0,
+                        kompensasiPromosi: Number(p.kompensasiPromosi) || 0,
+                        lainnyaAmount: Number(p.lainnyaAmount) || 0,
+                        lainnyaLabel: p.lainnyaLabel || '',
+                    };
+                }
+            } catch {}
+            return { uangParkir: 0, kompensasiPromosi: 0, lainnyaAmount: 0, lainnyaLabel: notes };
+        }
+
+        const komisiImbalJasa = Number(payout.basePayout) || 0;
+        const bonusAmount = Number(payout.mitraBonusRate) || 0; // bonus rate dari mitra config
+        const tunjangan = parseTunjangan(payout.notes);
+        const tunjanganTotal = tunjangan.uangParkir + tunjangan.kompensasiPromosi + tunjangan.lainnyaAmount;
+        const totalPembayaran = komisiImbalJasa + bonusAmount + tunjanganTotal;
+
+        // ============ JSON PREVIEW RETURN ============
+        if (format === 'json') {
+            return NextResponse.json({
+                payoutId: payout.payoutId,
+                period: { year: payout.year, month: payout.month },
+                mitra: {
+                    name: payout.mitraName || '-',
+                    code: payout.mitraCode || '-',
+                    phone: payout.mitraPhone || '-',
+                    bank: payout.mitraBankAccount && payout.mitraBankAccountNumber
+                        ? `${payout.mitraBankAccount} - ${payout.mitraBankAccountNumber}`
+                        : '-',
+                    bankHolderName: payout.mitraBankHolderName || '-',
+                },
+                summary: {
+                    bonus: bonusAmount,
+                    komisiImbalJasa,
+                    totalPembayaran,
+                    notes: payout.notes || null,
+                },
+                regularRows: regularRows.map(r => ({
+                    customerName: r.customerName,
+                    payout: r.payout,
+                    dateStart: r.dateStart,
+                    dateEnd: r.dateEnd,
+                    completedVisits: r.completedVisits,
+                    scheduledVisits: r.scheduledVisits,
+                    percentage: r.percentage,
+                })),
+                trialCustomers: trialCustomers.map((c: any) => ({
+                    customerName: c.customerName || '-',
+                    payout: c.payout || 0,
+                    visitDates: (c.visitDates || []) as string[],
+                })),
+            });
+        }
+
+        // ============ BUILD PDF ============
         const doc = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
@@ -136,34 +264,24 @@ export async function GET(
         const margin = 15;
         let yPos = 20;
 
-        // ============ HEADER SECTION ============
-        // Load HOMA logo
+        // --- HEADER ---
         try {
             const logoPath = path.join(process.cwd(), 'public', 'images', 'homa-logo.png');
-            const logoExists = fs.existsSync(logoPath);
-
-            if (logoExists) {
+            if (fs.existsSync(logoPath)) {
                 const logoBuffer = fs.readFileSync(logoPath);
                 const logoBase64 = logoBuffer.toString('base64');
-                const logoDataUrl = `data:image/png;base64,${logoBase64}`;
-
-                // Add logo image (20mm width, auto height)
-                doc.addImage(logoDataUrl, 'PNG', margin, yPos - 5, 20, 20);
+                doc.addImage(`data:image/png;base64,${logoBase64}`, 'PNG', margin, yPos - 5, 20, 20);
             }
         } catch (error) {
-            console.error('Error loading logo:', error);
-            // Fallback: draw placeholder if logo not found
             doc.setFillColor(59, 130, 246);
             doc.roundedRect(margin, yPos - 5, 20, 20, 3, 3, 'F');
         }
 
-        // Company name
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(24);
-        doc.setTextColor(30, 58, 138); // Dark blue
+        doc.setTextColor(30, 58, 138);
         doc.text('HOMA', margin + 25, yPos + 5);
 
-        // Company details
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9);
         doc.setTextColor(100, 100, 100);
@@ -173,14 +291,12 @@ export async function GET(
         doc.text(COMPANY_INFO.address3, pageWidth / 2, yPos + 24, { align: 'center' });
 
         yPos += 35;
-
-        // Separator line
         doc.setDrawColor(200, 200, 200);
         doc.setLineWidth(0.3);
         doc.line(margin, yPos, pageWidth - margin, yPos);
         yPos += 10;
 
-        // ============ PAYOUT PERIOD ============
+        // --- PERIODE & MITRA INFO ---
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);
         doc.setTextColor(0, 0, 0);
@@ -188,7 +304,6 @@ export async function GET(
         doc.text(`:  ${getMonthName(payout.month)}-${payout.year}`, margin + 45, yPos);
         yPos += 10;
 
-        // ============ MITRA INFO ============
         const mitraInfoLabels = [
             { label: 'Nama Mitra', value: payout.mitraName || '-' },
             { label: 'Kode Mitra', value: payout.mitraCode || '-' },
@@ -203,94 +318,79 @@ export async function GET(
         });
 
         yPos += 5;
-
-        // Separator line
         doc.setDrawColor(200, 200, 200);
         doc.line(margin, yPos, pageWidth - margin, yPos);
         yPos += 8;
 
-        // ============ PAYOUT SUMMARY ============
-        // Bonus
+        // --- PAYOUT SUMMARY ---
         doc.setFont('helvetica', 'normal');
         doc.text('Bonus', margin, yPos);
         doc.text(':', margin + 45, yPos);
         doc.text(formatCurrency(bonusAmount), margin + 50, yPos);
         yPos += 6;
 
-        // Komisi Imbal Jasa
         doc.text('Komisi Imbal Jasa', margin, yPos);
         doc.text(':', margin + 45, yPos);
         doc.text(formatCurrency(komisiImbalJasa), margin + 50, yPos);
         yPos += 8;
 
-        // Tunjangan Lainnya section
-        doc.setFont('helvetica', 'bold');
-        doc.text('Tunjangan Lainnya', margin, yPos);
-        doc.setFont('helvetica', 'normal');
-        yPos += 6;
+        // Tunjangan Lainnya — only show if at least one item > 0
+        const tunjanganItems: { label: string; amount: number }[] = [];
+        if (tunjangan.uangParkir > 0) tunjanganItems.push({ label: 'Uang Parkir', amount: tunjangan.uangParkir });
+        if (tunjangan.kompensasiPromosi > 0) tunjanganItems.push({ label: 'Kompensasi Promosi', amount: tunjangan.kompensasiPromosi });
+        if (tunjangan.lainnyaAmount > 0) tunjanganItems.push({ label: tunjangan.lainnyaLabel || 'Lainnya', amount: tunjangan.lainnyaAmount });
 
-        // Uang Parkir
-        doc.text('Uang Parkir', margin + 3, yPos);
-        doc.text(':', margin + 45, yPos);
-        yPos += 5;
+        if (tunjanganItems.length > 0) {
+            doc.setFont('helvetica', 'bold');
+            doc.text('Tunjangan Lainnya', margin, yPos);
+            doc.setFont('helvetica', 'normal');
+            yPos += 6;
 
-        // Kompensasi Promosi Uji Coba
-        doc.text('Kompensasi Promosi', margin + 3, yPos);
-        yPos += 5;
-        doc.text('Uji Coba', margin + 3, yPos);
-        doc.text(':', margin + 45, yPos - 5);
-        doc.text(formatCurrency(0), margin + 50, yPos - 5);
-        yPos += 3;
+            for (const item of tunjanganItems) {
+                doc.text(item.label, margin + 3, yPos);
+                doc.text(':', margin + 45, yPos);
+                doc.text(formatCurrency(item.amount), margin + 50, yPos);
+                yPos += 5;
+            }
+            yPos += 3;
+        }
 
-        // Separator line
         doc.setDrawColor(200, 200, 200);
         doc.line(margin, yPos, pageWidth - margin, yPos);
         yPos += 6;
 
-        // Total Pembayaran
         doc.setFont('helvetica', 'bold');
         doc.text('Total Pembayaran', margin, yPos);
         doc.text(':', margin + 45, yPos);
         doc.text(formatCurrency(totalPembayaran), margin + 50, yPos);
         doc.setFont('helvetica', 'normal');
-
         yPos += 10;
 
-        // Separator line
         doc.setDrawColor(200, 200, 200);
         doc.line(margin, yPos, pageWidth - margin, yPos);
         yPos += 8;
 
-        // ============ CUSTOMER DETAILS TABLE ============
-        if (regularCustomers.length > 0) {
-            // Table header
+        // --- REGULAR CUSTOMERS TABLE ---
+        // Columns: Nama Customers | Komisi Imbal Jasa | Tanggal Awal | Tanggal Akhir | Perhitungan Pro-Rata
+        if (regularRows.length > 0) {
             const tableHeaders = [
                 ['Nama Customers', 'Komisi Imbal Jasa', 'Tanggal Awal', 'Tanggal Akhir', 'Perhitungan Pro-Rata']
             ];
 
-            // Table data - Show ALL breakdown rows (multiple rows per customer if rate changes)
-            const tableData = regularCustomers.map((customer: any) => {
-                const completedVisits = customer.completedVisits || 0;
-                const scheduledVisits = customer.scheduledVisits || 1;
-                const percentage = Math.round((completedVisits / scheduledVisits) * 100);
-
+            const tableData = regularRows.map((row) => {
+                const perhitungan = `${row.completedVisits}/${row.scheduledVisits} Kedatangan (${row.percentage}%)`;
                 return [
-                    customer.customerName || '-',
-                    formatCurrency(customer.payout || 0),
-                    customer.billingCycleStart ? formatDate(customer.billingCycleStart) : '-',
-                    customer.billingCycleEnd ? formatDate(customer.billingCycleEnd) : '-',
-                    `${completedVisits}/${scheduledVisits} Kedatangan (${percentage}%)`
+                    row.customerName,
+                    formatCurrency(row.payout),
+                    row.dateStart ? formatDate(row.dateStart) : '-',
+                    row.dateEnd ? formatDate(row.dateEnd) : '-',
+                    perhitungan,
                 ];
             });
 
-            // Add total row
-            tableData.push([
-                'Total',
-                formatCurrency(komisiImbalJasa),
-                '',
-                '',
-                ''
-            ]);
+            // Total row
+            const totalKomisi = regularRows.reduce((sum, r) => sum + r.payout, 0);
+            tableData.push(['Total', formatCurrency(totalKomisi), '', '', '']);
 
             autoTable(doc, {
                 head: tableHeaders,
@@ -311,87 +411,88 @@ export async function GET(
                     lineWidth: 0.3,
                 },
                 columnStyles: {
-                    0: { cellWidth: 40 },
-                    1: { cellWidth: 35, halign: 'left' },
-                    2: { cellWidth: 30 },
-                    3: { cellWidth: 30 },
-                    4: { cellWidth: 45 },
+                    0: { cellWidth: 38 },  // Nama Customers
+                    1: { cellWidth: 32, halign: 'left' },  // Komisi
+                    2: { cellWidth: 26 },  // Tanggal Awal
+                    3: { cellWidth: 26 },  // Tanggal Akhir
+                    4: { cellWidth: 48 },  // Perhitungan Pro-Rata
                 },
                 margin: { left: margin, right: margin },
                 didParseCell: (data) => {
-                    // Bold the total row
+                    // Bold total row
                     if (data.row.index === tableData.length - 1) {
                         data.cell.styles.fontStyle = 'bold';
                     }
                 },
             });
 
-            // Get the final Y position after the table
-            yPos = (doc as any).lastAutoTable.finalY + 10;
+            yPos = (doc as any).lastAutoTable.finalY + 8;
         }
 
-        // ============ TRIAL CUSTOMERS TABLE ============
-        // Trial section header
-        const trialHeaders = [
-            ['Nama Customers\n(Free Trial)', 'Kompensasi Promosi\nUji Coba', 'Uji Coba Ke-1', 'Uji Coba Ke-2']
-        ];
+        // --- TRIAL CUSTOMERS TABLE --- only render if there are trial customers
+        if (trialCustomers.length > 0) {
+            const maxVisitCols = trialCustomers.reduce((max: number, c: any) =>
+                Math.max(max, (c.visitDates?.length || 0)), 0);
+            const visitCols = Math.max(maxVisitCols, 1);
 
-        // Trial table data (show structure even if empty)
-        const trialData = trialCustomers.length > 0
-            ? trialCustomers.map((customer: any) => [
+            const trialHeaders = [[
+                'Nama Customers\n(Free Trial)',
+                'Kompensasi Promosi\nUji Coba',
+                ...Array.from({ length: visitCols }, (_, i) => `Uji Coba Ke-${i + 1}`),
+            ]];
+
+            const trialData = trialCustomers.map((customer: any) => [
                 customer.customerName || '',
                 formatCurrency(customer.payout || 0),
-                customer.billingCycleStart ? formatDate(customer.billingCycleStart) : '',
-                customer.billingCycleEnd ? formatDate(customer.billingCycleEnd) : ''
-            ])
-            : [['', formatCurrency(0), '', '']];
+                ...Array.from({ length: visitCols }, (_, i) => {
+                    const d = customer.visitDates?.[i];
+                    return d ? formatDate(d) : '';
+                }),
+            ]);
 
-        // Calculate trial total
-        const trialTotal = trialCustomers.reduce((sum: number, c: any) => sum + (c.payout || 0), 0);
+            const trialTotal = trialCustomers.reduce((sum: number, c: any) => sum + (c.payout || 0), 0);
+            trialData.push(['Total', formatCurrency(trialTotal), ...Array(visitCols).fill('')]);
 
-        // Add empty row and total row
-        trialData.push(['', '', '', '']);
-        trialData.push(['Total', formatCurrency(trialTotal), '', '']);
+            const colStyles: Record<number, any> = {
+                0: { cellWidth: 45 },
+                1: { cellWidth: 38, halign: 'left' },
+            };
+            const visitColWidth = Math.min(35, (170 - 83) / visitCols);
+            for (let i = 0; i < visitCols; i++) {
+                colStyles[2 + i] = { cellWidth: visitColWidth };
+            }
 
-        autoTable(doc, {
-            head: trialHeaders,
-            body: trialData,
-            startY: yPos,
-            theme: 'plain',
-            styles: {
-                fontSize: 8,
-                cellPadding: 2,
-                lineColor: [0, 0, 0],
-                lineWidth: 0.1,
-            },
-            headStyles: {
-                fillColor: [255, 255, 255],
-                textColor: [0, 0, 0],
-                fontStyle: 'bold',
-                lineColor: [0, 0, 0],
-                lineWidth: 0.3,
-            },
-            columnStyles: {
-                0: { cellWidth: 50 },
-                1: { cellWidth: 40, halign: 'left' },
-                2: { cellWidth: 40 },
-                3: { cellWidth: 40 },
-            },
-            margin: { left: margin, right: margin },
-            didParseCell: (data) => {
-                // Bold the total row (last row)
-                if (data.row.index === trialData.length - 1) {
-                    data.cell.styles.fontStyle = 'bold';
-                }
-            },
-        });
+            autoTable(doc, {
+                head: trialHeaders,
+                body: trialData,
+                startY: yPos,
+                theme: 'plain',
+                styles: {
+                    fontSize: 8,
+                    cellPadding: 2,
+                    lineColor: [0, 0, 0],
+                    lineWidth: 0.1,
+                },
+                headStyles: {
+                    fillColor: [255, 255, 255],
+                    textColor: [0, 0, 0],
+                    fontStyle: 'bold',
+                    lineColor: [0, 0, 0],
+                    lineWidth: 0.3,
+                },
+                columnStyles: colStyles,
+                margin: { left: margin, right: margin },
+                didParseCell: (data) => {
+                    if (data.row.index === trialData.length - 1) {
+                        data.cell.styles.fontStyle = 'bold';
+                    }
+                },
+            });
+        }
 
-        yPos = (doc as any).lastAutoTable.finalY + 5;
-
-        // Generate PDF as buffer
+        // Generate PDF
         const pdfBuffer = doc.output('arraybuffer');
 
-        // Return PDF response
         return new NextResponse(pdfBuffer, {
             status: 200,
             headers: {

@@ -131,6 +131,7 @@ export const mitraDB = pgTable('mitra_db', {
   // Subscription type and bonus rate (NEW - for dynamic pricing)
   subscriptionType: varchar('subscription_type', { length: 20 }).default('Regular'), // Basic, Regular, Frequent
   bonusRate: decimal('bonus_rate', { precision: 10, scale: 2 }).default('0'), // Bonus rate in IDR (only when bonus eligible)
+  trialRatePerVisit: decimal('trial_rate_per_visit', { precision: 10, scale: 2 }), // Flat rate per trial visit (NULL = not eligible)
 
   // Legacy mitra details (keeping for backward compatibility)
   mitraType: varchar('mitra_type', { length: 20 }).notNull().default('Cleaner'),
@@ -425,21 +426,11 @@ export const payoutAdjustmentDB = pgTable('payout_adjustment_db', {
 export const mitraRateConfigDB = pgTable('mitra_rate_config_db', {
   id: uuid('id').defaultRandom().primaryKey(),
   mitraId: uuid('mitra_id').references(() => mitraDB.id).notNull(),
-  subscriptionPackageId: uuid('subscription_package_id').references(() => subscriptionPackageDB.id), // NULL = default rate for all packages
-
-  // Rate configuration
-  monthlyRate: decimal('monthly_rate', { precision: 10, scale: 2 }).notNull(), // Monthly base rate
-
-  // Effective period (for historical tracking)
-  effectiveFrom: date('effective_from').notNull(), // Start date for this rate
-  effectiveTo: date('effective_to'), // NULL = currently active
-
-  // Metadata
-  notes: text('notes'),
+  visitsPerWeek: integer('visits_per_week').notNull(), // 1-7
+  payoutRate: decimal('payout_rate', { precision: 12, scale: 2 }).notNull(), // Monthly payout rate
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-  createdBy: varchar('created_by', { length: 255 }), // User who created this config
-  isActive: boolean('is_active').default(true),
+  createdBy: uuid('created_by').references(() => userDB.id),
 });
 
 // Visit Mitra Change History Table - Track all mitra changes for a visit
@@ -589,10 +580,6 @@ export const mitraRateConfigRelations = relations(mitraRateConfigDB, ({ one }) =
   mitra: one(mitraDB, {
     fields: [mitraRateConfigDB.mitraId],
     references: [mitraDB.id],
-  }),
-  subscriptionPackage: one(subscriptionPackageDB, {
-    fields: [mitraRateConfigDB.subscriptionPackageId],
-    references: [subscriptionPackageDB.id],
   }),
 }));
 

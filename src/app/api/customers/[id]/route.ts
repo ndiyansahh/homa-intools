@@ -54,6 +54,7 @@ export async function GET(
           postalCode: customerDB.postalCode,
           assignedMitraId: customerDB.assignedMitraId,
           backupMitraId: customerDB.backupMitraId,
+          invoiceId: customerDB.invoiceId,
           subscriptionPackage: customerDB.subscriptionPackage,
           subscriptionStart: customerDB.subscriptionStart,
           subscriptionEnd: customerDB.subscriptionEnd,
@@ -131,7 +132,7 @@ export async function GET(
     }
     
     // Format customer data from database - all dynamic values
-    const customerData: CustomerData & { monthlyFee: number } = {
+    const customerData: CustomerData & { monthlyFee: number; invoiceId?: string } = {
       id: customerRecord.id,
       customerName: customerRecord.customerName,
       acquisition: 'HOMA', // Default - field doesn't exist in schema
@@ -156,6 +157,7 @@ export async function GET(
       createdAt: customerRecord.createdAt?.toISOString() || new Date().toISOString(),
       updatedAt: customerRecord.updatedAt?.toISOString() || new Date().toISOString(),
       isDeleted: customerRecord.isDeleted || false,
+      invoiceId: customerRecord.invoiceId || undefined,
     };
 
     return NextResponse.json({

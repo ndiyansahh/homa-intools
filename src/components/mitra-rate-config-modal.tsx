@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import SimpleModal from './simple-modal';
 import RateConfigForm from './rate-config-form';
 import { Icons } from './icons';
+import { useConfirm } from '@/components/confirm-dialog';
 
 interface RateConfig {
   id: string;
@@ -33,6 +34,7 @@ export default function MitraRateConfigModal({
   defaultRate,
   onUpdate,
 }: MitraRateConfigModalProps) {
+  const confirm = useConfirm();
   const [configs, setConfigs] = useState<RateConfig[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -100,9 +102,8 @@ export default function MitraRateConfigModal({
   };
 
   const handleDelete = async (configId: string) => {
-    if (!confirm('Are you sure you want to deactivate this rate configuration?')) {
-      return;
-    }
+    const ok = await confirm({ title: 'Deactivate Rate', message: 'Deactivate this rate configuration?', confirmLabel: 'Deactivate', danger: true });
+    if (!ok) return;
 
     try {
       const response = await fetch(`/api/mitra/${mitraId}/rates?rateConfigId=${configId}`, {

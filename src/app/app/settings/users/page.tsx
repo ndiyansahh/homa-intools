@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Icons } from '@/components/icons';
 import SimpleModal from '@/components/simple-modal';
+import { useToast } from '@/lib/toast';
+import { useConfirm } from '@/components/confirm-dialog';
 
 interface User {
     id: string;
@@ -16,7 +18,9 @@ interface User {
 }
 
 export default function UserManagementPage() {
-    const [users, setUsers] = useState<User[]>([]);
+    const { toast } = useToast();
+  const confirm = useConfirm();
+  const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -155,7 +159,8 @@ export default function UserManagementPage() {
 
     // Delete user
     const handleDeleteUser = async (user: User) => {
-        if (!confirm(`Are you sure you want to delete ${user.email}?`)) return;
+        const ok = await confirm({ title: 'Delete User', message: `Delete ${user.email}? This cannot be undone.`, confirmLabel: 'Delete', danger: true });
+        if (!ok) return;
 
         try {
             const response = await fetch(`/api/auth/users/${user.id}`, {
@@ -171,7 +176,7 @@ export default function UserManagementPage() {
             fetchUsers();
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-            alert(errorMessage);
+            toast('error', errorMessage);
         }
     };
 
