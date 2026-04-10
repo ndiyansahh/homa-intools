@@ -367,44 +367,11 @@ export default function MitraDetailView({ mitraId, onClose, onUpdate }: MitraDet
             </div>
           </div>
 
-          {/* Subscription, Payout & Bonus Rate Section */}
+          {/* Bonus Commission Section */}
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Subscription & Rate Information</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Bonus Information</h3>
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Subscription Type */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Subscription Type</label>
-                  <select
-                    value={(formData as any).subscriptionType || 'Regular'}
-                    onChange={(e) => handleChange('subscriptionType' as any, e.target.value)}
-                    className="input-field mt-1"
-                  >
-                    <option value="Basic">Basic</option>
-                    <option value="Regular">Regular</option>
-                    <option value="Frequent">Frequent</option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Basic: 1 visit/week | Regular: 2 visits/week | Frequent: 3 visits/week
-                  </p>
-                </div>
-
-                {/* Payout Rate */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Payout Rate (IDR)</label>
-                  <input
-                    type="text"
-                    value={formatNumberWithSeparator((formData as any).payoutRate || 0)}
-                    onChange={(e) => {
-                      const numericValue = parseFormattedNumber(e.target.value);
-                      handleChange('payoutRate' as any, numericValue);
-                    }}
-                    className="input-field mt-1"
-                    placeholder="500,000"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Enter payout rate per month</p>
-                </div>
-
                 {/* Bonus Commission */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Bonus Commission</label>
