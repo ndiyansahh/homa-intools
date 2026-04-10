@@ -236,6 +236,7 @@ const POSTAL_CODE_MAP: Record<string, string> = {
   'JAKARTA SELATAN|Jagakarsa|Ciganjur': '12630',
   'JAKARTA SELATAN|Jagakarsa|Cipedak': '12630',
   'JAKARTA SELATAN|Jagakarsa|Srengseng Sawah': '12640',
+  'JAKARTA SELATAN|Jagakarsa|Tanjung Barat': '12530',
   // JAKARTA SELATAN - Mampang Prapatan
   'JAKARTA SELATAN|Mampang Prapatan|Kuningan Barat': '12710',
   'JAKARTA SELATAN|Mampang Prapatan|Bangka': '12720',
