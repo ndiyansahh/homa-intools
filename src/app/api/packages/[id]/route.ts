@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { subscriptionPackageDB, customerDB } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -176,15 +176,16 @@ export async function DELETE(
 
     // Check if package is being used by any customers
     const customersUsingPackage = await db
-      .select({ count: customerDB.id })
+      .select({ count: sql<number>`count(*)` })
       .from(customerDB)
       .where(eq(customerDB.subscriptionPackageId, id));
 
-    if (customersUsingPackage.length > 0) {
+    const customerCount = Number(customersUsingPackage[0]?.count) || 0;
+    if (customerCount > 0) {
       return NextResponse.json(
         {
           success: false,
-          message: `Cannot delete package. ${customersUsingPackage.length} customer(s) are currently using this package.`
+          message: `Cannot delete package. ${customerCount} customer(s) are currently using this package.`
         },
         { status: 409 }
       );
