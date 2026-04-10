@@ -693,13 +693,23 @@ const POSTAL_CODE_MAP: Record<string, string> = {
   'DEPOK|Cipayung|Pondok Jaya': '16437',
 };
 
+// Fix typos/truncations in BPS source data
+const CITY_NAME_FIXES: Record<string, string> = {
+  'Jakarta Selata': 'Jakarta Selatan',
+};
+
 function cleanCityName(name: string): string {
-  return name
+  const cleaned = name
     .replace(/^KOTA ADM\.\s*/i, '')
     .replace(/^KOTA ADMINISTRASI\s*/i, '')
     .replace(/^ADMINISTRASI\s*/i, '')
+    .replace(/^KABUPATEN ADMINISTRASI\s*/i, '')
     .replace(/^KOTA\s*/i, '')
     .trim();
+  // Apply title case
+  const titleCase = cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase()
+    .replace(/\b\w/g, c => c.toUpperCase());
+  return CITY_NAME_FIXES[titleCase] ?? titleCase;
 }
 
 function getPostalCode(cityName: string, districtName: string, villageName: string): string {
