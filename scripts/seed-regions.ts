@@ -806,9 +806,8 @@ async function seedRegions() {
     let inserted = 0;
     for (let i = 0; i < valid.length; i += BATCH_SIZE) {
       const batch = valid.slice(i, i + BATCH_SIZE);
-      const values = batch.map((r, j) => {
-        const base = i + j;
-        return `($${base * 6 + 1}, $${base * 6 + 2}, $${base * 6 + 3}, $${base * 6 + 4}, $${base * 6 + 5}, $${base * 6 + 6})`;
+      const values = batch.map((_, j) => {
+        return `($${j * 6 + 1}, $${j * 6 + 2}, $${j * 6 + 3}, $${j * 6 + 4}, $${j * 6 + 5}, $${j * 6 + 6})`;
       }).join(', ');
       const params = batch.flatMap(r => [r.regionName, r.province, r.city, r.district, r.village, r.postalCode]);
       await client.query(
