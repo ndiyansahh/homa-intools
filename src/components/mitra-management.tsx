@@ -5,6 +5,7 @@ import { SessionData } from '@/types/auth';
 import { MitraListItem, MitraResponse, MitraStatus, CreateMitraRequest, MitraFilters, MitraPartnershipType, MitraCityAssignment, MitraGender, MitraBonusCommission, MitraSubscriptionType } from '@/types/mitra';
 import { Icons } from './icons';
 import MitraDetailView from './mitra-detail';
+import RateEditModal, { RateEditMitraData } from './rate-edit-modal';
 
 interface MitraManagementProps {
   session: SessionData;
@@ -44,6 +45,7 @@ export default function MitraManagement({ session }: MitraManagementProps) {
   const [creating, setCreating] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [lastCreatedMitra, setLastCreatedMitra] = useState<any>(null);
+  const [rateConfigMitra, setRateConfigMitra] = useState<RateEditMitraData | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [selectedMitra, setSelectedMitra] = useState<string | null>(null);
   const [detailViewRefreshTrigger, setDetailViewRefreshTrigger] = useState<number>(0);
@@ -69,7 +71,6 @@ export default function MitraManagement({ session }: MitraManagementProps) {
     mitraBonusCommission: 'Eligible' as MitraBonusCommission,
     subscriptionType: 'Regular' as MitraSubscriptionType,
     payoutRate: 0,
-    bonusRate: 0,
     address: '',
     status: 'Active',
   });
@@ -297,12 +298,21 @@ export default function MitraManagement({ session }: MitraManagementProps) {
             mitraBonusCommission: 'Eligible' as MitraBonusCommission,
             subscriptionType: 'Regular' as MitraSubscriptionType,
             payoutRate: 0,
-            bonusRate: 0,
             address: '',
             status: 'Active',
           });
           setAvailableDistricts([]);
           setShowForm(false);
+
+          // Open rate config modal for newly created mitra
+          setRateConfigMitra({
+            id: createdMitra.id,
+            mitraName: createdMitra.mitraName || formData.mitraName,
+            mitraCode: createdMitra.mitraCode || '',
+            bonusCommission: (formData.mitraBonusCommission as string) === 'Eligible' ? 'Eligible' : 'Not Eligible',
+            trialRatePerVisit: null,
+            rateConfigs: [],
+          });
 
           // Real-time data refresh with indicator
           console.log('🔄 Refreshing mitra list after creation...');
@@ -805,25 +815,6 @@ export default function MitraManagement({ session }: MitraManagementProps) {
                   )}
                 </div>
 
-                {/* Partnership Type */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Partnership Type *
-                  </label>
-                  <select
-                    value={formData.mitraPartnership}
-                    onChange={(e) => setFormData(prev => ({ ...prev, mitraPartnership: e.target.value as MitraPartnershipType }))}
-                    className="input-field"
-                    required
-                  >
-                    <option value="Full Time">Full Time</option>
-                    <option value="Part Time">Part Time</option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Full Time: 1 week 8 hours work | Part Time: 1 week 4 hours work
-                  </p>
-                </div>
-
                 {/* Tenure - Free Text */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -840,90 +831,6 @@ export default function MitraManagement({ session }: MitraManagementProps) {
                   />
                   <p className="text-xs text-gray-500 mt-1">Enter tenure period in months (can be any number)</p>
                 </div>
-
-                {/* Subscription Type */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Subscription Type *
-                  </label>
-                  <select
-                    value={formData.subscriptionType}
-                    onChange={(e) => setFormData(prev => ({ ...prev, subscriptionType: e.target.value as MitraSubscriptionType }))}
-                    className="input-field"
-                    required
-                  >
-                    <option value="Basic">Basic</option>
-                    <option value="Regular">Regular</option>
-                    <option value="Frequent">Frequent</option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Basic: 1 visit/week | Regular: 2 visits/week | Frequent: 3 visits/week
-                  </p>
-                </div>
-
-                {/* Payout Rate */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Payout Rate (IDR) *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formatNumberWithSeparator(formData.payoutRate || 0)}
-                    onChange={(e) => {
-                      const numericValue = parseFormattedNumber(e.target.value);
-                      setFormData(prev => ({ ...prev, payoutRate: numericValue }));
-                    }}
-                    className="input-field"
-                    placeholder="500,000"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Enter payout rate per month (in Indonesian Rupiah)</p>
-                </div>
-
-                {/* Bonus Commission */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Bonus Commission *
-                  </label>
-                  <select
-                    value={formData.mitraBonusCommission}
-                    onChange={(e) => {
-                      const newValue = e.target.value as MitraBonusCommission;
-                      setFormData(prev => ({
-                        ...prev,
-                        mitraBonusCommission: newValue,
-                        // Reset bonus rate when not eligible
-                        bonusRate: newValue === 'Not Eligible' ? 0 : prev.bonusRate
-                      }));
-                    }}
-                    className="input-field"
-                    required
-                  >
-                    <option value="Eligible">Eligible</option>
-                    <option value="Not Eligible">Not Eligible</option>
-                  </select>
-                </div>
-
-                {/* Bonus Rate - Only shown when Bonus Commission is Eligible */}
-                {formData.mitraBonusCommission === 'Eligible' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Bonus Rate (IDR) *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formatNumberWithSeparator(formData.bonusRate || 0)}
-                      onChange={(e) => {
-                        const numericValue = parseFormattedNumber(e.target.value);
-                        setFormData(prev => ({ ...prev, bonusRate: numericValue }));
-                      }}
-                      className="input-field"
-                      placeholder="500,000"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Enter bonus rate per month (in Indonesian Rupiah)</p>
-                  </div>
-                )}
               </div>
 
               {/* Address */}
@@ -1158,6 +1065,17 @@ export default function MitraManagement({ session }: MitraManagementProps) {
           )}
         </div>
       </div>
+
+      {/* Rate Config Modal — shown after mitra creation */}
+      {rateConfigMitra && (
+        <RateEditModal
+          mitra={rateConfigMitra}
+          isReadOnly={false}
+          skipLabel="Skip"
+          onClose={() => setRateConfigMitra(null)}
+          onSaved={() => setRateConfigMitra(null)}
+        />
+      )}
     </>
   );
 }

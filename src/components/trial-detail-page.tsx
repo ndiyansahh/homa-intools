@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { SessionData } from '@/types/auth';
 import { TrialListItem, TrialStatus } from '@/types/trial';
 import { Icons } from './icons';
+import { useBreadcrumbOverride } from '@/lib/breadcrumb-context';
 
 interface TrialDetailPageProps {
   trialId: string;
@@ -35,9 +36,9 @@ interface UpdateTrialData {
 }
 
 const statusColors = {
+  'Trial Scheduled': 'bg-blue-100 text-blue-800',
   'Converted': 'bg-green-100 text-green-800',
   'Not Converted': 'bg-red-100 text-red-800',
-  'Stalling/Postpone': 'bg-yellow-100 text-yellow-800',
   'Cancelled': 'bg-gray-100 text-gray-800',
 };
 
@@ -54,6 +55,8 @@ const residentialColors = {
 
 export default function TrialDetailPage({ trialId, session }: TrialDetailPageProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const { setOverride } = useBreadcrumbOverride();
   const [trial, setTrial] = useState<TrialListItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState<string | null>(null);
@@ -115,14 +118,23 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
   const [showAvailabilityWarning, setShowAvailabilityWarning] = useState(false);
   const [availabilityWarningMessage, setAvailabilityWarningMessage] = useState('');
 
+  // Cancel visit state
+  const [showCancelVisitModal, setShowCancelVisitModal] = useState(false);
+  const [selectedVisitForCancel, setSelectedVisitForCancel] = useState<any>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [loadingCancelVisit, setLoadingCancelVisit] = useState(false);
+  const [pendingCancelStatus, setPendingCancelStatus] = useState<string | null>(null);
+
   // Conversion form state
   const [showConversionForm, setShowConversionForm] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState('');
   const [selectedPackageId, setSelectedPackageId] = useState('');
   const [quantity, setQuantity] = useState(1);
-  const [selectedDays, setSelectedDays] = useState<{ day1?: string; day2?: string; day3?: string }>({ day1: '', day2: '', day3: '' });
+  const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [startDate, setStartDate] = useState('');
   const [selectedMitra, setSelectedMitra] = useState('');
+  const [promoCode, setPromoCode] = useState('');
+  const [promoDiscount, setPromoDiscount] = useState('');
 
   // Fetch trial data
   const fetchTrial = async () => {
@@ -133,6 +145,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
         const result = await response.json();
         if (result.success && result.data) {
           setTrial(result.data);
+          setOverride(pathname, result.data.customerName || result.data.customer_name || '');
         } else {
           console.error('Failed to fetch trial');
           router.push('/app/trial');
@@ -151,7 +164,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
 
   // Check mitra availability based on selected days and date
   const checkMitraAvailability = async () => {
-    const selectedDaysArray = [selectedDays.day1, selectedDays.day2, selectedDays.day3].filter((day): day is string => Boolean(day));
+    const selectedDaysArray = selectedDays.filter(Boolean);
 
     console.log('=== Mitra Availability Check ===');
     console.log('Start Date:', startDate);
@@ -579,6 +592,69 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
     }
   };
 
+  // Cancel visit
+  const handleCancelVisit = (visit: any) => {
+    setSelectedVisitForCancel(visit);
+    setCancelReason('');
+    setShowCancelVisitModal(true);
+  };
+
+  const saveCancelVisit = async () => {
+    if (!cancelReason.trim()) {
+      alert('Please provide a reason for cancelling');
+      return;
+    }
+    try {
+      setLoadingCancelVisit(true);
+
+      if (selectedVisitForCancel) {
+        // Single visit cancel
+        const response = await fetch(`/api/trial/${trial?.id}/visits`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            visitId: selectedVisitForCancel.id,
+            status: 'Cancelled',
+            visitNotes: `Cancellation reason: ${cancelReason}`,
+          }),
+        });
+        if (!response.ok) {
+          const error = await response.json();
+          alert(error.message || 'Failed to cancel visit');
+          return;
+        }
+      } else if (pendingCancelStatus === 'Cancelled') {
+        // Bulk cancel all non-cancelled visits when status set to Cancelled
+        const visitsToCancel = trialVisits.filter(v => v.status !== 'Cancelled');
+        for (const visit of visitsToCancel) {
+          await fetch(`/api/trial/${trial?.id}/visits`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              visitId: visit.id,
+              status: 'Cancelled',
+              visitNotes: `Cancellation reason: ${cancelReason}`,
+            }),
+          });
+        }
+        // Save the status change
+        setTrial(prev => prev ? { ...prev, overallStatus: 'Cancelled' } : null);
+        await handleUpdateTrial({ id: trial!.id, subscription_status: 'Cancelled' });
+      }
+
+      setShowCancelVisitModal(false);
+      setSelectedVisitForCancel(null);
+      setPendingCancelStatus(null);
+      setCancelReason('');
+      await fetchTrialVisits();
+    } catch (error) {
+      console.error('Error cancelling visit:', error);
+      alert('Failed to cancel visit');
+    } finally {
+      setLoadingCancelVisit(false);
+    }
+  };
+
   // Open change mitra modal
   const openChangeMitraModal = async (visit: any) => {
     setSelectedVisitForChange(visit);
@@ -767,6 +843,8 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
     qty_package: number;
     start_date: string;
     assigned_mitra?: string;
+    promo_code?: string;
+    promo_discount?: number;
   }) => {
     if (!confirm('Are you sure you want to convert this trial to a customer?')) return;
 
@@ -786,6 +864,8 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
           qty_package: conversionData.qty_package,
           start_date: conversionData.start_date,
           assigned_mitra: conversionData.assigned_mitra,
+          promo_code: conversionData.promo_code || undefined,
+          promo_discount: conversionData.promo_discount || undefined,
         }),
       });
 
@@ -864,11 +944,12 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
       setSelectedPackage('');
       setSelectedPackageId('');
       setQuantity(1);
-      setSelectedDays({ day1: '', day2: '', day3: '' });
+      setSelectedDays([]);
       setStartDate('');
       setSelectedMitra(trial?.assignedMitraId || '');
-      setMitras([]); // Clear mitras
-      // Refresh subscription packages
+      setMitras([]);
+      setPromoCode('');
+      setPromoDiscount('');
       fetchSubscriptionPackages();
     }
   }, [showConversionForm]);
@@ -903,11 +984,14 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
   const isEditMode = editMode === trial.id;
 
   // Handle day selection change (dropdown)
-  const handleDayChange = (dayKey: 'day1' | 'day2' | 'day3', value: string) => {
-    setSelectedDays(prev => ({
-      ...prev,
-      [dayKey]: value
-    }));
+  const handleDayChange = (index: number, value: string) => {
+    const newSelectedDays = [...selectedDays];
+    if (value) {
+      newSelectedDays[index] = value;
+    } else {
+      newSelectedDays.splice(index, 1);
+    }
+    setSelectedDays(newSelectedDays);
   };
 
   const handleSaveChanges = () => {
@@ -917,12 +1001,17 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
 
   const handleConvert = async () => {
     // Validate required fields
-    const selectedDaysArray = [selectedDays.day1, selectedDays.day2, selectedDays.day3].filter((day): day is string => Boolean(day));
+    const selectedDaysArray = selectedDays.filter(Boolean);
     const selectedPackageObj = subscriptionPackages.find(pkg => pkg.id === selectedPackageId);
     const requiredDays = selectedPackageObj?.visitsPerWeek || 0;
 
     if (!selectedPackage || !startDate) {
       alert('Please fill in all required fields for conversion (Package, Start Date)');
+      return;
+    }
+
+    if (requiredDays === 0) {
+      alert('Package configuration is invalid (visits per week = 0). Please contact admin.');
       return;
     }
 
@@ -938,11 +1027,13 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
     // Prepare conversion data
     const conversionData = {
       subscription_package: selectedPackage,
-      chosen_days: selectedDaysArray, // Properly typed string[]
+      chosen_days: selectedDaysArray,
       total_sessions: totalSessions,
       qty_package: quantity,
       start_date: startDate,
       assigned_mitra: selectedMitra || trial.assignedMitraId || undefined,
+      promo_code: promoCode || undefined,
+      promo_discount: promoDiscount ? Number(promoDiscount) : undefined,
     };
 
     await convertToCustomer(trial.id, conversionData);
@@ -950,7 +1041,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
 
   // Calculate visit preview
   const calculateVisitPreview = () => {
-    const selectedDaysArray = [selectedDays.day1, selectedDays.day2, selectedDays.day3].filter((day): day is string => Boolean(day));
+    const selectedDaysArray = selectedDays.filter(Boolean);
 
     if (!selectedPackage || selectedDaysArray.length === 0) {
       return { totalSessions: 0, schedule: '', duration: '' };
@@ -980,7 +1071,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
   // Get selected package details
   const selectedPackageObj = subscriptionPackages.find(pkg => pkg.id === selectedPackageId);
   const requiredVisitsPerWeek = selectedPackageObj?.visitsPerWeek || 0;
-  const selectedDaysCount = [selectedDays.day1, selectedDays.day2, selectedDays.day3].filter((day): day is string => Boolean(day)).length;
+  const selectedDaysCount = selectedDays.length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -1090,7 +1181,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
                     Subscription Package *
                   </label>
                   <select
@@ -1101,7 +1192,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                       setSelectedPackageId(pkgId);
                       setSelectedPackage(pkg?.subscriptionPackage || '');
                       // Reset days when package changes
-                      setSelectedDays({ day1: '', day2: '', day3: '' });
+                      setSelectedDays([]);
                     }}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                     disabled={loadingPackages}
@@ -1110,11 +1201,14 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                       {loadingPackages ? 'Loading packages...' : 'Select Package'}
                     </option>
                     {subscriptionPackages && subscriptionPackages.length > 0 ? (
-                      subscriptionPackages.map((pkg) => (
-                        <option key={pkg.id} value={pkg.id}>
-                          {pkg.subscriptionPackage} - Rp {parseInt(pkg.priceNumeric || 0).toLocaleString('id-ID')}
-                        </option>
-                      ))
+                      subscriptionPackages.map((pkg) => {
+                        const visitsPerWeek = pkg.visitsPerWeek || 0;
+                        return (
+                          <option key={pkg.id} value={pkg.id}>
+                            {pkg.subscriptionPackage} - {visitsPerWeek}x/week - Rp {parseInt(pkg.priceNumeric || 0).toLocaleString('id-ID')}
+                          </option>
+                        );
+                      })
                     ) : (
                       !loadingPackages && <option disabled>No packages available</option>
                     )}
@@ -1131,7 +1225,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
                     Duration (Months) *
                   </label>
                   <input
@@ -1148,7 +1242,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
                     Start Date *
                   </label>
                   <input
@@ -1169,23 +1263,20 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Select Service Days ({selectedDaysCount}/{requiredVisitsPerWeek} selected) *
                     </label>
-                    <div className="grid grid-cols-3 gap-4">
-                      {[1, 2, 3].slice(0, requiredVisitsPerWeek).map((dayNum) => {
-                        const dayKey = `day${dayNum}` as 'day1' | 'day2' | 'day3';
-                        const currentValue = selectedDays[dayKey] || '';
-                        const isDisabled = dayNum > requiredVisitsPerWeek;
+                    <div className="grid grid-cols-4 gap-3">
+                      {Array.from({ length: requiredVisitsPerWeek }, (_, i) => i).map((index) => {
+                        const currentValue = selectedDays[index] || '';
 
                         return (
-                          <div key={dayKey}>
+                          <div key={`day-${index}`}>
                             <label className="block text-xs font-medium text-gray-600 mb-1">
-                              Day {dayNum} {dayNum <= requiredVisitsPerWeek ? '*' : ''}
+                              Day {index + 1} *
                             </label>
                             <select
                               value={currentValue}
-                              onChange={(e) => handleDayChange(dayKey, e.target.value)}
+                              onChange={(e) => handleDayChange(index, e.target.value)}
                               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                              required={dayNum <= requiredVisitsPerWeek}
-                              disabled={isDisabled}
+                              required
                             >
                               <option value="">Select day...</option>
                               {dayOptions.map((day) => (
@@ -1213,18 +1304,20 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                 {selectedPackageId && requiredVisitsPerWeek > 0 && (
                   <div className="md:col-span-2">
                     {selectedDaysCount < requiredVisitsPerWeek && startDate && (
-                      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
+                      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded flex items-start gap-3">
+                        <Icons.alertTriangle className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
                         <p className="text-sm text-yellow-700">
-                          ⚠️ Please select all {requiredVisitsPerWeek} service days to check mitra availability.
+                          Please select all {requiredVisitsPerWeek} service days to check mitra availability.
                           Currently selected: {selectedDaysCount}/{requiredVisitsPerWeek}
                         </p>
                       </div>
                     )}
 
                     {selectedDaysCount === requiredVisitsPerWeek && !startDate && (
-                      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
+                      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded flex items-start gap-3">
+                        <Icons.alertTriangle className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
                         <p className="text-sm text-yellow-700">
-                          ⚠️ Please select start date to check mitra availability
+                          Please select start date to check mitra availability
                         </p>
                       </div>
                     )}
@@ -1234,7 +1327,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                 {/* Mitra selection - Only show after days are selected */}
                 {selectedPackageId && selectedDaysCount === requiredVisitsPerWeek && startDate && (
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
                       Assigned Mitra (Optional)
                     </label>
                     <select
@@ -1264,17 +1357,50 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                       </div>
                     )}
                     {!loadingMitras && mitras.length > 0 && (
-                      <div className="text-xs text-green-500 mt-1">
-                        ✅ {mitras.length} mitra(s) available for all scheduled visits
+                      <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
+                        <Icons.check className="w-4 h-4" />
+                        {mitras.length} mitra(s) available for all scheduled visits
                       </div>
                     )}
                   </div>
                 )}
 
+                {/* Promotion / Discount */}
+                <div className="md:col-span-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+                        Kode Promo <span className="text-gray-400 font-normal text-xs">(opsional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value)}
+                        placeholder="Contoh: REG990"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+                        Diskon / Promotion (Rp) <span className="text-gray-400 font-normal text-xs">(opsional)</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={promoDiscount}
+                        onChange={(e) => setPromoDiscount(e.target.value)}
+                        placeholder="0"
+                        min={0}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {selectedPackage && selectedDaysCount > 0 && (
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      📅 Visit Preview
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+                      <Icons.calendar className="w-4 h-4" />
+                      Visit Preview
                     </label>
                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-indigo-500 rounded-md p-4">
                       <div className="grid grid-cols-3 gap-4 text-sm">
@@ -1545,18 +1671,25 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                         Status
                       </label>
                       <select
-                        defaultValue={trial.overallStatus || 'Not Converted'}
+                        value={trial.overallStatus || 'Trial Scheduled'}
                         className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
                         onChange={(e) => {
-                          handleUpdateTrial({
-                            id: trial.id,
-                            subscription_status: e.target.value as TrialStatus
-                          });
+                          const newStatus = e.target.value as TrialStatus;
+                          if (newStatus === 'Cancelled' && trialVisits.some(v => v.status !== 'Cancelled')) {
+                            // Show bulk cancel popup before saving status
+                            setPendingCancelStatus('Cancelled');
+                            setSelectedVisitForCancel(null);
+                            setCancelReason('');
+                            setShowCancelVisitModal(true);
+                          } else {
+                            setTrial(prev => prev ? { ...prev, overallStatus: newStatus } : null);
+                            handleUpdateTrial({ id: trial.id, subscription_status: newStatus });
+                          }
                         }}
                       >
-                        <option value="Not Converted">Not Converted</option>
-                        <option value="Stalling/Postpone">Stalling/Postpone</option>
+                        <option value="Trial Scheduled">Trial Scheduled</option>
                         <option value="Cancelled">Cancelled</option>
+                        <option value="Not Converted">Not Converted</option>
                       </select>
                     </div>
                   </div>
@@ -1647,53 +1780,20 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                       <div className="space-y-3">
                         {trialVisits.map((visit, index) => {
                           const mitraChanged = visit.originalMitraId && visit.actualMitraId && visit.originalMitraId !== visit.actualMitraId;
-                          const isLocked = visit.status === 'Done';
+                          const isCancelled = visit.status === 'Cancelled';
                           const isEditingThisDate = editingDateVisitId === visit.id;
 
                           return (
-                            <div key={visit.id} className="bg-white p-4 rounded border border-gray-200">
+                            <div key={visit.id} className={`p-4 rounded border ${isCancelled ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-200'}`}>
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                   <div className="flex items-center space-x-3 mb-2">
                                     <span className="text-sm font-medium text-gray-900">
                                       Visit #{visit.visitNumber}
                                     </span>
-                                    {!isLocked && isEditingThisDate ? (
-                                      <div className="flex items-center space-x-2">
-                                        <input
-                                          type="date"
-                                          value={editingDateValue}
-                                          onChange={(e) => setEditingDateValue(e.target.value)}
-                                          className="text-sm border border-gray-300 rounded px-2 py-1"
-                                        />
-                                        <button
-                                          onClick={() => saveEditedDate(visit.id)}
-                                          className="text-xs text-green-600 hover:text-green-800"
-                                        >
-                                          ✓ Save
-                                        </button>
-                                        <button
-                                          onClick={cancelEditingDate}
-                                          className="text-xs text-red-600 hover:text-red-800"
-                                        >
-                                          ✗ Cancel
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <>
-                                        <span className="text-sm text-gray-600">
-                                          {visit.scheduledDate} ({visit.scheduledDay})
-                                        </span>
-                                        {!isLocked && (
-                                          <button
-                                            onClick={() => startEditingDate(visit)}
-                                            className="text-xs text-indigo-600 hover:text-indigo-800"
-                                          >
-                                            ✏️ Edit
-                                          </button>
-                                        )}
-                                      </>
-                                    )}
+                                    <span className="text-sm text-gray-600">
+                                      {visit.scheduledDate} ({visit.scheduledDay})
+                                    </span>
                                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${visit.status === 'Done'
                                       ? 'bg-green-100 text-green-800'
                                       : visit.status === 'Cancelled'
@@ -1706,7 +1806,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
 
                                   <div className="space-y-1">
                                     <div className="flex items-center space-x-2 text-sm">
-                                      <span className="text-gray-600">👤 Mitra:</span>
+                                      <span className="text-gray-600 flex items-center gap-1"><Icons.user className="w-3 h-3" /> Mitra:</span>
                                       <span className="font-medium text-gray-900">
                                         {visit.mitraName || 'Not assigned'}
                                       </span>
@@ -1731,44 +1831,16 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                                 </div>
 
                                 <div className="flex flex-col items-end space-y-2 ml-4">
-                                  {!isLocked && (
-                                    <div className="flex items-center space-x-2">
-                                      <button
-                                        onClick={() => openChangeMitraModal(visit)}
-                                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
-                                      >
-                                        Change Mitra
-                                      </button>
-                                      {mitraChanged && (
-                                        <button
-                                          onClick={() => openHistoryModal(visit)}
-                                          className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                                        >
-                                          View History
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
-
                                   <label className="flex items-center space-x-2 cursor-pointer">
                                     <input
                                       type="checkbox"
                                       checked={visit.status === 'Done'}
                                       onChange={(e) => updateVisitAttendance(visit.id, e.target.checked)}
-                                      disabled={isLocked}
+                                      disabled={isCancelled}
                                       className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-50"
                                     />
                                     <span className="text-sm text-gray-700">Attended</span>
                                   </label>
-
-                                  {isLocked && mitraChanged && (
-                                    <button
-                                      onClick={() => openHistoryModal(visit)}
-                                      className="text-xs text-gray-600 hover:text-gray-800"
-                                    >
-                                      📋 View Change History
-                                    </button>
-                                  )}
                                 </div>
                               </div>
                             </div>
@@ -1798,34 +1870,32 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
               /* View Mode - Read Only */
               <>
                 {/* Basic Information */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
-                    Basic Information
-                  </h3>
+                <div className="mb-8">
+                  <h3 className="text-xl font-bold text-gray-900 mb-6">Basic Information</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Customer Name</label>
-                      <div className="mt-1 text-sm text-gray-900">{trial.customerName}</div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Customer Name</label>
+                      <div className="text-base font-medium text-gray-900">{trial.customerName}</div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Acquisition</label>
-                      <div className="mt-1">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${acquisitionColors[trial.acquisition]}`}>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Acquisition</label>
+                      <div>
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${acquisitionColors[trial.acquisition]}`}>
                           {trial.acquisition}
                         </span>
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Contact</label>
-                      <div className="mt-1 text-sm text-gray-900">{trial.contact || '-'}</div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Contact</label>
+                      <div className="text-sm text-gray-900 font-mono">{trial.contact || '—'}</div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Residential Type</label>
-                      <div className="mt-1">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${residentialColors[trial.residentialType]}`}>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Residential Type</label>
+                      <div>
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${residentialColors[trial.residentialType]}`}>
                           {trial.residentialType}
                         </span>
                       </div>
@@ -1834,81 +1904,77 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                 </div>
 
                 {/* Location Information */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
-                    Location Information
-                  </h3>
+                <div className="mb-8">
+                  <h3 className="text-xl font-bold text-gray-900 mb-6">Location Information</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700">Address</label>
-                      <div className="mt-1 text-sm text-gray-900">{trial.address || '-'}</div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Address</label>
+                      <div className="text-sm text-gray-900 leading-relaxed">{trial.address || '—'}</div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Village</label>
-                      <div className="mt-1 text-sm text-gray-900">{trial.village || '-'}</div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Village</label>
+                      <div className="text-sm text-gray-900">{trial.village || '—'}</div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">District</label>
-                      <div className="mt-1 text-sm text-gray-900">{trial.district || '-'}</div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">District</label>
+                      <div className="text-sm text-gray-900">{trial.district || '—'}</div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">City</label>
-                      <div className="mt-1 text-sm text-gray-900">{trial.city || '-'}</div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">City</label>
+                      <div className="text-sm text-gray-900">{trial.city || '—'}</div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Postal Code</label>
-                      <div className="mt-1 text-sm text-gray-900">{trial.postalCode || '-'}</div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Postal Code</label>
+                      <div className="text-sm text-gray-900">{trial.postalCode || '—'}</div>
                     </div>
                   </div>
                 </div>
 
                 {/* Subscription Information */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
-                    Subscription Information
-                  </h3>
+                <div className="mb-8">
+                  <h3 className="text-xl font-bold text-gray-900 mb-6">Subscription Information</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {trial.ltv !== undefined && trial.ltv > 0 && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">LTV (months)</label>
-                        <div className="mt-1 text-sm font-medium text-blue-600">{trial.ltv} months</div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">LTV (months)</label>
+                        <div className="text-base font-semibold text-indigo-600">{trial.ltv} months</div>
                       </div>
                     )}
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Status Customer</label>
-                      <div className="mt-1">
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Status</label>
+                      <div>
                         {trial.overallStatus ? (
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColors[trial.overallStatus]}`}>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[trial.overallStatus]}`}>
                             {trial.overallStatus}
                           </span>
                         ) : (
-                          <span className="text-sm text-gray-500">-</span>
+                          <span className="text-sm text-gray-400">—</span>
                         )}
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Subscription Package</label>
-                      <div className="mt-1 text-sm text-gray-900">
-                        {trial.subscriptionPackage || '-'}
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Subscription Package</label>
+                      <div className="text-sm text-gray-900 leading-relaxed">
+                        {trial.subscriptionPackage || '—'}
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Subscription Start Date</label>
-                      <div className="mt-1 text-sm text-gray-900">
-                        {(trial as any).subscriptionStartDate || '-'}
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Start Date</label>
+                      <div className="text-sm text-gray-900 font-mono">
+                        {(trial as any).subscriptionStartDate || '—'}
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Monthly Fee</label>
-                      <div className="mt-1 text-sm text-gray-900">
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Monthly Fee</label>
+                      <div className="text-base font-semibold text-indigo-600">
                         Rp {(trial as any).monthlyFee?.toLocaleString('id-ID') || '0'}
                       </div>
                     </div>
@@ -1916,17 +1982,15 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                 </div>
 
                 {/* Mitra Information */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
-                    Mitra Information
-                  </h3>
+                <div className="mb-8">
+                  <h3 className="text-xl font-bold text-gray-900 mb-6">Mitra Information</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Default Assigned Mitra</label>
-                      <div className="mt-1 text-sm text-gray-900">
-                        {trial.assignedCleaner || 'No mitra assigned'}
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Assigned Mitra</label>
+                      <div className="text-base font-medium text-gray-900">
+                        {trial.assignedCleaner || '—'}
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">Initial mitra for visit schedule. Can be changed per visit.</p>
+                      <p className="text-xs text-gray-400 mt-2">Initial mitra for visit schedule. Can be changed per visit.</p>
                     </div>
                   </div>
 
@@ -1962,7 +2026,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
 
                                     <div className="space-y-1">
                                       <div className="flex items-center space-x-2 text-sm">
-                                        <span className="text-gray-600">👤 Mitra:</span>
+                                        <span className="text-gray-600 flex items-center gap-1"><Icons.user className="w-3 h-3" /> Mitra:</span>
                                         <span className="font-medium text-gray-900">
                                           {visit.mitraName || 'Not assigned'}
                                         </span>
@@ -2135,6 +2199,62 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
       )}
 
       {/* History Viewer Modal */}
+      {/* Cancel Visit Modal */}
+      {showCancelVisitModal && (selectedVisitForCancel || pendingCancelStatus === 'Cancelled') && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                {selectedVisitForCancel
+                  ? `Cancel Visit #${selectedVisitForCancel.visitNumber}`
+                  : `Cancel All Visits (${trialVisits.filter(v => v.status !== 'Cancelled').length} visits)`}
+              </h3>
+              {selectedVisitForCancel ? (
+                <p className="text-sm text-gray-600 mb-4">
+                  {selectedVisitForCancel.scheduledDate} ({selectedVisitForCancel.scheduledDay})
+                </p>
+              ) : (
+                <p className="text-sm text-gray-600 mb-4">
+                  Trial status is being set to <strong>Cancelled</strong>. All active visits will be cancelled.
+                </p>
+              )}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cancellation Reason *
+                </label>
+                <textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Enter reason for cancellation..."
+                  rows={3}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-red-500 focus:border-red-500"
+                />
+              </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowCancelVisitModal(false);
+                    setSelectedVisitForCancel(null);
+                    setPendingCancelStatus(null);
+                    setCancelReason('');
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={saveCancelVisit}
+                  disabled={loadingCancelVisit || !cancelReason.trim()}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
+                >
+                  {loadingCancelVisit ? 'Cancelling...' : 'Cancel Visit'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showHistoryModal && selectedVisitForHistory && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">

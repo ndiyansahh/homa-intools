@@ -23,12 +23,14 @@ interface CreateCustomerRequest {
   qtyPackage: number;
   subscriptionPackage: string;
   subscriptionPackageId: string;
-  selectedDays: { day1?: string; day2?: string; day3?: string };
+  selectedDays: string[]; // Array of day names (e.g., ['Monday', 'Wednesday', 'Friday'])
   ltv: number;
   firstDateSubscription: string;
   status: string;
   cleaner1: string;
   notes: string;
+  promoCode?: string;
+  promoDiscount?: string;
 }
 
 interface RegionOption {
@@ -82,12 +84,14 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
     qtyPackage: 1,
     subscriptionPackage: '',
     subscriptionPackageId: '',
-    selectedDays: { day1: '', day2: '', day3: '' },
+    selectedDays: [],
     ltv: 0,
     firstDateSubscription: '',
     status: 'Active',
     cleaner1: '',
     notes: '',
+    promoCode: '',
+    promoDiscount: '',
   });
 
   // Region state
@@ -276,42 +280,43 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
   };
 
   // Generate visit preview based on selected days, date, and quantity
-  const generateVisitPreview = (startDate: string, selectedDays: { day1?: string; day2?: string; day3?: string }) => {
-    if (!startDate || (!selectedDays.day1 && !selectedDays.day2 && !selectedDays.day3) || !formData.qtyPackage) {
+  // MUST match API logic at src/app/api/customers/route.ts:323-344
+  const generateVisitPreview = (startDate: string, selectedDays: string[]) => {
+    if (!startDate || selectedDays.length === 0 || !formData.qtyPackage) {
       setPreviewVisits([]);
       return;
     }
 
     const visits: VisitPreview[] = [];
     const start = new Date(startDate);
-    const selectedDaysList = [selectedDays.day1, selectedDays.day2, selectedDays.day3].filter(Boolean);
 
-    // Calculate total weeks based on quantity (1 qty = 1 month = ~4 weeks)
-    const totalWeeks = formData.qtyPackage * 4;
+    // Calculate end date: startDate + qtyPackage months (calendar months, not 4-week periods)
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + formData.qtyPackage);
+    // Subtract 1 day to make it inclusive (same as API logic)
+    end.setDate(end.getDate() - 1);
 
-    // Generate visits for the entire subscription period
+    // selectedDays is already an array of day names
+    const chosenDays = selectedDays.filter(Boolean);
+
+    // Iterate day-by-day from start to end (matching API logic exactly)
+    const currentDate = new Date(start);
     let visitNumber = 1;
-    for (let week = 0; week < totalWeeks; week++) {
-      for (const dayName of selectedDaysList) {
-        if (dayName) {
-          const dayIndex = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].indexOf(dayName);
-          const visitDate = new Date(start);
-          visitDate.setDate(start.getDate() + (week * 7) + ((dayIndex - start.getDay() + 7) % 7));
 
-          // Only include future dates
-          if (visitDate >= start) {
-            visits.push({
-              visitNumber,
-              scheduledDate: visitDate.toLocaleDateString('id-ID'),
-              dayOfWeek: dayName
-            });
-            visitNumber++;
-          }
-        }
+    while (currentDate <= end) {
+      const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
+      if (chosenDays.includes(dayName)) {
+        visits.push({
+          visitNumber,
+          scheduledDate: currentDate.toLocaleDateString('id-ID'),
+          dayOfWeek: dayName
+        });
+        visitNumber++;
       }
+      currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    setPreviewVisits(visits); // Show all visits for the subscription period
+    setPreviewVisits(visits);
   };
 
   // Handle package selection
@@ -322,15 +327,20 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
         ...prev,
         subscriptionPackageId: packageId,
         subscriptionPackage: selectedPackage.packageName,
-        selectedDays: { day1: '', day2: '', day3: '' } // Reset days when package changes
+        selectedDays: [] // Reset days when package changes
       }));
       setPreviewVisits([]); // Clear preview
     }
   };
 
   // Handle day selection
-  const handleDayChange = (dayKey: 'day1' | 'day2' | 'day3', value: string) => {
-    const newSelectedDays = { ...formData.selectedDays, [dayKey]: value };
+  const handleDayChange = (index: number, value: string) => {
+    const newSelectedDays = [...formData.selectedDays];
+    if (value) {
+      newSelectedDays[index] = value;
+    } else {
+      newSelectedDays.splice(index, 1);
+    }
     setFormData(prev => ({ ...prev, selectedDays: newSelectedDays }));
 
     // Regenerate preview if we have a start date
@@ -381,7 +391,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
     }));
 
     // Regenerate preview if we have selected days
-    if (formData.selectedDays.day1 || formData.selectedDays.day2 || formData.selectedDays.day3) {
+    if (formData.selectedDays.length > 0) {
       generateVisitPreview(date, formData.selectedDays);
     }
   };
@@ -396,14 +406,14 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
     }));
 
     // Regenerate preview if we have selected days and date
-    if ((formData.selectedDays.day1 || formData.selectedDays.day2 || formData.selectedDays.day3) && formData.firstDateSubscription) {
+    if (formData.selectedDays.length > 0 && formData.firstDateSubscription) {
       generateVisitPreview(formData.firstDateSubscription, formData.selectedDays);
     }
   };
 
   // Check mitra availability for scheduled visits
   const checkMitraAvailability = async () => {
-    if (previewVisits.length === 0 || !formData.firstDateSubscription || !formData.selectedDays) {
+    if (previewVisits.length === 0 || !formData.firstDateSubscription || formData.selectedDays.length === 0) {
       setAvailableMitras([]);
       setMitraAvailabilityMessage('');
       return;
@@ -414,8 +424,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
       setMitraAvailabilityMessage('Checking mitra availability...');
 
       // Get the selected days pattern
-      const selectedDaysList = [formData.selectedDays.day1, formData.selectedDays.day2, formData.selectedDays.day3]
-        .filter(Boolean) as string[];
+      const selectedDaysList = formData.selectedDays.filter(Boolean);
 
       if (selectedDaysList.length === 0) {
         setAvailableMitras([]);
@@ -503,8 +512,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
 
   const selectedPackage = getSelectedPackage();
   const requiredVisitsPerWeek = selectedPackage?.visitsPerWeek || 0;
-  const selectedDaysCount = [formData.selectedDays.day1, formData.selectedDays.day2, formData.selectedDays.day3]
-    .filter(Boolean).length;
+  const selectedDaysCount = formData.selectedDays.length;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -551,11 +559,18 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
       const selectedPackage = subscriptionPackages.find(pkg => pkg.id === formData.subscriptionPackageId);
       const monthlyFee = selectedPackage ? selectedPackage.priceNumeric * formData.qtyPackage : 0;
 
+      // Calculate subscription end date based on qtyPackage months
+      const startDate = new Date(formData.firstDateSubscription);
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + formData.qtyPackage);
+      endDate.setDate(endDate.getDate() - 1); // Make it inclusive
+
       // Convert date format untuk API
       const requestData = {
         ...formData,
         firstDateSubscription: convertFromDateInputFormat(formData.firstDateSubscription),
         subscriptionStart: convertFromDateInputFormat(formData.firstDateSubscription),
+        subscriptionEnd: convertFromDateInputFormat(endDate.toISOString().split('T')[0]),
         subscriptionPackageId: formData.subscriptionPackageId,
         monthlyFee: monthlyFee,
       };
@@ -598,12 +613,14 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
       qtyPackage: 1,
       subscriptionPackage: '',
       subscriptionPackageId: '',
-      selectedDays: { day1: '', day2: '', day3: '' },
+      selectedDays: [],
       ltv: 0,
       firstDateSubscription: '',
       status: 'Active',
       cleaner1: '',
       notes: '',
+      promoCode: '',
+      promoDiscount: '',
     });
     setDistricts([]);
     setVillages([]);
@@ -711,7 +728,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                   placeholder="1"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Duration: {formData.qtyPackage} month(s) = {formData.qtyPackage * 4} weeks
+                  Duration: {formData.qtyPackage} calendar month(s)
                 </p>
               </div>
             </div>
@@ -855,23 +872,20 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     2. Select Visit Days ({selectedDaysCount}/{requiredVisitsPerWeek} selected) *
                   </label>
-                  <div className="grid grid-cols-3 gap-4">
-                    {[1, 2, 3].slice(0, requiredVisitsPerWeek).map((dayNum) => {
-                      const dayKey = `day${dayNum}` as 'day1' | 'day2' | 'day3';
-                      const currentValue = formData.selectedDays[dayKey] || '';
-                      const isDisabled = dayNum > requiredVisitsPerWeek;
+                  <div className="grid grid-cols-4 gap-3">
+                    {Array.from({ length: requiredVisitsPerWeek }, (_, i) => i).map((index) => {
+                      const currentValue = formData.selectedDays[index] || '';
 
                       return (
-                        <div key={dayKey}>
+                        <div key={`day-${index}`}>
                           <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Day {dayNum} {dayNum <= requiredVisitsPerWeek ? '*' : ''}
+                            Day {index + 1} *
                           </label>
                           <select
                             value={currentValue}
-                            onChange={(e) => handleDayChange(dayKey, e.target.value)}
+                            onChange={(e) => handleDayChange(index, e.target.value)}
                             className="input-field"
-                            required={dayNum <= requiredVisitsPerWeek}
-                            disabled={isDisabled}
+                            required
                           >
                             <option value="">Select day...</option>
                             {dayOptions.map((day) => (
@@ -926,7 +940,7 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                   <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                     <div className="flex justify-between items-center mb-3 text-sm">
                       <span className="font-medium text-purple-900">
-                        Subscription Duration: {formData.qtyPackage} month(s) = {formData.qtyPackage * 4} weeks
+                        Subscription Duration: {formData.qtyPackage} calendar month(s)
                       </span>
                       <span className="text-purple-700">
                         Total Visits: {previewVisits.length}
@@ -1095,6 +1109,35 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                 placeholder="Additional notes or special requirements..."
                 rows={4}
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Kode Promo <span className="text-xs text-gray-400">(opsional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.promoCode || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, promoCode: e.target.value }))}
+                  className="input-field"
+                  placeholder="Masukkan kode promo"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Diskon / Promotion (Rp) <span className="text-xs text-gray-400">(opsional)</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.promoDiscount ?? ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, promoDiscount: e.target.value }))}
+                  className="input-field"
+                  placeholder="0"
+                />
+              </div>
             </div>
           </div>
 
