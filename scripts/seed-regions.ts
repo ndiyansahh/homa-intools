@@ -706,9 +706,8 @@ function cleanCityName(name: string): string {
     .replace(/^KABUPATEN ADMINISTRASI\s*/i, '')
     .replace(/^KOTA\s*/i, '')
     .trim();
-  // Apply title case
-  const titleCase = cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase()
-    .replace(/\b\w/g, c => c.toUpperCase());
+  // Apply title case: capitalize first letter of each word
+  const titleCase = cleaned.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
   return CITY_NAME_FIXES[titleCase] ?? titleCase;
 }
 
