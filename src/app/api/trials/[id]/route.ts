@@ -361,6 +361,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams): Promis
 
     const body = await request.json();
     const {
+      customer_name,
       start_date,
       end_date,
       assigned_mitra_id,
@@ -389,6 +390,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams): Promis
       // Prepare update data
       const updateData: any = {};
       
+      if (customer_name !== undefined) updateData.customerName = customer_name;
       if (start_date !== undefined) updateData.trialStartDate = start_date;
       if (end_date !== undefined) updateData.trialEndDate = end_date;
       if (assigned_mitra_id !== undefined) updateData.assignedMitraId = assigned_mitra_id;
