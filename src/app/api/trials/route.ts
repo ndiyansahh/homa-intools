@@ -370,6 +370,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       total = countResult[0]?.count || 0;
 
       // Get trial customers with LEFT JOIN to mitraDB for cleaner information
+      // Fetch all matching records (no limit) when post-fetch filters (acquisition/residentialType/cleaner) are active
+      const needsPostFilter = !!(acquisition || residentialType || cleaner);
       const trialCustomers = await db
         .select({
           id: customerDB.id,
@@ -391,8 +393,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         .leftJoin(mitraDB, eq(customerDB.assignedMitraId, mitraDB.id))
         .where(whereClause)
         .orderBy(desc(customerDB.createdAt))
-        .limit(limit)
-        .offset(offset);
+        .limit(needsPostFilter ? 1000 : limit)
+        .offset(needsPostFilter ? 0 : offset);
 
       console.log('Drizzle query successful, found', trialCustomers.length, 'results');
 
@@ -459,6 +461,25 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           isDeleted: customer.isDeleted || false,
         };
       });
+
+      // Post-fetch filtering for fields derived after DB query
+      if (acquisition) {
+        trials = trials.filter(t => t.acquisition === acquisition);
+      }
+      if (residentialType) {
+        trials = trials.filter(t => t.residentialType === residentialType);
+      }
+      if (cleaner) {
+        trials = trials.filter(t =>
+          t.assignedCleaners.some(c => c.toLowerCase().includes(cleaner.toLowerCase()))
+        );
+      }
+
+      // If post-fetch filters were applied, recalculate total and paginate manually
+      if (needsPostFilter) {
+        total = trials.length;
+        trials = trials.slice(offset, offset + limit);
+      }
 
     } catch (dbError) {
       console.error('Database error during trials fetch:', dbError);
