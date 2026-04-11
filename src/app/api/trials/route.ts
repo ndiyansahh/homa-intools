@@ -326,8 +326,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       // Show all trial customers (Trial Scheduled, Not Converted, Cancelled, and legacy Trial)
       if (status) {
-        // If filtering by specific status, match exactly
-        conditions.push(eq(customerDB.subscriptionStatus, status));
+        // If filtering by Trial Scheduled, also include legacy 'Trial' status
+        if (status === 'Trial Scheduled') {
+          conditions.push(or(
+            eq(customerDB.subscriptionStatus, 'Trial Scheduled'),
+            eq(customerDB.subscriptionStatus, 'Trial')
+          ));
+        } else {
+          conditions.push(eq(customerDB.subscriptionStatus, status));
+        }
       } else {
         // Default: show all trial statuses
         conditions.push(
