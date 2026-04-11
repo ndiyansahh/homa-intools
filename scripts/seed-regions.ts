@@ -692,6 +692,204 @@ const POSTAL_CODE_MAP: Record<string, string> = {
   'DEPOK|Cipayung|Ratujaya': '16437',
   'DEPOK|Cipayung|Bojong Pondok Terong': '16437',
   'DEPOK|Cipayung|Pondok Jaya': '16437',
+  // DEPOK - Bojongsari (missing)
+  'DEPOK|Bojongsari|Duren Seribu': '16516',
+  'DEPOK|Bojongsari|Bojongsari': '16516',
+  'DEPOK|Bojongsari|Duren Mekar': '16516',
+  // DEPOK - Cilodong (missing)
+  'DEPOK|Cilodong|Sukamaju': '16414',
+  // DEPOK - Cimanggis (missing)
+  'DEPOK|Cimanggis|Cisalak Pasar': '16953',
+  'DEPOK|Cimanggis|Pasir Gunung Selatan': '16953',
+  // DEPOK - Cipayung (missing)
+  'DEPOK|Cipayung|Ratu Jaya': '16437',
+  // DEPOK - Sawangan (missing)
+  'DEPOK|Sawangan|Cinangka': '16519',
+  'DEPOK|Sawangan|Bedahan': '16519',
+  // DEPOK - Sukmajaya (missing)
+  'DEPOK|Sukmajaya|Tirtajaya': '16412',
+  'DEPOK|Sukmajaya|Cisalak': '16412',
+  // DEPOK - Tapos (missing)
+  'DEPOK|Tapos|Sukamaju Baru': '16458',
+  'DEPOK|Tapos|Leuwinanggung': '16456',
+  'DEPOK|Tapos|Cimpaeun': '16459',
+  // BEKASI - Bantargebang
+  'BEKASI|Bantargebang|Ciketingudik': '17151',
+  'BEKASI|Bantargebang|Sumurbatu': '17151',
+  // BEKASI - Bekasi Barat
+  'BEKASI|Bekasi Barat|Bintarajaya': '17134',
+  // BEKASI - Bekasi Selatan
+  'BEKASI|Bekasi Selatan|Kayuringinjaya': '17144',
+  'BEKASI|Bekasi Selatan|Jakamulya': '17141',
+  'BEKASI|Bekasi Selatan|Jakasetia': '17147',
+  'BEKASI|Bekasi Selatan|Margajaya': '17142',
+  'BEKASI|Bekasi Selatan|Pekayonjaya': '17145',
+  // BEKASI - Bekasi Timur
+  'BEKASI|Bekasi Timur|Arenjaya': '17111',
+  'BEKASI|Bekasi Timur|Bekasijaya': '17112',
+  'BEKASI|Bekasi Timur|Durenjaya': '17113',
+  // BEKASI - Bekasi Utara
+  'BEKASI|Bekasi Utara|Harapanjaya': '17121',
+  'BEKASI|Bekasi Utara|Margamulya': '17122',
+  'BEKASI|Bekasi Utara|Harapanbaru': '17123',
+  // BEKASI - Jatiasih
+  'BEKASI|Jatiasih|Jatirasa': '17424',
+  'BEKASI|Jatiasih|Jatimekar': '17422',
+  // BEKASI - Jatisampurna
+  'BEKASI|Jatisampurna|Jatiraden': '17433',
+  'BEKASI|Jatisampurna|Jatiranggon': '17434',
+  'BEKASI|Jatisampurna|Jatirangga': '17432',
+  // BEKASI - Medansatria
+  'BEKASI|Medansatria|Medansatria': '17132',
+  'BEKASI|Medansatria|Harapanmulya': '17131',
+  // BEKASI - Mustikajaya
+  'BEKASI|Mustikajaya|Mustikasari': '17158',
+  'BEKASI|Mustikajaya|Mustikajaya': '17157',
+  'BEKASI|Mustikajaya|Padurenan': '17156',
+  // BEKASI - Pondokgede
+  'BEKASI|Pondokgede|Jaticempaka': '17411',
+  // BEKASI - Rawalumbu
+  'BEKASI|Rawalumbu|Sepanjangjaya': '17116',
+  'BEKASI|Rawalumbu|Bojongmenteng': '17114',
+  // BOGOR - Bogor Barat (missing)
+  'BOGOR|Bogor Barat|Situ Gede': '16680',
+  'BOGOR|Bogor Barat|Bubulak': '16680',
+  'BOGOR|Bogor Barat|Marga jaya': '16680',
+  'BOGOR|Bogor Barat|Balumbang Jaya': '16680',
+  'BOGOR|Bogor Barat|Curug Mekar': '16680',
+  'BOGOR|Bogor Barat|Pasir Mulya': '16680',
+  // BOGOR - Bogor Selatan (missing)
+  'BOGOR|Bogor Selatan|Muara Sari': '16135',
+  'BOGOR|Bogor Selatan|Lawanggintung': '16133',
+  'BOGOR|Bogor Selatan|Rangga Mekar': '16135',
+  'BOGOR|Bogor Selatan|Mulya Harja': '16132',
+  'BOGOR|Bogor Selatan|Bojong Kerta': '16137',
+  'BOGOR|Bogor Selatan|Kertamaya': '16136',
+  'BOGOR|Bogor Selatan|Cipaku': '16134',
+  'BOGOR|Bogor Selatan|Batu Tulis': '16133',
+  // BOGOR - Bogor Tengah (missing)
+  'BOGOR|Bogor Tengah|Pabaton': '16121',
+  // BOGOR - Bogor Timur (missing)
+  'BOGOR|Bogor Timur|Baranangsiang': '16143',
+  // BOGOR - Bogor Utara (missing)
+  'BOGOR|Bogor Utara|Tegal Gundil': '16152',
+  'BOGOR|Bogor Utara|Ciparigi': '16154',
+  'BOGOR|Bogor Utara|Kedung Halang': '16156',
+  // BOGOR - Tanah Sareal (missing)
+  'BOGOR|Tanah Sareal|Sukadamai': '16161',
+  'BOGOR|Tanah Sareal|Kedung Badak': '16162',
+  'BOGOR|Tanah Sareal|Mekar Wangi': '16168',
+  'BOGOR|Tanah Sareal|Kayu Manis': '16166',
+  // JAKARTA BARAT - Pal Merah (missing)
+  'JAKARTA BARAT|Pal Merah|Jatipulo': '11430',
+  'JAKARTA BARAT|Pal Merah|Kota Bambu Utara': '11420',
+  'JAKARTA BARAT|Pal Merah|Slipi': '11410',
+  'JAKARTA BARAT|Pal Merah|Palmerah': '11480',
+  'JAKARTA BARAT|Pal Merah|Kota Bambu Selatan': '11420',
+  'JAKARTA BARAT|Pal Merah|Kemanggisan': '11480',
+  // JAKARTA BARAT - Tambora (missing)
+  'JAKARTA BARAT|Tambora|Tanah Sereal': '11210',
+  'JAKARTA BARAT|Tambora|Krendang': '11230',
+  // JAKARTA PUSAT - Kemayoran (missing)
+  'JAKARTA PUSAT|Kemayoran|Harapan Mulia': '10640',
+  // JAKARTA SELATAN - Setiabudi (missing)
+  'JAKARTA SELATAN|Setiabudi|Setia Budi': '12910',
+  // JAKARTA TIMUR - Cakung (missing)
+  'JAKARTA TIMUR|Cakung|Jatinegara': '13930',
+  'JAKARTA TIMUR|Cakung|Ujung Menteng': '13960',
+  // JAKARTA TIMUR - Cipayung (missing)
+  'JAKARTA TIMUR|Cipayung|Pondok Ranggon': '13860',
+  // JAKARTA TIMUR - Jatinegara (missing)
+  'JAKARTA TIMUR|Jatinegara|Bidara Cina': '13330',
+  // JAKARTA TIMUR - Kramatjati (missing)
+  'JAKARTA TIMUR|Kramatjati|Tengah': '13540',
+  'JAKARTA TIMUR|Kramatjati|Kramatjati': '13510',
+  'JAKARTA TIMUR|Kramatjati|Cawang': '13630',
+  'JAKARTA TIMUR|Kramatjati|Cililitan': '13640',
+  'JAKARTA TIMUR|Kramatjati|Balekambang': '13520',
+  'JAKARTA TIMUR|Kramatjati|Batu Ampar': '13520',
+  'JAKARTA TIMUR|Kramatjati|Dukuh': '13550',
+  // JAKARTA TIMUR - Makasar (missing)
+  'JAKARTA TIMUR|Makasar|Pinangranti': '13570',
+  // JAKARTA TIMUR - Pasar Rebo (missing)
+  'JAKARTA TIMUR|Pasar Rebo|Pekayon': '13710',
+  // JAKARTA TIMUR - Pulogadung (missing)
+  'JAKARTA TIMUR|Pulogadung|Rawamangun': '13220',
+  'JAKARTA TIMUR|Pulogadung|Jatinegara Kaum': '13240',
+  'JAKARTA TIMUR|Pulogadung|Cipinang': '13240',
+  'JAKARTA TIMUR|Pulogadung|Pisangan Timur': '13230',
+  'JAKARTA TIMUR|Pulogadung|Pulo Gadung': '13210',
+  'JAKARTA TIMUR|Pulogadung|Jati': '13220',
+  'JAKARTA TIMUR|Pulogadung|Kayu Putih': '13210',
+  // JAKARTA UTARA - Cilincing (missing)
+  'JAKARTA UTARA|Cilincing|Kalibaru': '14110',
+  // TANGERANG - Batuceper (missing)
+  'TANGERANG|Batuceper|Poris Gaga Baru': '15121',
+  'TANGERANG|Batuceper|Poris Gaga': '15121',
+  // TANGERANG - Benda (missing)
+  'TANGERANG|Benda|Belendung': '15124',
+  // TANGERANG - Cibodas (missing)
+  'TANGERANG|Cibodas|Cibodas Sari': '15138',
+  'TANGERANG|Cibodas|Cibodas': '15138',
+  'TANGERANG|Cibodas|Cibodas Baru': '15138',
+  'TANGERANG|Cibodas|Panunggangan Barat': '15139',
+  'TANGERANG|Cibodas|Uwung Jaya': '15133',
+  'TANGERANG|Cibodas|Jatiuwung': '15133',
+  // TANGERANG - Ciledug (missing)
+  'TANGERANG|Ciledug|Sudimara Selatan': '15157',
+  'TANGERANG|Ciledug|Sudimara Barat': '15156',
+  'TANGERANG|Ciledug|Sudimara Timur': '15156',
+  'TANGERANG|Ciledug|Sudimara Jaya': '15155',
+  // TANGERANG - Cipondoh (missing)
+  'TANGERANG|Cipondoh|Poris Plawad Indah': '15141',
+  'TANGERANG|Cipondoh|Petir': '15148',
+  'TANGERANG|Cipondoh|Poris Plawad': '15141',
+  'TANGERANG|Cipondoh|Poris Plawad Utara': '15141',
+  // TANGERANG - Jatiuwung (missing)
+  'TANGERANG|Jatiuwung|Jatake': '15137',
+  // TANGERANG - Karang Tengah (missing)
+  'TANGERANG|Karang Tengah|Padurenan': '15159',
+  'TANGERANG|Karang Tengah|Pondok Pucung': '15159',
+  // TANGERANG - Karawaci (missing)
+  'TANGERANG|Karawaci|Marga Sari': '15116',
+  'TANGERANG|Karawaci|Sukajadi': '15116',
+  'TANGERANG|Karawaci|Pasar Baru': '15112',
+  'TANGERANG|Karawaci|Bojong Jaya': '15116',
+  'TANGERANG|Karawaci|Nusa Jaya': '15116',
+  'TANGERANG|Karawaci|Bugel': '15113',
+  // TANGERANG - Larangan (missing)
+  'TANGERANG|Larangan|Cipadu': '15154',
+  'TANGERANG|Larangan|Cipadu Jaya': '15154',
+  'TANGERANG|Larangan|Larangan Indah': '15154',
+  // TANGERANG - Neglasari (missing)
+  'TANGERANG|Neglasari|Mekar Sari': '15129',
+  'TANGERANG|Neglasari|Kedaung Baru': '15129',
+  // TANGERANG - Periuk (missing)
+  'TANGERANG|Periuk|Gebang Raya': '15131',
+  // TANGERANG - Pinang (missing)
+  'TANGERANG|Pinang|Cipete': '15145',
+  'TANGERANG|Pinang|Sudimara Pinang': '15145',
+  'TANGERANG|Pinang|Panunggangan Timur': '15145',
+  'TANGERANG|Pinang|Panunggangan Utara': '15145',
+  'TANGERANG|Pinang|Panunggangan': '15145',
+  // TANGERANG - Tangerang (missing)
+  'TANGERANG|Tangerang|Cikokol': '15117',
+  'TANGERANG|Tangerang|Sukaasih': '15111',
+  // TANGERANG SELATAN - Ciputat (missing)
+  'TANGERANG SELATAN|Ciputat|Serua Indah': '15414',
+  'TANGERANG SELATAN|Ciputat|Sawah Baru': '15413',
+  // TANGERANG SELATAN - Ciputat Timur (missing)
+  'TANGERANG SELATAN|Ciputat Timur|Cireundeu': '15419',
+  // TANGERANG SELATAN - Pondok Aren (missing)
+  'TANGERANG SELATAN|Pondok Aren|Parigi': '15226',
+  'TANGERANG SELATAN|Pondok Aren|Parigi Baru': '15226',
+  'TANGERANG SELATAN|Pondok Aren|Jurangmangu Barat': '15222',
+  'TANGERANG SELATAN|Pondok Aren|Jurangmangu Timur': '15222',
+  'TANGERANG SELATAN|Pondok Aren|Pondok Betung': '15224',
+  // TANGERANG SELATAN - Serpong (missing)
+  'TANGERANG SELATAN|Serpong|Rawabuntu': '15318',
+  // TANGERANG SELATAN - Serpong Utara (missing)
+  'TANGERANG SELATAN|Serpong Utara|Lengkong Karya': '15326',
 };
 
 // Fix typos/truncations in BPS source data
