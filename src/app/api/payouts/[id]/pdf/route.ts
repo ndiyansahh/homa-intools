@@ -211,7 +211,7 @@ export async function GET(
         }
 
         const komisiImbalJasa = Number(payout.basePayout) || 0;
-        const bonusAmount = Number(payout.mitraBonusRate) || 0; // bonus rate dari mitra config
+        const bonusAmount = Number(payout.bonusAmount) || 0;
         const tunjangan = parseTunjangan(payout.notes);
         const tunjanganTotal = tunjangan.uangParkir + tunjangan.kompensasiPromosi + tunjangan.lainnyaAmount;
         const totalPembayaran = komisiImbalJasa + bonusAmount + tunjanganTotal;
