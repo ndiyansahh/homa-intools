@@ -28,6 +28,7 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [showFilterPopup, setShowFilterPopup] = useState(false);
   const filterPopupRef = useRef<HTMLDivElement>(null);
+  const [packageOptions, setPackageOptions] = useState<{ id: string; name: string }[]>([]);
 
   // Invoice preview modal state
   const [previewInvoice, setPreviewInvoice] = useState<{ id: string; number: string; blobUrl?: string } | null>(null);
@@ -77,6 +78,15 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showFilterPopup]);
+
+  useEffect(() => {
+    fetch('/api/subscription-packages')
+      .then(r => r.json())
+      .then(data => {
+        if (data.packages) setPackageOptions(data.packages.map((p: any) => ({ id: p.id, name: p.name })));
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchCustomers = async (isRefresh = false) => {
     try {
@@ -258,13 +268,16 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Subscription Package
                         </label>
-                        <input
-                          type="text"
-                          placeholder="Filter by package..."
+                        <select
                           value={filters.subscriptionPackage || ''}
                           onChange={(e) => setFilters(prev => ({ ...prev, subscriptionPackage: e.target.value || undefined, page: 1 }))}
                           className="input-field w-full"
-                        />
+                        >
+                          <option value="">All Packages</option>
+                          {packageOptions.map(pkg => (
+                            <option key={pkg.id} value={pkg.name}>{pkg.name}</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
 

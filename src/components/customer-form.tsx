@@ -664,7 +664,8 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                   type="text"
                   required
                   value={formData.customerName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, customerName: e.target.value }))}
+                  onChange={(e) => { e.currentTarget.setCustomValidity(''); setFormData(prev => ({ ...prev, customerName: e.target.value })) }}
+                  onInvalid={(e) => e.currentTarget.setCustomValidity('Customer Name is required')}
                   className="input-field"
                   placeholder="Enter customer name"
                 />
@@ -678,7 +679,8 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                   type="text"
                   required
                   value={formData.contact}
-                  onChange={(e) => setFormData(prev => ({ ...prev, contact: e.target.value }))}
+                  onChange={(e) => { e.currentTarget.setCustomValidity(''); setFormData(prev => ({ ...prev, contact: e.target.value })) }}
+                  onInvalid={(e) => e.currentTarget.setCustomValidity('Contact is required')}
                   className="input-field"
                   placeholder="Phone number or email"
                 />
