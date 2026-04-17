@@ -155,7 +155,7 @@ export async function GET(
       status: customerRecord.subscriptionStatus || 'Active',
       cleaner1: primaryMitra?.mitraName || '',
       cleaner2: backupMitra?.mitraName || '',
-      churnTag: customerRecord.churnTag || null,
+      churnTag: customerRecord.churnTag || '',
       churnReason: customerRecord.churnReason || '',
       createdAt: customerRecord.createdAt?.toISOString() || new Date().toISOString(),
       updatedAt: customerRecord.updatedAt?.toISOString() || new Date().toISOString(),
