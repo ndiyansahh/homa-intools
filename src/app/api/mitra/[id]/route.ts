@@ -46,7 +46,6 @@ export async function GET(
           mitraPartnership: mitraDB.mitraPartnership,
           mitraTenure: mitraDB.mitraTenure,
           mitraExitDate: mitraDB.mitraExitDate,
-          mitraBonusCommission: mitraDB.mitraBonusCommission,
           // Legacy fields
           contact: mitraDB.contact,
           address: mitraDB.address,
@@ -59,7 +58,6 @@ export async function GET(
           // New fields
           subscriptionType: mitraDB.subscriptionType,
           monthlyBaseRate: mitraDB.monthlyBaseRate,
-          bonusRate: mitraDB.bonusRate,
         })
         .from(mitraDB)
         .where(
@@ -72,6 +70,22 @@ export async function GET(
 
       if (result.length > 0) {
         const dbMitra = result[0];
+
+        // Calculate tenure in months from joinDate to today (Asia/Jakarta)
+        const calculateTenure = (joinDateStr: string | null | undefined): number => {
+          const raw = joinDateStr || dbMitra.createdAt?.toISOString();
+          if (!raw) return 0;
+          const join = new Date(raw);
+          const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+          return Math.max(0, (now.getFullYear() - join.getFullYear()) * 12 + (now.getMonth() - join.getMonth()));
+        };
+
+        const calculatedTenure = calculateTenure(dbMitra.joinDate);
+
+        // Persist updated tenure to DB if it differs
+        if (calculatedTenure !== (dbMitra.mitraTenure ?? 0)) {
+          await db.update(mitraDB).set({ mitraTenure: calculatedTenure, updatedAt: new Date() }).where(eq(mitraDB.id, id));
+        }
 
         // Convert database result to expected format
         const mitraData: MitraData = {
@@ -101,16 +115,15 @@ export async function GET(
           })(),
           partnershipTypes: dbMitra.mitraPartnership as any || 'Full Time',
           status: dbMitra.status as any || 'ACTIVE',
-          tenure: dbMitra.mitraTenure?.toString() || '0',
+          tenure: calculatedTenure.toString(),
           exitDate: dbMitra.mitraExitDate || undefined,
-          bonus: dbMitra.mitraBonusCommission as any || 'Eligible',
+          bonus: '',
           createdAt: dbMitra.createdAt?.toISOString() || new Date().toISOString(),
           updatedAt: dbMitra.updatedAt?.toISOString() || new Date().toISOString(),
           isDeleted: false,
           // Subscription and rate fields
           subscriptionType: (dbMitra.subscriptionType as any) || 'Regular',
           payoutRate: dbMitra.monthlyBaseRate || '0',
-          bonusRate: dbMitra.bonusRate || '0',
         };
 
         console.log(`✅ Found mitra in database: ${mitraData.name} (${mitraData.mitraCode})`);
@@ -206,6 +219,11 @@ export async function PUT(
       updatedAt: new Date()
     };
 
+    if ((body as any).joinDate) {
+      const jd = (body as any).joinDate;
+      const match = jd.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      updateData.joinDate = match ? `${match[3]}-${match[2]}-${match[1]}` : jd;
+    }
     if (body.mitraName) updateData.mitraName = body.mitraName;
     if (body.mitraNIK) updateData.mitraNIK = body.mitraNIK;
     if (body.mitraGender) updateData.mitraGender = body.mitraGender;
@@ -221,9 +239,8 @@ export async function PUT(
         : body.mitraLocationAssignment;
     }
     if (body.mitraPartnership) updateData.mitraPartnership = body.mitraPartnership;
-    if (body.mitraTenure !== undefined) updateData.mitraTenure = body.mitraTenure;
+    // mitraTenure is auto-calculated from joinDate on GET, skip manual override
     if (body.mitraExitDate) updateData.mitraExitDate = body.mitraExitDate;
-    if (body.mitraBonusCommission) updateData.mitraBonusCommission = body.mitraBonusCommission;
     if (body.status) updateData.status = body.status;
     if (body.address) updateData.address = body.address;
 
@@ -242,19 +259,6 @@ export async function PUT(
         }, { status: 400 });
       }
       updateData.subscriptionType = body.subscriptionType;
-    }
-
-    // Handle bonus rate — only apply if commission is (or will be) Eligible
-    if (body.bonusRate !== undefined) {
-      const bonusCommission = body.mitraBonusCommission || existingMitra[0].mitraBonusCommission;
-      if (bonusCommission !== 'Not Eligible') {
-        updateData.bonusRate = typeof body.bonusRate === 'number' ? body.bonusRate.toString() : body.bonusRate;
-      }
-    }
-
-    // If changing bonus commission to 'Not Eligible', reset bonus rate
-    if (body.mitraBonusCommission === 'Not Eligible') {
-      updateData.bonusRate = '0';
     }
 
     // Handle trial rate per visit

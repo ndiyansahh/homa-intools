@@ -1,14 +1,33 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SessionData } from '@/types/auth';
 import { Icons } from './icons';
 import { useToast } from '@/lib/toast';
+
+interface RenewalPrefill {
+  customerName: string;
+  contact: string;
+  address: string;
+  city: string;
+  district: string;
+  village: string;
+  postalCode: string;
+  subscriptionPackageId: string;
+  selectedDays: string[];
+  startDate: string; // YYYY-MM-DD
+  mitraId: string;
+  mitraName: string;
+  ltv: number;
+}
 
 interface CustomerFormProps {
   session: SessionData;
   onClose: () => void;
   onSuccess: () => void;
+  mode?: 'create' | 'renew';
+  renewalCustomerId?: string;
+  renewalPrefill?: RenewalPrefill;
 }
 
 interface CreateCustomerRequest {
@@ -70,30 +89,57 @@ const convertFromDateInputFormat = (yyyymmdd: string): string => {
   return `${month}/${day}/${year}`;
 };
 
-export default function CustomerForm({ session, onClose, onSuccess }: CustomerFormProps) {
+export default function CustomerForm({ session, onClose, onSuccess, mode = 'create', renewalCustomerId, renewalPrefill }: CustomerFormProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<CreateCustomerRequest>({
-    customerName: '',
-    acquisition: 'HOMA',
-    contact: '',
-    address: '',
-    district: '',
-    city: '',
-    village: '',
-    postalCode: '',
-    residentialType: 'House',
-    qtyPackage: 1,
-    subscriptionPackage: '',
-    subscriptionPackageId: '',
-    selectedDays: [],
-    ltv: 0,
-    firstDateSubscription: '',
-    status: 'Active',
-    cleaner1: '',
-    notes: '',
-    promoCode: '',
-    promoDiscount: '',
+  const isMounted = useRef(false);
+  const [formData, setFormData] = useState<CreateCustomerRequest>(() => {
+    if (mode === 'renew' && renewalPrefill) {
+      return {
+        customerName: renewalPrefill.customerName,
+        acquisition: 'HOMA',
+        contact: renewalPrefill.contact,
+        address: renewalPrefill.address,
+        district: renewalPrefill.district,
+        city: renewalPrefill.city,
+        village: renewalPrefill.village,
+        postalCode: renewalPrefill.postalCode,
+        residentialType: 'House',
+        qtyPackage: 1,
+        subscriptionPackage: '',
+        subscriptionPackageId: renewalPrefill.subscriptionPackageId,
+        selectedDays: renewalPrefill.selectedDays,
+        ltv: renewalPrefill.ltv,
+        firstDateSubscription: renewalPrefill.startDate,
+        status: 'Active',
+        cleaner1: renewalPrefill.mitraName,
+        notes: '',
+        promoCode: '',
+        promoDiscount: '',
+      };
+    }
+    return {
+      customerName: '',
+      acquisition: 'HOMA',
+      contact: '',
+      address: '',
+      district: '',
+      city: '',
+      village: '',
+      postalCode: '',
+      residentialType: 'House',
+      qtyPackage: 1,
+      subscriptionPackage: '',
+      subscriptionPackageId: '',
+      selectedDays: [],
+      ltv: 0,
+      firstDateSubscription: '',
+      status: 'Active',
+      cleaner1: '',
+      notes: '',
+      promoCode: '',
+      promoDiscount: '',
+    };
   });
 
   // Region state
@@ -101,6 +147,9 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
   const [districts, setDistricts] = useState<RegionOption[]>([]);
   const [villages, setVillages] = useState<RegionOption[]>([]);
   const [loadingRegions, setLoadingRegions] = useState(false);
+  const [cityFetchFailed, setCityFetchFailed] = useState(false);
+  const [districtFetchFailed, setDistrictFetchFailed] = useState(false);
+  const [villageFetchFailed, setVillageFetchFailed] = useState(false);
 
   // Subscription packages state
   const [subscriptionPackages, setSubscriptionPackages] = useState<SubscriptionPackage[]>([]);
@@ -130,34 +179,53 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
 
   // Load initial data
   useEffect(() => {
-    fetchCities();
+    fetchCities(mode === 'renew' ? renewalPrefill?.city : undefined);
     fetchSubscriptionPackages();
   }, []);
 
-  // Load districts when city changes
+  // Load districts + villages reactively when city/district change
+  // isMounted guards against firing on initial render (before prefill is applied)
   useEffect(() => {
-    console.log('City changed to:', formData.city);
+    if (!isMounted.current) return;
     if (formData.city && formData.city.trim() !== '') {
-      console.log('Triggering fetchDistricts for:', formData.city);
       fetchDistricts(formData.city);
-      // Reset dependent fields
-      setFormData(prev => ({ ...prev, district: '', village: '', postalCode: '' }));
-      setVillages([]);
+      if (!formData.district) {
+        setFormData(prev => ({ ...prev, district: '', village: '', postalCode: '' }));
+        setVillages([]);
+        setDistrictFetchFailed(false);
+        setVillageFetchFailed(false);
+      }
     } else {
-      console.log('City is empty, clearing districts');
       setDistricts([]);
       setVillages([]);
+      setDistrictFetchFailed(false);
+      setVillageFetchFailed(false);
     }
   }, [formData.city]);
 
-  // Load villages when district changes
   useEffect(() => {
+    if (!isMounted.current) return;
     if (formData.city && formData.district) {
       fetchVillages(formData.city, formData.district);
-      // Reset dependent fields
-      setFormData(prev => ({ ...prev, village: '', postalCode: '' }));
+      if (!formData.village) {
+        setFormData(prev => ({ ...prev, village: '', postalCode: '' }));
+        setVillageFetchFailed(false);
+      }
     }
-  }, [formData.city, formData.district]);
+  }, [formData.district]);
+
+  // After mount: set isMounted so city/district effects fire on user changes
+  // Also pre-load districts & villages for renewal prefill (runs once after mount)
+  useEffect(() => {
+    isMounted.current = true;
+    if (mode === 'renew' && renewalPrefill?.city) {
+      fetchDistricts(renewalPrefill.city, renewalPrefill.district).then(() => {
+        if (renewalPrefill.district) {
+          fetchVillages(renewalPrefill.city!, renewalPrefill.district, renewalPrefill.village);
+        }
+      });
+    }
+  }, []);
 
   // Check mitra availability when visit preview changes
   useEffect(() => {
@@ -166,76 +234,112 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
     }
   }, [previewVisits]);
 
-  const fetchCities = async () => {
+  const fetchCities = async (prefillCity?: string) => {
     try {
       setLoadingRegions(true);
+      setCityFetchFailed(false);
       const response = await fetch('/api/regions/cities');
       if (response.ok) {
         const data = await response.json();
-        setCities(data.data.map((city: any) => ({
+        const mapped = data.data.map((city: any) => ({
           value: typeof city === 'string' ? city : city.name || city.id,
           label: typeof city === 'string' ? city : city.name || city.id
-        })));
+        }));
+        setCities(mapped);
+        if (mapped.length === 0) setCityFetchFailed(true);
+        // In renewal mode, find the matching city option (case-insensitive) and set it
+        if (prefillCity) {
+          const match = mapped.find((c: { value: string }) =>
+            c.value.toLowerCase() === prefillCity.toLowerCase()
+          );
+          if (match) {
+            setFormData(prev => ({ ...prev, city: match.value }));
+          }
+        }
+      } else {
+        setCityFetchFailed(true);
       }
     } catch (error) {
       console.error('Error fetching cities:', error);
+      setCityFetchFailed(true);
     } finally {
       setLoadingRegions(false);
     }
   };
 
-  const fetchDistricts = async (city: string) => {
+  const fetchDistricts = async (city: string, prefillDistrict?: string) => {
     try {
-      console.log('Fetching districts for city:', city);
       setLoadingRegions(true);
+      setDistrictFetchFailed(false);
       const response = await fetch(`/api/regions/districts?city_id=${encodeURIComponent(city)}`);
-
       if (response.ok) {
         const data = await response.json();
-        console.log('Districts API response:', data);
-
-        if (data.success && data.data) {
+        if (data.success && data.data && data.data.length > 0) {
           const mappedDistricts = data.data.map((district: any) => ({
             value: typeof district === 'string' ? district : district.name || district.id,
             label: typeof district === 'string' ? district : district.name || district.id
           }));
-          console.log('Mapped districts:', mappedDistricts);
           setDistricts(mappedDistricts);
+          // Match prefill district case-insensitively
+          if (prefillDistrict) {
+            const match = mappedDistricts.find((d: { value: string }) =>
+              d.value.toLowerCase() === prefillDistrict.toLowerCase()
+            );
+            if (match) {
+              setFormData(prev => ({ ...prev, district: match.value }));
+            }
+          }
         } else {
-          console.error('Invalid districts response structure:', data);
           setDistricts([]);
+          setDistrictFetchFailed(true);
         }
       } else {
-        console.error('Districts API failed:', response.status, response.statusText);
         setDistricts([]);
+        setDistrictFetchFailed(true);
       }
     } catch (error) {
       console.error('Error fetching districts:', error);
       setDistricts([]);
+      setDistrictFetchFailed(true);
     } finally {
       setLoadingRegions(false);
     }
   };
 
-  const fetchVillages = async (city: string, district: string) => {
+  const fetchVillages = async (city: string, district: string, prefillVillage?: string) => {
     try {
       setLoadingRegions(true);
+      setVillageFetchFailed(false);
       const response = await fetch(`/api/regions/villages?district_id=${encodeURIComponent(district)}`);
       if (response.ok) {
         const data = await response.json();
-        if (data.success && data.data) {
-          setVillages(data.data.map((item: any) => ({
+        if (data.success && data.data && data.data.length > 0) {
+          const mappedVillages = data.data.map((item: any) => ({
             value: typeof item === 'string' ? item : (item.village || item.name || item.id),
             label: typeof item === 'string' ? item : (item.village || item.name || item.id),
             postalCode: item.postal_code || item.postalCode || ''
-          })));
+          }));
+          setVillages(mappedVillages);
+          // Match prefill village case-insensitively
+          if (prefillVillage) {
+            const match = mappedVillages.find((v: { value: string }) =>
+              v.value.toLowerCase() === prefillVillage.toLowerCase()
+            );
+            if (match) {
+              setFormData(prev => ({ ...prev, village: match.value, postalCode: match.postalCode || prev.postalCode }));
+            }
+          }
         } else {
           setVillages([]);
+          setVillageFetchFailed(true);
         }
+      } else {
+        setVillageFetchFailed(true);
       }
     } catch (error) {
       console.error('Error fetching villages:', error);
       setVillages([]);
+      setVillageFetchFailed(true);
     } finally {
       setLoadingRegions(false);
     }
@@ -519,6 +623,54 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // --- RENEWAL MODE ---
+    if (mode === 'renew' && renewalCustomerId) {
+      if (!formData.subscriptionPackageId) { toast('warning', 'Please select a subscription package'); return; }
+      if (selectedDaysCount !== requiredVisitsPerWeek) { toast('info', `Please select exactly ${requiredVisitsPerWeek} day(s) for this package`); return; }
+      if (!formData.firstDateSubscription) { toast('warning', 'Please select start date'); return; }
+      if (!formData.cleaner1) { toast('warning', 'Please select a mitra'); return; }
+
+      try {
+        setLoading(true);
+        const selectedMitra = availableMitras.find(m => m.name === formData.cleaner1);
+        const body = {
+          newStartDate: formData.firstDateSubscription,
+          packageId: formData.subscriptionPackageId,
+          mitraId: selectedMitra?.id || renewalPrefill?.mitraId || '',
+          qtyPackage: formData.qtyPackage,
+          dayPattern: {
+            day1: formData.selectedDays[0] || null,
+            day2: formData.selectedDays[1] || null,
+            day3: formData.selectedDays[2] || null,
+          },
+          address: formData.address,
+          city: formData.city,
+          district: formData.district,
+          village: formData.village,
+          postalCode: formData.postalCode,
+        };
+        const res = await fetch(`/api/customers/${renewalCustomerId}/renew`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          toast('success', 'Subscription renewed successfully!');
+          onSuccess();
+          onClose();
+        } else {
+          const err = await res.json();
+          toast('warning', err.message || 'Failed to renew subscription');
+        }
+      } catch (err) {
+        toast('warning', 'Failed to renew subscription. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // --- CREATE MODE ---
     if (!formData.customerName.trim()) {
       toast('warning', 'Please enter customer name');
       return;
@@ -637,7 +789,9 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-xl">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">Add New Customer</h2>
+            <h2 className="text-xl font-semibold text-gray-900">
+              {mode === 'renew' ? `Renew Subscription — ${renewalPrefill?.customerName}` : 'Add New Customer'}
+            </h2>
             <button
               onClick={onClose}
               className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -749,62 +903,97 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   City *
                 </label>
-                <select
-                  value={formData.city}
-                  onChange={(e) => handleCityChange(e.target.value)}
-                  className="input-field"
-                  required
-                  disabled={loadingRegions || cities.length === 0}
-                >
-                  <option value="">Select city...</option>
-                  {cities.map((city, index) => (
-                    <option key={`city-${city.value}-${index}`} value={city.value}>
-                      {city.label}
-                    </option>
-                  ))}
-                </select>
+                {cityFetchFailed ? (
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={(e) => handleCityChange(e.target.value)}
+                    className="input-field"
+                    required
+                    placeholder="Enter city manually"
+                  />
+                ) : (
+                  <select
+                    value={formData.city}
+                    onChange={(e) => handleCityChange(e.target.value)}
+                    className="input-field"
+                    required
+                    disabled={loadingRegions || cities.length === 0}
+                  >
+                    <option value="">Select city...</option>
+                    {cities.map((city, index) => (
+                      <option key={`city-${city.value}-${index}`} value={city.value}>
+                        {city.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 {loadingRegions && <p className="text-xs text-gray-500 mt-1">Loading cities...</p>}
+                {cityFetchFailed && <p className="text-xs text-yellow-600 mt-1">Data wilayah tidak tersedia, input manual</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   District *
                 </label>
-                <select
-                  value={formData.district}
-                  onChange={(e) => handleDistrictChange(e.target.value)}
-                  className="input-field"
-                  required
-                  disabled={loadingRegions || !formData.city || districts.length === 0}
-                >
-                  <option value="">Select district...</option>
-                  {districts.map((district, index) => (
-                    <option key={`district-${district.value}-${index}`} value={district.value}>
-                      {district.label}
-                    </option>
-                  ))}
-                </select>
+                {districtFetchFailed ? (
+                  <input
+                    type="text"
+                    value={formData.district}
+                    onChange={(e) => handleDistrictChange(e.target.value)}
+                    className="input-field"
+                    required
+                    placeholder="Enter district manually"
+                  />
+                ) : (
+                  <select
+                    value={formData.district}
+                    onChange={(e) => handleDistrictChange(e.target.value)}
+                    className="input-field"
+                    required
+                    disabled={loadingRegions || !formData.city || districts.length === 0}
+                  >
+                    <option value="">Select district...</option>
+                    {districts.map((district, index) => (
+                      <option key={`district-${district.value}-${index}`} value={district.value}>
+                        {district.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 {loadingRegions && formData.city && <p className="text-xs text-gray-500 mt-1">Loading districts...</p>}
+                {districtFetchFailed && <p className="text-xs text-yellow-600 mt-1">Data wilayah tidak tersedia, input manual</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Village
                 </label>
-                <select
-                  value={formData.village}
-                  onChange={(e) => handleVillageChange(e.target.value)}
-                  className="input-field"
-                  disabled={loadingRegions || !formData.district || villages.length === 0}
-                >
-                  <option value="">Select village...</option>
-                  {villages.map((village, index) => (
-                    <option key={`${village.value}-${index}`} value={village.value}>
-                      {village.label}
-                    </option>
-                  ))}
-                </select>
+                {villageFetchFailed ? (
+                  <input
+                    type="text"
+                    value={formData.village}
+                    onChange={(e) => setFormData(prev => ({ ...prev, village: e.target.value }))}
+                    className="input-field"
+                    placeholder="Enter village manually"
+                  />
+                ) : (
+                  <select
+                    value={formData.village}
+                    onChange={(e) => handleVillageChange(e.target.value)}
+                    className="input-field"
+                    disabled={loadingRegions || !formData.district || villages.length === 0}
+                  >
+                    <option value="">Select village...</option>
+                    {villages.map((village, index) => (
+                      <option key={`${village.value}-${index}`} value={village.value}>
+                        {village.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 {loadingRegions && formData.district && <p className="text-xs text-gray-500 mt-1">Loading villages...</p>}
+                {villageFetchFailed && <p className="text-xs text-yellow-600 mt-1">Data wilayah tidak tersedia, input manual</p>}
               </div>
 
               <div>
@@ -816,8 +1005,8 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                   value={formData.postalCode}
                   onChange={(e) => setFormData(prev => ({ ...prev, postalCode: e.target.value }))}
                   className="input-field"
-                  placeholder="Auto-filled from village"
-                  readOnly={!!formData.village}
+                  placeholder="Enter postal code"
+                  readOnly={!!formData.village && !villageFetchFailed && !!formData.postalCode}
                 />
               </div>
             </div>
@@ -928,7 +1117,6 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                     value={formData.firstDateSubscription}
                     onChange={(e) => handleDateChange(e.target.value)}
                     className="input-field"
-                    min={new Date().toISOString().split('T')[0]}
                   />
                 </div>
               </div>
@@ -978,12 +1166,24 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                   LTV (Lifetime Value)
                 </label>
                 <div className="mt-1">
-                  <span className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium bg-green-100 text-green-800 border border-green-200">
-                    {formData.ltv} months
-                  </span>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Automatically calculated based on subscription date and quantity
-                  </p>
+                  {mode === 'renew' ? (
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-600">
+                        <span className="font-semibold text-gray-900">{renewalPrefill?.ltv ?? 0} months</span>
+                        <span className="mx-2 text-gray-400">→</span>
+                        <span className="font-semibold text-green-600">{(renewalPrefill?.ltv ?? 0) + 1} months after renewal</span>
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium bg-green-100 text-green-800 border border-green-200">
+                        {formData.ltv} months
+                      </span>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Automatically calculated based on subscription date and quantity
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -998,8 +1198,6 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
                   required
                 >
                   <option value="Active">Active</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
             </div>
@@ -1171,12 +1369,12 @@ export default function CustomerForm({ session, onClose, onSuccess }: CustomerFo
               {loading ? (
                 <>
                   <Icons.spinner className="w-4 h-4 mr-2 animate-spin" />
-                  Creating...
+                  {mode === 'renew' ? 'Renewing...' : 'Creating...'}
                 </>
               ) : (
                 <>
                   <Icons.plus className="w-4 h-4 mr-2" />
-                  Create Customer
+                  {mode === 'renew' ? 'Confirm Renewal' : 'Create Customer'}
                 </>
               )}
             </button>

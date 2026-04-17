@@ -152,8 +152,8 @@ export async function GET(
       status: customerRecord.subscriptionStatus || 'Active',
       cleaner1: primaryMitra?.mitraName || '',
       cleaner2: backupMitra?.mitraName || '',
-      churnTag: (customerRecord.subscriptionStatus === 'Inactive' ? 'External' : 'N/A'), // churnTag field doesn't exist in schema
-      churnReason: customerRecord.customerNotes || '', // churnReason field doesn't exist in schema
+      churnTag: (customerRecord as any).churnTag || null,
+      churnReason: (customerRecord as any).churnReason || '',
       createdAt: customerRecord.createdAt?.toISOString() || new Date().toISOString(),
       updatedAt: customerRecord.updatedAt?.toISOString() || new Date().toISOString(),
       isDeleted: customerRecord.isDeleted || false,
@@ -250,6 +250,8 @@ export async function PATCH(
       if ((body as any).chosenDays) updateData.chosenDays = (body as any).chosenDays;
       if ((body as any).ltv !== undefined) updateData.ltv = Number((body as any).ltv);
       if ((body as any).customerNotes) updateData.customerNotes = (body as any).customerNotes;
+      if ((body as any).churnTag !== undefined) updateData.churnTag = (body as any).churnTag;
+      if ((body as any).churnReason !== undefined) updateData.churnReason = (body as any).churnReason;
 
       // Update customer
       await db

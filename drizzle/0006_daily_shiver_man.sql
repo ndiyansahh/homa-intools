@@ -1,0 +1,1 @@
+ALTER TABLE "invoice_db" ADD COLUMN "invoice_end_date" date;

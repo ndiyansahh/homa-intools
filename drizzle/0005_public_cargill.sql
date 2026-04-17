@@ -1,0 +1,1 @@
+ALTER TABLE "invoice_db" ALTER COLUMN "invoice_subscription" SET DATA TYPE varchar(200);

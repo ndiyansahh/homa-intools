@@ -104,6 +104,14 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
+    // Base conditions without status filter (for accurate status counts)
+    const baseConditions = [
+      or(eq(customerDB.isDeleted, false), sql`${customerDB.isDeleted} IS NULL`),
+      sql`(${customerDB.subscriptionStatus} NOT IN ('Trial', 'Trial Scheduled') OR ${customerDB.subscriptionStatus} IS NULL)`,
+      sql`(${customerDB.subscriptionPackage} != 'Trial' OR ${customerDB.subscriptionPackage} IS NULL)`,
+    ];
+    const baseWhereClause = and(...baseConditions);
+
     // Get total count from database
     const countResult = await db
       .select({ count: count() })
@@ -111,6 +119,17 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
       .where(whereClause);
 
     const total = countResult[0]?.count || 0;
+
+    // Get status counts (always across all non-trial customers, ignoring current status filter)
+    const statusCountResult = await db
+      .select({ status: customerDB.subscriptionStatus, count: count() })
+      .from(customerDB)
+      .where(baseWhereClause)
+      .groupBy(customerDB.subscriptionStatus);
+
+    const activeCount = statusCountResult.filter(r => r.status === 'Active').reduce((s, r) => s + r.count, 0);
+    const churnCount = statusCountResult.filter(r => r.status === 'Churn').reduce((s, r) => s + r.count, 0);
+    const totalAll = statusCountResult.reduce((s, r) => s + r.count, 0);
 
     // Get paginated customers from database with latest invoice
     const result = await db
@@ -182,6 +201,9 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
       page,
       total,
       totalPages,
+      totalAll,
+      activeCount,
+      churnCount,
       message: customers.length === 0 && total === 0 ? 'No customers found' : undefined,
     });
 

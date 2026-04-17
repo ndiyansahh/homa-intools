@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { SessionData } from '@/types/auth';
-import { MitraListItem, MitraResponse, MitraStatus, CreateMitraRequest, MitraFilters, MitraPartnershipType, MitraCityAssignment, MitraGender, MitraBonusCommission, MitraSubscriptionType } from '@/types/mitra';
+import { MitraListItem, MitraResponse, MitraStatus, CreateMitraRequest, MitraFilters, MitraPartnershipType, MitraCityAssignment, MitraGender, MitraSubscriptionType } from '@/types/mitra';
 import { Icons } from './icons';
 import MitraDetailView from './mitra-detail';
 import RateEditModal, { RateEditMitraData } from './rate-edit-modal';
@@ -72,7 +72,6 @@ export default function MitraManagement({ session }: MitraManagementProps) {
     mitraLocationAssignment: [],
     mitraPartnership: 'Full Time' as MitraPartnershipType,
     mitraTenure: 0,
-    mitraBonusCommission: 'Eligible' as MitraBonusCommission,
     subscriptionType: 'Regular' as MitraSubscriptionType,
     payoutRate: 0,
     address: '',
@@ -299,7 +298,6 @@ export default function MitraManagement({ session }: MitraManagementProps) {
             mitraLocationAssignment: [],
             mitraPartnership: 'Full Time' as MitraPartnershipType,
             mitraTenure: 0,
-            mitraBonusCommission: 'Eligible' as MitraBonusCommission,
             subscriptionType: 'Regular' as MitraSubscriptionType,
             payoutRate: 0,
             address: '',
@@ -313,10 +311,8 @@ export default function MitraManagement({ session }: MitraManagementProps) {
             id: createdMitra.id,
             mitraName: createdMitra.mitraName || formData.mitraName,
             mitraCode: createdMitra.mitraCode || '',
-            bonusCommission: (formData.mitraBonusCommission as string) === 'Eligible' ? 'Eligible' : 'Not Eligible',
             trialRatePerVisit: null,
             rateConfigs: [],
-            bonusRate: null,
           });
 
           // Real-time data refresh with indicator
@@ -821,22 +817,6 @@ export default function MitraManagement({ session }: MitraManagementProps) {
                   )}
                 </div>
 
-                {/* Tenure - Free Text */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tenure (months)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.mitraTenure}
-                    onChange={(e) => setFormData(prev => ({ ...prev, mitraTenure: parseInt(e.target.value) || 0 }))}
-                    className="input-field"
-                    placeholder="Enter number of months"
-                    min="0"
-                    step="1"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Enter tenure period in months (can be any number)</p>
-                </div>
               </div>
 
               {/* Address */}

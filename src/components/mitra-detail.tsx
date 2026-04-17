@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MitraData, MitraSubscriptionType, MitraBonusCommission } from '@/types/mitra';
+import { MitraData, MitraSubscriptionType } from '@/types/mitra';
 import { Icons } from './icons';
-import MitraRateConfig from './mitra-rate-config';
 import { useToast } from '@/lib/toast';
 
 interface MitraDetailProps {
@@ -63,7 +62,36 @@ export default function MitraDetailView({ mitraId, onClose, onUpdate }: MitraDet
       if (response.ok) {
         const data = await response.json();
         setMitra(data);
-        setFormData(data); // Initialize form with current data
+
+        // Convert date strings → yyyy-MM-dd for date inputs
+        // joinDate/exitDate: dd/mm/yyyy → yyyy-MM-dd
+        // bornDate (mitraDOB): mm/dd/yyyy → yyyy-MM-dd
+        const convertDdMmYyyy = (d: string) => {
+          if (!d) return '';
+          const match = d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+          return match ? `${match[3]}-${match[2]}-${match[1]}` : d;
+        };
+        const convertMmDdYyyy = (d: string) => {
+          if (!d) return '';
+          const match = d.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+          return match ? `${match[3]}-${match[1]}-${match[2]}` : d;
+        };
+        const convertDate = convertDdMmYyyy;
+
+        // Normalize gender values (DB stores Pria/Wanita, form uses Male/Female)
+        const normalizeGender = (g: string) => {
+          if (g === 'Pria') return 'Male';
+          if (g === 'Wanita') return 'Female';
+          return g;
+        };
+
+        setFormData({
+          ...data,
+          joinDate: convertDate(data.joinDate),
+          bornDate: convertMmDdYyyy(data.bornDate),
+          exitDate: data.exitDate ? convertDate(data.exitDate) : undefined,
+          gender: normalizeGender(data.gender),
+        }); // Initialize form with current data
       } else {
         setError('Failed to load mitra details');
       }
@@ -78,12 +106,55 @@ export default function MitraDetailView({ mitraId, onClose, onUpdate }: MitraDet
     try {
       setSaving(true);
 
+      // Convert yyyy-MM-dd → dd/MM/yyyy for API (joinDate, exitDate)
+      const convertDateForApi = (d: string | undefined) => {
+        if (!d) return undefined;
+        const match = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        return match ? `${match[3]}/${match[2]}/${match[1]}` : d;
+      };
+      // Convert yyyy-MM-dd → mm/dd/yyyy for API (bornDate/mitraDOB)
+      const convertBornDateForApi = (d: string | undefined) => {
+        if (!d) return undefined;
+        const match = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        return match ? `${match[2]}/${match[3]}/${match[1]}` : d;
+      };
+
+      // Normalize gender back to DB values
+      const normalizeGenderForApi = (g: string | undefined) => {
+        if (g === 'Male') return 'Pria';
+        if (g === 'Female') return 'Wanita';
+        return g;
+      };
+
+      // Map MitraData fields → UpdateMitraRequest fields
+      const payload = {
+        id: mitraId,
+        mitraName: formData.name,
+        mitraNIK: formData.nik,
+        mitraGender: normalizeGenderForApi(formData.gender),
+        mitraDOB: convertBornDateForApi(formData.bornDate),
+        mitraPhone: formData.phone,
+        mitraBankAccount: formData.bankAccount,
+        mitraBankHolderName: formData.bankHoldersName,
+        mitraBankAccountNumber: formData.bankAccountNumber,
+        mitraCityAssignment: formData.cityAssignment,
+        mitraLocationAssignment: formData.locationAssignment,
+        mitraPartnership: formData.partnershipTypes,
+        mitraTenure: formData.tenure ? parseInt(formData.tenure) : undefined,
+        mitraExitDate: convertDateForApi(formData.exitDate),
+        status: formData.status,
+        address: formData.address,
+        subscriptionType: formData.subscriptionType,
+        payoutRate: formData.payoutRate,
+        joinDate: convertDateForApi(formData.joinDate),
+      };
+
       const response = await fetch(`/api/mitra/${mitraId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
@@ -266,13 +337,9 @@ export default function MitraDetailView({ mitraId, onClose, onUpdate }: MitraDet
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Tenure (months)</label>
-                  <input
-                    type="number"
-                    value={formData.tenure || ''}
-                    onChange={(e) => handleChange('tenure', e.target.value)}
-                    className="input-field mt-1"
-                    min="0"
-                  />
+                  <div className="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded border border-gray-300">
+                    {formData.tenure || '0'} bulan
+                  </div>
                 </div>
                 {formData.status === 'Exit' && (
                   <div>
@@ -367,60 +434,6 @@ export default function MitraDetailView({ mitraId, onClose, onUpdate }: MitraDet
             </div>
           </div>
 
-          {/* Bonus Commission Section */}
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Bonus Information</h3>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Bonus Commission */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Bonus Commission</label>
-                  <select
-                    value={formData.bonus || ''}
-                    onChange={(e) => {
-                      const newValue = e.target.value;
-                      handleChange('bonus', newValue);
-                      // Reset bonus rate when not eligible
-                      if (newValue === 'Not Eligible') {
-                        handleChange('bonusRate' as any, 0);
-                      }
-                    }}
-                    className="input-field mt-1"
-                  >
-                    <option value="">Select Bonus Commission</option>
-                    <option value="Eligible">Eligible</option>
-                    <option value="Not Eligible">Not Eligible</option>
-                  </select>
-                </div>
-
-                {/* Bonus Rate - Only shown when Bonus Commission is Eligible */}
-                {formData.bonus === 'Eligible' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Bonus Rate (IDR)</label>
-                    <input
-                      type="text"
-                      value={formatNumberWithSeparator((formData as any).bonusRate || 0)}
-                      onChange={(e) => {
-                        const numericValue = parseFormattedNumber(e.target.value);
-                        handleChange('bonusRate' as any, numericValue);
-                      }}
-                      className="input-field mt-1"
-                      placeholder="500,000"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Enter bonus rate per month</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Rate Configuration Section */}
-          <div className="mt-6">
-            <MitraRateConfig
-              mitraId={mitraId}
-              mitraName={mitra.name || 'Unknown Mitra'}
-            />
-          </div>
         </div>
 
         {/* Footer with Save and Cancel buttons */}

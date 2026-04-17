@@ -17,7 +17,6 @@ interface CustomerDetailProps {
 const statusColors: { [key: string]: string } = {
   'Active': 'bg-green-100 text-green-800',
   'Churn': 'bg-red-100 text-red-800',
-  'Inactive': 'bg-gray-100 text-gray-800',
   'Pending': 'bg-yellow-100 text-yellow-800',
 };
 
@@ -117,6 +116,9 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   const [loadingMitraChange, setLoadingMitraChange] = useState(false);
   const [changeMitraDate, setChangeMitraDate] = useState('');
   const [mitraSearchQuery, setMitraSearchQuery] = useState('');
+  const [selectedVisitForDateEdit, setSelectedVisitForDateEdit] = useState<Visit | null>(null);
+  const [editDateValue, setEditDateValue] = useState('');
+  const [savingDateEdit, setSavingDateEdit] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedVisitHistory, setSelectedVisitHistory] = useState<any>(null);
 
@@ -684,6 +686,33 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       toast('error', 'Failed to change mitra');
     } finally {
       setLoadingMitraChange(false);
+    }
+  };
+
+  const saveVisitDateEdit = async () => {
+    if (!selectedVisitForDateEdit || !editDateValue) return;
+    try {
+      setSavingDateEdit(true);
+      const response = await fetch(
+        `/api/trial/${customerId}/visits/${selectedVisitForDateEdit.id}/update-date`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newDate: editDateValue }),
+        }
+      );
+      if (response.ok) {
+        setSelectedVisitForDateEdit(null);
+        await fetchVisits();
+        toast('success', 'Visit date updated successfully');
+      } else {
+        const error = await response.json();
+        toast('error', error.message || 'Failed to update visit date');
+      }
+    } catch (error) {
+      toast('error', 'Failed to update visit date');
+    } finally {
+      setSavingDateEdit(false);
     }
   };
 
@@ -1256,125 +1285,9 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
           >
             Edit Customer
           </button>
-          <button
-            onClick={() => setShowAddVisitForm(!showAddVisitForm)}
-            className="btn-secondary"
-          >
-            <Icons.plus className="w-4 h-4 mr-1" />
-            Add Visit
-          </button>
-          <button
-            onClick={() => setShowGenerateSchedule(true)}
-            className="btn-secondary"
-          >
-            Bulk Reschedule
-          </button>
         </div>
       </div>
 
-      {/* Add Visit Form */}
-      {showAddVisitForm && (
-        <div className="card p-6 bg-blue-50 border-blue-200">
-          <h3 className="text-md font-semibold text-gray-900 mb-4">Schedule New Visit</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Visit Date *
-              </label>
-              <input
-                type="date"
-                value={newVisitDate}
-                onChange={(e) => setNewVisitDate(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Assigned Mitra *
-              </label>
-              <select
-                value={newVisitMitra}
-                onChange={(e) => setNewVisitMitra(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="">Select Mitra...</option>
-                {allMitras.map((mitra) => (
-                  <option key={mitra.id} value={mitra.id}>
-                    {mitra.mitraName || mitra.name} - {mitra.contact || mitra.phone || 'No contact'}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="flex justify-end space-x-2 mt-4">
-            <button
-              onClick={() => {
-                setShowAddVisitForm(false);
-                setNewVisitDate('');
-                setNewVisitMitra('');
-              }}
-              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={async () => {
-                if (!newVisitDate || !newVisitMitra) {
-                  toast('warning', 'Please select visit date and assign a mitra');
-                  return;
-                }
-
-                // Validate date is not in the past - REMOVED per request (allow backdate & default to Done)
-                /*
-                const selectedDate = new Date(newVisitDate);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-
-                if (selectedDate < today) {
-                  toast('warning', 'Visit date cannot be in the past');
-                  return;
-                }
-                */
-
-                try {
-                  const response = await fetch(`/api/customers/${customerId}/visits`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      visitDate: newVisitDate,
-                      mitraId: newVisitMitra,
-                    }),
-                  });
-
-                  if (response.ok) {
-                    const result = await response.json();
-                    toast('error', result.message || 'Visit added successfully');
-
-                    // Reset form
-                    setNewVisitDate('');
-                    setNewVisitMitra('');
-                    setShowAddVisitForm(false);
-
-                    // Refresh visits
-                    await fetchVisits();
-                  } else {
-                    const error = await response.json();
-                    toast('error', error.message || 'Failed to add visit');
-                  }
-                } catch (error) {
-                  console.error('Error adding visit:', error);
-                  toast('error', 'Failed to add visit');
-                }
-              }}
-              disabled={!newVisitDate || !newVisitMitra}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Icons.check className="w-4 h-4 mr-2" />
-              Add Visit
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Customer Information Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1440,7 +1353,12 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
 
         {/* Subscription Information */}
         <div className="card p-6">
-          <h3 className="text-xl font-bold text-gray-900 mb-6">Subscription Information</h3>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">Subscription Information</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Current active period</p>
+            </div>
+          </div>
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Subscription Package</label>
@@ -1480,15 +1398,21 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                 </span>
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Churn Tag</label>
+            {customer.status === 'Churn' && (
               <div>
-                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${churnTagColors[customer.churnTag]}`}>
-                  {customer.churnTag}
-                </span>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Churn Tag</label>
+                <div>
+                  {customer.churnTag && customer.churnTag !== 'N/A' ? (
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${(churnTagColors as Record<string, string>)[customer.churnTag] || 'bg-gray-100 text-gray-800'}`}>
+                      {customer.churnTag}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-gray-400">—</span>
+                  )}
+                </div>
               </div>
-            </div>
-            {customer.churnReason && (
+            )}
+            {customer.status === 'Churn' && customer.churnReason && (
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Churn Reason</label>
                 <div className="text-sm text-gray-900 bg-yellow-50 p-3 rounded-md leading-relaxed">{customer.churnReason}</div>
@@ -1500,20 +1424,75 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
         {/* Invoices */}
         {invoices.length > 0 && (
           <div className="card p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Invoices</h3>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Invoices</h3>
+                <p className="text-xs text-gray-400 mt-0.5">History of all subscription periods</p>
+              </div>
+              <span className="text-xs text-gray-400">{invoices.length} invoice{invoices.length > 1 ? 's' : ''}</span>
+            </div>
             <div className="space-y-2">
-              {invoices.map((inv) => (
-                <div key={inv.id} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded">
-                  <span className="text-sm font-mono text-gray-700">{inv.invoiceNumber}</span>
-                  <button
-                    onClick={() => openInvoicePreview(inv.id, inv.invoiceNumber)}
-                    className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded"
+              {invoices.map((inv) => {
+                const formatInvDate = (d: string) => {
+                  if (!d) return '-';
+                  return new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+                };
+
+                // Compute status from dates vs today (Jakarta time)
+                const todayJkt = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+                todayJkt.setHours(0, 0, 0, 0);
+                const start = inv.invoiceStartDate ? new Date(inv.invoiceStartDate + 'T00:00:00') : null;
+                const end = inv.invoiceEndDate ? new Date(inv.invoiceEndDate + 'T00:00:00') : null;
+
+                let periodStatus: 'Ongoing' | 'Incoming' | 'Completed' | null = null;
+                if (start && end) {
+                  if (end < todayJkt) periodStatus = 'Completed';
+                  else if (start > todayJkt) periodStatus = 'Incoming';
+                  else periodStatus = 'Ongoing';
+                }
+
+                const statusStyle: Record<string, string> = {
+                  'Ongoing':   'bg-green-100 text-green-700',
+                  'Incoming':  'bg-blue-100 text-blue-700',
+                  'Completed': 'bg-gray-100 text-gray-500',
+                };
+                const rowStyle = periodStatus === 'Ongoing'
+                  ? 'border-green-200 bg-green-50'
+                  : periodStatus === 'Incoming'
+                  ? 'border-blue-200 bg-blue-50'
+                  : 'border-gray-100 bg-gray-50';
+
+                return (
+                  <div
+                    key={inv.id}
+                    className={`flex items-center justify-between px-3 py-3 rounded-lg border ${rowStyle}`}
                   >
-                    <Icons.download className="h-3.5 w-3.5" />
-                    Preview & Download
-                  </button>
-                </div>
-              ))}
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-gray-700">{inv.invoiceNumber}</span>
+                        {periodStatus && (
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold ${statusStyle[periodStatus]}`}>
+                            {periodStatus}
+                          </span>
+                        )}
+                      </div>
+                      {inv.invoiceStartDate && (
+                        <span className="text-xs text-gray-400">
+                          {formatInvDate(inv.invoiceStartDate)}
+                          {inv.invoiceEndDate ? ` → ${formatInvDate(inv.invoiceEndDate)}` : ''}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => openInvoicePreview(inv.id, inv.invoiceNumber)}
+                      className="flex items-center gap-1 text-xs px-2 py-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 rounded-lg ml-3 shrink-0"
+                    >
+                      <Icons.download className="h-3.5 w-3.5" />
+                      Preview
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -1560,116 +1539,134 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                       const packageName = customer?.subscriptionPackage || visit.subscriptionPackage || 'N/A';
 
                       return (
-                        <div key={visit.id} className={`p-4 rounded border ${isCancelled ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-200'}`}>
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start space-x-3">
-                              {/* Removed: Bulk selection checkbox (auto-Done workflow) */}
-
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-3 mb-2">
-                                  <span className="text-sm font-medium text-gray-900">
-                                    Visit #{visit.visitNumber}
-                                  </span>
-                                  <span className={`text-sm ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-600'}`}>
-                                    {visit.scheduledDate} ({visit.scheduledDay})
-                                  </span>
-                                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${visit.status === 'Done'
-                                    ? 'bg-green-100 text-green-800'
-                                    : visit.status === 'Cancelled'
-                                      ? 'bg-red-100 text-red-800'
-                                      : 'bg-yellow-100 text-yellow-800'
-                                    }`}>
-                                    {visit.status}
-                                  </span>
-                                </div>
-
-                                <div className="space-y-1">
-                                  {packageName && (
-                                    <div className="flex items-center gap-1 text-xs text-gray-600 mb-1">
-                                      <Icons.package2 className="w-3 h-3 shrink-0" />
-                                      <span>Package: <span className="font-medium">{packageName}</span></span>
-                                    </div>
-                                  )}
-
-                                  <div className="flex items-center space-x-2 text-sm">
-                                    <span className="text-gray-600 flex items-center gap-1"><Icons.user className="w-3 h-3" /> Mitra:</span>
-                                    <span className={`font-medium ${visit.status === 'Cancelled' ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
-                                      {visit.mitraName || 'Not assigned'}
-                                    </span>
-                                    {mitraChanged && (
-                                      <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
-                                        Changed
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  {visit.actualDate && (
-                                    <div className="text-xs text-gray-500 space-y-0.5">
-                                      <div className="flex items-center gap-1"><Icons.check className="w-3 h-3 text-green-500" /> Completed on: {visit.actualDate}</div>
-                                      {visit.updatedBy && (
-                                        <div className="text-gray-400">
-                                          Updated by: {visit.updatedBy}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-
-                                  {visit.status === 'Cancelled' && (
-                                    <div className="flex items-center gap-1 text-xs text-red-600 font-medium">
-                                      <Icons.close className="w-3 h-3" /> This visit has been cancelled
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="flex flex-col items-end space-y-2 ml-4">
-                                {/* Allow editing/cancelling Done visits (Feedback 13/Chris) */}
-                                {true && (
-                                  <div className="flex items-center space-x-2">
-                                    {!isCancelled && (
-                                      <button
-                                        onClick={() => openChangeMitraModal(visit)}
-                                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
-                                      >
-                                        Change Mitra
-                                      </button>
-                                    )}
-                                    {visit.status === 'Cancelled' ? (
-                                      <button
-                                        onClick={() => handleCancelVisit(visit.id, visit.status)}
-                                        className="text-xs text-green-600 hover:text-green-800 font-medium"
-                                      >
-                                        Mark as Scheduled
-                                      </button>
-                                    ) : (
-                                      <button
-                                        onClick={() => handleCancelVisit(visit.id, visit.status)}
-                                        className="text-xs text-red-600 hover:text-red-800 font-medium"
-                                      >
-                                        Cancel Visit
-                                      </button>
-                                    )}
-                                    {mitraChanged && !isCancelled && (
-                                      <button
-                                        onClick={() => openHistoryModal(visit)}
-                                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                                      >
-                                        View History
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-
-                                {isLocked && mitraChanged && (
-                                  <button
-                                    onClick={() => openHistoryModal(visit)}
-                                    className="text-xs text-gray-600 hover:text-gray-800"
-                                  >
-                                    📋 View Change History
-                                  </button>
-                                )}
+                        <div
+                          key={visit.id}
+                          className={`rounded-xl border transition-all ${
+                            isCancelled
+                              ? 'bg-gray-50 border-gray-200 opacity-70'
+                              : visit.status === 'Done'
+                              ? 'bg-white border-green-200'
+                              : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                          }`}
+                        >
+                          {/* Card Header */}
+                          <div className="flex items-center justify-between px-4 py-3 border-b border-dashed border-gray-100">
+                            <div className="flex items-center gap-3">
+                              <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                                isCancelled ? 'bg-gray-200 text-gray-500' : visit.status === 'Done' ? 'bg-green-100 text-green-700' : 'bg-blue-50 text-blue-600'
+                              }`}>
+                                {visit.visitNumber}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-sm font-semibold ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                                  {visit.scheduledDate}
+                                </span>
+                                <span className="text-xs text-gray-400">{visit.scheduledDay}</span>
                               </div>
                             </div>
+                            <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+                              visit.status === 'Done'
+                                ? 'bg-green-100 text-green-700'
+                                : visit.status === 'Cancelled'
+                                ? 'bg-red-100 text-red-600'
+                                : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            }`}>
+                              {visit.status}
+                            </span>
+                          </div>
+
+                          {/* Card Body */}
+                          <div className="px-4 py-3 space-y-2">
+                            {/* Mitra row */}
+                            <div className="flex items-center gap-2">
+                              <Icons.user className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                              <span className="text-xs text-gray-500">Mitra</span>
+                              <span className={`text-xs font-medium ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                                {visit.mitraName || 'Belum ditentukan'}
+                              </span>
+                              {mitraChanged && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium bg-blue-50 text-blue-600 rounded border border-blue-100">
+                                  Diganti
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Package row */}
+                            {packageName && (
+                              <div className="flex items-center gap-2">
+                                <Icons.package2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                <span className="text-xs text-gray-500">Paket</span>
+                                <span className="text-xs font-medium text-gray-800">{packageName}</span>
+                              </div>
+                            )}
+
+                            {/* Completion row */}
+                            {visit.actualDate && (
+                              <div className="flex items-center gap-2">
+                                <Icons.check className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                                <span className="text-xs text-gray-500">Selesai</span>
+                                <span className="text-xs font-medium text-gray-700">{visit.actualDate}</span>
+                                {visit.updatedBy && (
+                                  <span className="text-xs text-gray-400">· oleh {visit.updatedBy}</span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Cancelled notice */}
+                            {isCancelled && (
+                              <div className="flex items-center gap-2 mt-1">
+                                <Icons.close className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                                <span className="text-xs text-red-500 font-medium">Visit dibatalkan</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Card Actions */}
+                          <div className="flex items-center gap-1.5 px-4 py-2.5 bg-gray-50 rounded-b-xl border-t border-gray-100">
+                            {!isCancelled && (
+                              <>
+                                <button
+                                  onClick={() => { setSelectedVisitForDateEdit(visit); setEditDateValue(visit.scheduledDate); }}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg transition-colors"
+                                >
+                                  <Icons.calendar className="w-3 h-3" />
+                                  Edit Tanggal
+                                </button>
+                                <button
+                                  onClick={() => openChangeMitraModal(visit)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors"
+                                >
+                                  <Icons.user className="w-3 h-3" />
+                                  Ganti Mitra
+                                </button>
+                              </>
+                            )}
+                            {isCancelled ? (
+                              <button
+                                onClick={() => handleCancelVisit(visit.id, visit.status)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg transition-colors"
+                              >
+                                <Icons.check className="w-3 h-3" />
+                                Jadwalkan Ulang
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleCancelVisit(visit.id, visit.status)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors"
+                              >
+                                <Icons.close className="w-3 h-3" />
+                                Batalkan
+                              </button>
+                            )}
+                            {mitraChanged && (
+                              <button
+                                onClick={() => openHistoryModal(visit)}
+                                className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 bg-white hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors"
+                              >
+                                <Icons.clockIcon className="w-3 h-3" />
+                                Riwayat
+                              </button>
+                            )}
                           </div>
                         </div>
                       );
@@ -1932,165 +1929,6 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
         </div>
       )}
 
-      {/* Bulk Reschedule Modal */}
-      {showGenerateSchedule && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Bulk Reschedule Cancelled Visits</h3>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Start Date
-                  </label>
-                  <div className="input-field bg-gray-100 text-gray-600 cursor-not-allowed">
-                    {scheduleStartDate || 'Auto-detected'}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">From customer subscription start</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    End Date
-                  </label>
-                  <div className="input-field bg-gray-100 text-gray-600 cursor-not-allowed">
-                    {scheduleEndDate || '30 days from start'}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">From customer subscription end</p>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Visit Day {hasCancelledVisits && <span className="text-red-500">*</span>}
-                </label>
-                {hasCancelledVisits ? (
-                  <>
-                    <select
-                      value={selectedDay}
-                      onChange={(e) => setSelectedDay(e.target.value)}
-                      className="input-field"
-                    >
-                      <option value="">Select day of the week</option>
-                      <option value="Monday">Monday</option>
-                      <option value="Tuesday">Tuesday</option>
-                      <option value="Wednesday">Wednesday</option>
-                      <option value="Thursday">Thursday</option>
-                      <option value="Friday">Friday</option>
-                      <option value="Saturday">Saturday</option>
-                      <option value="Sunday">Sunday</option>
-                    </select>
-                    <p className="text-xs text-orange-600 mt-1">
-                      ⚠️ Select visit day to check mitra availability for new schedule.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <div className="input-field bg-gray-100 text-gray-600 cursor-not-allowed">
-                      {selectedDay || 'Auto-detected from existing schedule'}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Day pattern is automatically detected from your existing visits.
-                    </p>
-                  </>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Assigned Mitra {hasCancelledVisits && <span className="text-red-500">*</span>}
-                </label>
-                {hasCancelledVisits ? (
-                  <>
-                    <select
-                      value={selectedMitraForSchedule}
-                      onChange={(e) => setSelectedMitraForSchedule(e.target.value)}
-                      className="input-field"
-                      disabled={loadingAvailability}
-                    >
-                      <option value="">
-                        {loadingAvailability ? 'Checking availability...' : 'Select mitra'}
-                      </option>
-                      {(availableMitras.length > 0 ? availableMitras : allMitras).map((mitra) => (
-                        <option key={mitra.mitraId || mitra.id} value={mitra.mitraId || mitra.id}>
-                          {mitra.mitraName || mitra.name || mitra.mitraCode}
-                          {availableMitras.length > 0 && mitra.availableForAllDates ? ' ✓' : ''}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-orange-600 mt-1">
-                      ⚠️ You have cancelled visits - select mitra and visit day to check availability.
-                      {availableMitras.length > 0 && ` (${availableMitras.length} mitra available for all dates)`}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <div className="input-field bg-gray-100 text-gray-600 cursor-not-allowed">
-                      {visits.length > 0 && visits[0].mitraName
-                        ? visits[0].mitraName
-                        : customer?.cleaner1 || 'Auto-detected from existing schedule'}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Mitra is automatically assigned from your existing schedule.
-                    </p>
-                  </>
-                )}
-              </div>
-
-              {visits.length > 0 && (
-                <div className={`p-3 border rounded ${hasCancelledVisits ? 'bg-orange-50 border-orange-200' : 'bg-blue-50 border-blue-200'}`}>
-                  <p className={`text-sm ${hasCancelledVisits ? 'text-orange-800' : 'text-blue-800'}`}>
-                    {hasCancelledVisits ? '⚠️' : 'ℹ️'} Current schedule: {visits.length} visit(s) total
-                  </p>
-                  <ul className={`text-sm mt-1 ml-4 list-disc ${hasCancelledVisits ? 'text-orange-700' : 'text-blue-700'}`}>
-                    <li>{visits.filter(v => v.status === 'Done').length} Completed (will be preserved)</li>
-                    <li>{visits.filter(v => v.status === 'Scheduled').length} Scheduled (will be preserved)</li>
-                    {visits.filter(v => v.status === 'Cancelled').length > 0 && (
-                      <li className="font-medium">{visits.filter(v => v.status === 'Cancelled').length} Cancelled (will be REPLACED with new mitra)</li>
-                    )}
-                  </ul>
-                  <p className={`text-sm mt-2 font-medium ${hasCancelledVisits ? 'text-orange-800' : 'text-blue-800'}`}>
-                    {hasCancelledVisits ? (
-                      <>→ Will create {visits.filter(v => v.status === 'Cancelled').length} new visit(s) to replace cancelled ones</>
-                    ) : (
-                      <>ℹ️ No cancelled visits to reschedule. This feature is only available when you have cancelled visits.</>
-                    )}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => setShowGenerateSchedule(false)}
-                className="btn-secondary"
-                disabled={loadingSchedule}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={generateVisitSchedule}
-                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={
-                  loadingSchedule ||
-                  !scheduleStartDate ||
-                  !selectedDay ||
-                  !selectedMitraForSchedule ||
-                  !hasCancelledVisits
-                }
-                title={!hasCancelledVisits ? 'No cancelled visits to reschedule' : ''}
-              >
-                {loadingSchedule
-                  ? 'Rescheduling...'
-                  : hasCancelledVisits
-                    ? `Reschedule ${visits.filter(v => v.status === 'Cancelled').length} Visit${visits.filter(v => v.status === 'Cancelled').length !== 1 ? 's' : ''}`
-                    : 'No Cancelled Visits'
-                }
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Assign Cleaner Modal */}
       {showAssignCleaner && (
@@ -2153,27 +1991,16 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       {selectedVisitForChange && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Change Mitra for Visit #{selectedVisitForChange.visitNumber}</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Ganti Mitra untuk Visit #{selectedVisitForChange.visitNumber}</h3>
             <div className="mb-4 p-3 bg-gray-50 rounded">
               <p className="text-sm text-gray-600">
-                <strong>Current Mitra:</strong> {selectedVisitForChange.mitraName}
+                <strong>Mitra Saat Ini:</strong> {selectedVisitForChange.mitraName}
               </p>
             </div>
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Visit Date
-                </label>
-                <input
-                  type="date"
-                  value={changeMitraDate}
-                  onChange={(e) => setChangeMitraDate(e.target.value)}
-                  className="input-field"
-                />
-              </div>
               <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  New Mitra *
+                  Mitra Baru *
                 </label>
                 <input
                   type="text"
@@ -2233,12 +2060,12 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Reason for Change *
+                  Alasan Penggantian *
                 </label>
                 <textarea
                   value={changeReason}
                   onChange={(e) => setChangeReason(e.target.value)}
-                  placeholder="Why are you changing the mitra?"
+                  placeholder="Kenapa mitra diganti?"
                   rows={3}
                   className="input-field"
                 />
@@ -2250,14 +2077,57 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                 className="btn-secondary"
                 disabled={loadingMitraChange}
               >
-                Cancel
+                Batal
               </button>
               <button
                 onClick={saveMitraChange}
                 className="btn-primary"
                 disabled={loadingMitraChange}
               >
-                {loadingMitraChange ? 'Changing...' : 'Change Mitra'}
+                {loadingMitraChange ? 'Menyimpan...' : 'Ganti Mitra'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Visit Date Modal */}
+      {selectedVisitForDateEdit && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Edit Tanggal Visit #{selectedVisitForDateEdit.visitNumber}
+            </h3>
+            <div className="mb-4 p-3 bg-gray-50 rounded">
+              <p className="text-sm text-gray-600">
+                <strong>Tanggal Saat Ini:</strong> {selectedVisitForDateEdit.scheduledDate}
+              </p>
+            </div>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tanggal Baru *
+              </label>
+              <input
+                type="date"
+                value={editDateValue}
+                onChange={(e) => setEditDateValue(e.target.value)}
+                className="input-field"
+              />
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setSelectedVisitForDateEdit(null)}
+                className="btn-secondary"
+                disabled={savingDateEdit}
+              >
+                Batal
+              </button>
+              <button
+                onClick={saveVisitDateEdit}
+                className="btn-primary"
+                disabled={savingDateEdit || !editDateValue}
+              >
+                {savingDateEdit ? 'Menyimpan...' : 'Simpan Tanggal'}
               </button>
             </div>
           </div>
