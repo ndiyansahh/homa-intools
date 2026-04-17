@@ -72,7 +72,7 @@ export async function GET(
       .leftJoin(mitraDB, eq(visitDB.actualMitraId, mitraDB.id))
       .leftJoin(customerDB, eq(visitDB.customerId, customerDB.id))
       .where(eq(visitDB.customerId, id))
-      .orderBy(visitDB.scheduledDate);
+      .orderBy(visitDB.visitNumber);
 
     // Filter visits based on view parameter and subscription package
     let filteredVisits = visits;

@@ -678,7 +678,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
         const result = await response.json();
         setSelectedVisitForChange(null);
         await fetchVisits();
-        toast('error', result.message || 'Mitra changed successfully.');
+        toast('success', result.message || 'Mitra changed successfully.');
       } else {
         const error = await response.json();
         toast('error', error.message || 'Failed to change mitra');
@@ -1005,7 +1005,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
 
       if (response.ok) {
         const result = await response.json();
-        toast('error', result.message || 'Cancelled visits have been rescheduled successfully!');
+        toast('success', result.message || 'Cancelled visits have been rescheduled successfully!');
         setShowGenerateSchedule(false);
         await fetchVisits(); // Refresh visits
       } else {
