@@ -667,7 +667,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
   const [showFilterPopup, setShowFilterPopup] = useState(false);
 
   // Check if any filters are active
-  const hasActiveFilters = filters.status || filters.acquisition || filters.city || filters.residentialType || filters.cleaner;
+  const hasActiveFilters = filters.status || filters.city || filters.residentialType || filters.cleaner;
 
   return (
     <>
@@ -714,7 +714,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                   Filters
                   {hasActiveFilters && (
                     <span className="ml-2 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-blue-600 rounded-full">
-                      {[filters.status, filters.acquisition, filters.city, filters.residentialType, filters.cleaner].filter(Boolean).length}
+                      {[filters.status, filters.city, filters.residentialType, filters.cleaner].filter(Boolean).length}
                     </span>
                   )}
                 </button>
@@ -779,22 +779,6 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                   </select>
                 </div>
 
-                {/* Acquisition Filter */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Acquisition
-                  </label>
-                  <select
-                    value={filters.acquisition || ''}
-                    onChange={(e) => setFilters(prev => ({ ...prev, acquisition: e.target.value as AcquisitionType || undefined, page: 1 }))}
-                    className="input-field"
-                  >
-                    <option value="">All Acquisition</option>
-                    <option value="HOMA">HOMA</option>
-                    <option value="Altrix">Altrix</option>
-                  </select>
-                </div>
-
                 {/* City Filter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -848,7 +832,6 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                     setFilters(prev => ({
                       ...prev,
                       status: undefined,
-                      acquisition: undefined,
                       city: '',
                       residentialType: undefined,
                       cleaner: '',

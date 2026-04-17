@@ -174,43 +174,7 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
     }
   };
 
-  // Check mitra availability
-  const checkMitraAvailability = async () => {
-    if (!subscriptionStartDate || previewVisits.length === 0) return;
-
-    // Get selected days from dayPattern
-    const selectedDays = [dayPattern.day1, dayPattern.day2, dayPattern.day3]
-      .filter(day => day && day !== '');
-    
-    if (selectedDays.length === 0) return;
-
-    // Calculate end date (1 month)
-    const startDate = new Date(subscriptionStartDate);
-    const endDate = new Date(startDate);
-    endDate.setMonth(endDate.getMonth() + 1);
-    endDate.setDate(endDate.getDate() - 1);
-
-    try {
-      const response = await fetch('/api/mitras/check-availability', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          dayPattern: selectedDays,
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0]
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setAvailableMitras(data.data.availableMitras);
-        }
-      }
-    } catch (error) {
-      console.error('Error checking mitra availability:', error);
-    }
-  };
+  // Check mitra availability (inline in useEffect to avoid stale closure)
 
   // Step 1: Create subscription only (don't convert trial yet)
   const handleCreateSubscription = async () => {
@@ -317,10 +281,39 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
     generateVisitPreview();
   }, [subscriptionStartDate, dayPattern, selectedPackageId, requiredDays]);
 
-  // Auto-check mitra availability when preview visits change
+  // Auto-check mitra availability when preview visits or day pattern changes
   useEffect(() => {
-    checkMitraAvailability();
-  }, [previewVisits]);
+    if (!subscriptionStartDate || previewVisits.length === 0) {
+      setAvailableMitras([]);
+      return;
+    }
+    const selectedDays = [dayPattern.day1, dayPattern.day2, dayPattern.day3]
+      .filter(day => day && day !== '');
+    if (selectedDays.length === 0) {
+      setAvailableMitras([]);
+      return;
+    }
+    const startDate = new Date(subscriptionStartDate);
+    const s = new Date(subscriptionStartDate);
+    const lastDayNextMonth = new Date(s.getFullYear(), s.getMonth() + 2, 0).getDate();
+    const clampedDay = Math.min(s.getDate(), lastDayNextMonth);
+    const endDate = new Date(s.getFullYear(), s.getMonth() + 1, clampedDay);
+
+    fetch('/api/mitras/check-availability', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dayPattern: selectedDays,
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+      })
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.success) setAvailableMitras(data.data.availableMitras);
+      })
+      .catch(err => console.error('Error checking mitra availability:', err));
+  }, [previewVisits, subscriptionStartDate, dayPattern]);
 
   // Fetch trial data function (can be reused)
   const fetchTrialData = async () => {

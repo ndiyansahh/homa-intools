@@ -277,11 +277,9 @@ export async function POST(request: NextRequest) {
       .select({
         id: mitraDB.id,
         mitraName: mitraDB.mitraName,
-        bonusCommission: mitraDB.mitraBonusCommission,
-        baseRate: mitraDB.baseRate, // DEPRECATED - kept for backward compatibility
-        monthlyBaseRate: mitraDB.monthlyBaseRate, // NEW - monthly rate
-        bonusRate: mitraDB.bonusRate, // NEW - bonus rate
-        trialRatePerVisit: mitraDB.trialRatePerVisit, // Per-mitra trial rate
+        baseRate: mitraDB.baseRate,
+        monthlyBaseRate: mitraDB.monthlyBaseRate,
+        trialRatePerVisit: mitraDB.trialRatePerVisit,
       })
       .from(mitraDB)
       .where(eq(mitraDB.isActive, true));
@@ -529,17 +527,7 @@ export async function POST(request: NextRequest) {
           // Formula: completedInMonth / totalScheduledInCycle × monthlyRate
           const basePayout = (completedInMonth / totalScheduledInCycle) * monthlyRate;
 
-          // Bonus payout: extra visits beyond normal max (TOPIC #1)
-          // Formula: (extraVisitsInCycle / normalMax) × monthlyRate
-          // Then pro-rate to this month: × (completedInMonth / totalScheduledInCycle)
-          let bonusPayout = 0;
-          if (extraVisitsInCycle > 0 && mitra.bonusCommission === 'Eligible') {
-            const fullBonusForCycle = (extraVisitsInCycle / normalMax) * monthlyRate;
-            // Pro-rate: only pay the portion of bonus for visits completed this month
-            bonusPayout = fullBonusForCycle * (completedInMonth / totalScheduledInCycle);
-          }
-
-          customerPayout = Math.round(basePayout + bonusPayout);
+          customerPayout = Math.round(basePayout);
 
           const percentage = Math.round((completedInMonth / totalScheduledInCycle) * 100 * 100) / 100;
 
@@ -553,9 +541,7 @@ export async function POST(request: NextRequest) {
             percentage,
             monthlyRate,
             basePayout: Math.round(basePayout),
-            bonusPayout: Math.round(bonusPayout),
             totalPayout: customerPayout,
-            bonusEligible: mitra.bonusCommission === 'Eligible',
           };
 
           console.log(`   ✓ ${customerName}: ${completedInMonth}/${totalScheduledInCycle} visits (${percentage}%) = Rp${customerPayout.toLocaleString()}`);
@@ -585,9 +571,8 @@ export async function POST(request: NextRequest) {
       }
 
 
-      const bonusEligible = mitra.bonusCommission === 'Eligible';
-      // Use configured bonus rate as default if eligible
-      let bonusAmount = (bonusEligible && mitra.bonusRate) ? Number(mitra.bonusRate) : 0;
+      const bonusEligible = true;
+      let bonusAmount = 0;
 
       // Feature 8b: Check for pending adjustments for this mitra
       const pendingAdjustments = await db

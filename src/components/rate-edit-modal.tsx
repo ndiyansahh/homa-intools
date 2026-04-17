@@ -25,10 +25,8 @@ export interface RateEditMitraData {
   id: string;
   mitraName: string;
   mitraCode: string;
-  bonusCommission: string | null;
   trialRatePerVisit: string | null;
   rateConfigs: RateConfigEntry[];
-  bonusRate: string | null;
 }
 
 interface SaveResult {
@@ -72,10 +70,6 @@ export default function RateEditModal({ mitra, isReadOnly = false, skipLabel = '
         return [v, existing || { id: null, visitsPerWeek: v, payoutRate: '' }];
       })
     )
-  );
-  const [bonusEligible, setBonusEligible] = useState(mitra.bonusCommission === 'Eligible');
-  const [bonusRate, setBonusRate] = useState(
-    mitra.bonusRate && mitra.bonusRate !== '0' ? mitra.bonusRate : ''
   );
   const [trialRate, setTrialRate] = useState(mitra.trialRatePerVisit || '');
   const [saving, setSaving] = useState(false);
@@ -138,12 +132,8 @@ export default function RateEditModal({ mitra, isReadOnly = false, skipLabel = '
       }
 
       const mitraPayload: Record<string, unknown> = {
-        mitraBonusCommission: bonusEligible ? 'Eligible' : 'Not Eligible',
         trialRatePerVisit: trialRate ? parseFloat(trialRate) : null,
       };
-      if (bonusEligible && bonusRate) {
-        mitraPayload.bonusRate = parseFloat(bonusRate);
-      }
 
       const mitraRes = await fetch(`/api/mitra/${mitra.id}`, {
         method: 'PATCH',
@@ -268,51 +258,6 @@ export default function RateEditModal({ mitra, isReadOnly = false, skipLabel = '
                   placeholder="0"
                   className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm text-right font-medium bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-              </div>
-            )}
-          </div>
-
-          {/* Bonus Commission */}
-          <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-800">Bonus Commission</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Eligibility for extra visit bonus payout</p>
-            </div>
-            <div className="flex items-center gap-5">
-              {(['Not Eligible', 'Eligible'] as const).map(opt => (
-                <label key={opt} className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="radio"
-                    name={`bonus-${mitra.id}`}
-                    checked={bonusEligible === (opt === 'Eligible')}
-                    onChange={() => { setBonusEligible(opt === 'Eligible'); if (opt !== 'Eligible') setBonusRate(''); }}
-                    disabled={isReadOnly}
-                    className="w-4 h-4 text-blue-600"
-                  />
-                  <span className={`text-sm font-medium ${opt === 'Eligible' ? 'text-green-700' : 'text-gray-600'}`}>{opt}</span>
-                </label>
-              ))}
-            </div>
-            {bonusEligible && (
-              <div>
-                <p className="text-xs text-gray-500 mb-1.5">Bonus Rate (flat / month)</p>
-                {isReadOnly ? (
-                  <span className="text-sm font-semibold text-gray-800">
-                    {bonusRate ? formatCurrency(bonusRate) : <span className="text-gray-400 font-normal">Not set</span>}
-                  </span>
-                ) : (
-                  <div className="relative w-48">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">Rp</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={bonusRate ? Number(bonusRate).toLocaleString('id-ID') : ''}
-                      onChange={e => setBonusRate(parseCurrencyInput(e.target.value))}
-                      placeholder="0"
-                      className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm text-right font-medium bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                )}
               </div>
             )}
           </div>

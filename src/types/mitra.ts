@@ -1,7 +1,6 @@
 export type MitraGender = 'Pria' | 'Wanita';
 export type MitraPartnershipType = 'Full Time' | 'Part Time';
 export type MitraStatus = 'Active' | 'Inactive' | 'Exit' | 'Banned' | 'Active-Flag';
-export type MitraBonusCommission = 'Eligible' | 'Not Eligible';
 export type MitraSubscriptionType = 'Basic' | 'Regular' | 'Frequent';
 
 // Jabodetabek cities for assignment
@@ -62,7 +61,6 @@ export interface CreateMitraRequest {
   mitraPartnership: MitraPartnershipType; // Full Time, Part Time
   mitraTenure: number; // Free number
   mitraExitDate?: string; // dd/mm/yyyy format, optional
-  mitraBonusCommission: MitraBonusCommission; // Eligible, Not Eligible
 
   // Subscription and payout rate
   subscriptionType?: MitraSubscriptionType; // Basic, Regular, Frequent (default: Regular)
@@ -103,8 +101,6 @@ export interface MitraListItem {
   monthlyBaseRate?: string;
   subscriptionType?: MitraSubscriptionType;
   payoutRate?: string;
-  bonusRate?: string;
-  bonusCommission?: MitraBonusCommission;
   trialRatePerVisit?: string | null;
 }
 

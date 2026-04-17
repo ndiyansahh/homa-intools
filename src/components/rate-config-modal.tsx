@@ -18,8 +18,7 @@ interface RateConfig {
   visitsPerWeek: number;
   payoutRate: string;
   trialRatePerVisit?: string | null;
-  mitraBonusCommission?: string | null;
-  bonusRate?: string | null;
+
 }
 
 interface RateConfigModalProps {
@@ -47,8 +46,6 @@ export default function RateConfigModal({
     visitsPerWeek: existingRate?.visitsPerWeek || 1,
     payoutRate: existingRate?.payoutRate || '',
     trialRatePerVisit: existingRate?.trialRatePerVisit || '',
-    mitraBonusCommission: existingRate?.mitraBonusCommission || 'Not Eligible',
-    bonusRate: existingRate?.bonusRate || '',
   });
 
   useEffect(() => {
@@ -64,8 +61,6 @@ export default function RateConfigModal({
         visitsPerWeek: existingRate.visitsPerWeek,
         payoutRate: existingRate.payoutRate,
         trialRatePerVisit: existingRate.trialRatePerVisit || '',
-        mitraBonusCommission: existingRate.mitraBonusCommission || 'Not Eligible',
-        bonusRate: existingRate.bonusRate || '',
       });
     }
   }, [existingRate]);
@@ -126,22 +121,6 @@ export default function RateConfigModal({
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || 'Failed to save');
-      }
-
-      // Also update bonus commission on the mitra (per-mitra setting)
-      const mitraIdToUpdate = formData.mitraId || existingRate?.mitraId;
-      if (mitraIdToUpdate) {
-        const bonusPayload: Record<string, string | null> = {
-          mitraBonusCommission: formData.mitraBonusCommission,
-        };
-        if (formData.mitraBonusCommission === 'Eligible') {
-          bonusPayload.bonusRate = formData.bonusRate ? parseFloat(formData.bonusRate).toString() : '0';
-        }
-        await fetch(`/api/mitra/${mitraIdToUpdate}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(bonusPayload),
-        });
       }
 
       onSave();
@@ -274,65 +253,6 @@ export default function RateConfigModal({
             Flat rate per trial visit. Leave empty if mitra is not eligible for trial payout.
           </p>
         </div>
-
-        {/* Bonus Commission */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Bonus Commission Eligibility
-          </label>
-          <div className="flex items-center space-x-4">
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="radio"
-                name="bonusCommission"
-                value="Eligible"
-                checked={formData.mitraBonusCommission === 'Eligible'}
-                onChange={() => setFormData({ ...formData, mitraBonusCommission: 'Eligible' })}
-                className="h-4 w-4 text-blue-600"
-              />
-              <span className="text-sm text-green-700 font-medium">Eligible</span>
-            </label>
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="radio"
-                name="bonusCommission"
-                value="Not Eligible"
-                checked={formData.mitraBonusCommission === 'Not Eligible'}
-                onChange={() => setFormData({ ...formData, mitraBonusCommission: 'Not Eligible', bonusRate: '' })}
-                className="h-4 w-4 text-blue-600"
-              />
-              <span className="text-sm text-gray-600">Not Eligible</span>
-            </label>
-          </div>
-          <p className="mt-1 text-xs text-gray-500">
-            Determines whether this mitra receives bonus commission for extra visits
-          </p>
-        </div>
-
-        {/* Bonus Rate (only when Eligible) */}
-        {formData.mitraBonusCommission === 'Eligible' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Bonus Rate <span className="text-gray-400">(per extra visit)</span>
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-2 text-gray-500">Rp</span>
-              <input
-                type="text"
-                value={formData.bonusRate ? formatCurrency(formData.bonusRate) : ''}
-                onChange={(e) => {
-                  const raw = e.target.value.replace(/[^0-9]/g, '');
-                  setFormData({ ...formData, bonusRate: raw });
-                }}
-                placeholder="50000"
-                className="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <p className="mt-1 text-xs text-gray-500">
-              Bonus amount per extra visit beyond the scheduled cycle
-            </p>
-          </div>
-        )}
 
         {/* Unique Constraint Info */}
         {isAddMode && (

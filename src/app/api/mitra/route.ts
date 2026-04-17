@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { mitraDB, attendanceScheduleDB } from '@/lib/schema';
 import { sql, and, or, ilike, eq, desc, count, not, inArray } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
-import { CreateMitraRequest, MitraListItem, MitraResponse, MitraData, MitraGender, MitraPartnershipType, MitraStatus, MitraBonusCommission, MitraCityAssignment, MitraSubscriptionType } from '@/types/mitra';
+import { CreateMitraRequest, MitraListItem, MitraResponse, MitraData, MitraGender, MitraPartnershipType, MitraStatus, MitraCityAssignment, MitraSubscriptionType } from '@/types/mitra';
 import { logAuditEvent } from '@/lib/logger';
 import { sanitizeSQLLike, sanitizeText } from '@/lib/input-sanitizer';
 
@@ -252,13 +252,6 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Validate bonus commission if provided (optional, defaults to 'Eligible')
-    if (body.mitraBonusCommission && !['Eligible', 'Not Eligible'].includes(body.mitraBonusCommission)) {
-      return NextResponse.json({
-        error: 'Bonus commission must be "Eligible" or "Not Eligible"'
-      }, { status: 400 });
-    }
-
     // Validate subscription type if provided (optional, defaults to 'Regular')
     if (body.subscriptionType && !['Basic', 'Regular', 'Frequent'].includes(body.subscriptionType)) {
       return NextResponse.json({
@@ -274,12 +267,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Validate bonus rate if provided (always optional now)
-    if (body.bonusRate !== undefined && (typeof body.bonusRate !== 'number' || body.bonusRate < 0)) {
-      return NextResponse.json({
-        error: 'Bonus rate must be a non-negative number'
-      }, { status: 400 });
-    }
+
 
     // Validate required banking information
     if (!body.mitraBankAccount?.trim()) {
@@ -365,8 +353,6 @@ export async function POST(request: NextRequest) {
         mitraPartnership: body.mitraPartnership || 'Full Time', // Default to Full Time
         mitraTenure: body.mitraTenure || 0,
         mitraExitDate: body.mitraExitDate || null,
-        mitraBonusCommission: body.mitraBonusCommission || 'Eligible', // Default to Eligible
-
         // Legacy mitra details
         mitraType: 'Cleaner',
         status: body.status || 'Active',
@@ -389,7 +375,7 @@ export async function POST(request: NextRequest) {
         // Subscription and rate fields (NEW)
         subscriptionType: body.subscriptionType || 'Regular', // Default to Regular
         monthlyBaseRate: (payoutRateValue ?? 0).toString(),
-        bonusRate: body.bonusRate ? body.bonusRate.toString() : '0', // Always accept bonus rate (not conditional)
+        bonusRate: '0',
       };
 
       const result = await db
@@ -561,7 +547,6 @@ export async function GET(request: NextRequest) {
         mitraPartnership: mitraDB.mitraPartnership,
         mitraTenure: mitraDB.mitraTenure,
         mitraExitDate: mitraDB.mitraExitDate,
-        mitraBonusCommission: mitraDB.mitraBonusCommission,
         status: mitraDB.status,
         joinDate: mitraDB.joinDate,
         createdAt: mitraDB.createdAt,
@@ -596,8 +581,6 @@ export async function GET(request: NextRequest) {
       monthlyBaseRate: mitra.monthlyBaseRate || '0',
       subscriptionType: (mitra.subscriptionType as MitraSubscriptionType) || 'Regular',
       payoutRate: mitra.monthlyBaseRate || '0',
-      bonusRate: mitra.bonusRate || '0',
-      bonusCommission: (mitra.mitraBonusCommission as MitraBonusCommission) || 'Eligible',
       trialRatePerVisit: mitra.trialRatePerVisit || null,
     }));
 

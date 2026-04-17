@@ -371,7 +371,7 @@ interface UpdateTrialRequest {
   start_date?: string; // YYYY-MM-DD format
   end_date?: string; // YYYY-MM-DD format  
   assigned_mitra?: string; // UUID of mitra
-  subscription_status?: 'Trial' | 'Trial Scheduled' | 'Active' | 'Inactive' | 'Suspended' | 'Expired' | 'Cancelled' | 'Not Converted';
+  subscription_status?: 'Trial' | 'Trial Scheduled' | 'Active' | 'Churn' | 'Suspended' | 'Expired' | 'Cancelled' | 'Not Converted';
   notes?: string; // Customer notes
   subscription_package?: string; // Subscription package name
   total_sessions?: number; // Total sessions

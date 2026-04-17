@@ -61,28 +61,38 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
   const [selectedPayout, setSelectedPayout] = useState<PayoutRecord | null>(null);
   const [uangParkir, setUangParkir] = useState('');
   const [kompensasiPromosi, setKompensasiPromosi] = useState('');
-  const [lainnyaAmount, setLainnyaAmount] = useState('');
-  const [lainnyaLabel, setLainnyaLabel] = useState('');
+  const [lainnyaItems, setLainnyaItems] = useState<{ label: string; amount: string }[]>([{ label: '', amount: '' }]);
   const [updating, setUpdating] = useState(false);
 
-  function parseTunjanganNotes(notes: string | null): { uangParkir: number; kompensasiPromosi: number; lainnyaAmount: number; lainnyaLabel: string } {
-    if (!notes) return { uangParkir: 0, kompensasiPromosi: 0, lainnyaAmount: 0, lainnyaLabel: '' };
+  function parseTunjanganNotes(notes: string | null): { uangParkir: number; kompensasiPromosi: number; lainnyaItems: { label: string; amount: string }[] } {
+    if (!notes) return { uangParkir: 0, kompensasiPromosi: 0, lainnyaItems: [{ label: '', amount: '' }] };
     try {
       const parsed = JSON.parse(notes);
       if (typeof parsed === 'object' && parsed !== null) {
+        // New format: lainnyaItems array
+        if (Array.isArray(parsed.lainnyaItems)) {
+          return {
+            uangParkir: Number(parsed.uangParkir) || 0,
+            kompensasiPromosi: Number(parsed.kompensasiPromosi) || 0,
+            lainnyaItems: parsed.lainnyaItems.length > 0 ? parsed.lainnyaItems : [{ label: '', amount: '' }],
+          };
+        }
+        // Legacy format: single lainnyaLabel + lainnyaAmount
         return {
           uangParkir: Number(parsed.uangParkir) || 0,
           kompensasiPromosi: Number(parsed.kompensasiPromosi) || 0,
-          lainnyaAmount: Number(parsed.lainnyaAmount) || 0,
-          lainnyaLabel: parsed.lainnyaLabel || '',
+          lainnyaItems: parsed.lainnyaLabel || parsed.lainnyaAmount
+            ? [{ label: parsed.lainnyaLabel || '', amount: parsed.lainnyaAmount ? String(parsed.lainnyaAmount) : '' }]
+            : [{ label: '', amount: '' }],
         };
       }
     } catch {}
-    // Legacy plain text notes — treat as lainnyaLabel
-    return { uangParkir: 0, kompensasiPromosi: 0, lainnyaAmount: 0, lainnyaLabel: notes };
+    // Legacy plain text notes
+    return { uangParkir: 0, kompensasiPromosi: 0, lainnyaItems: [{ label: notes, amount: '' }] };
   }
 
-  const totalTunjangan = (parseFloat(uangParkir) || 0) + (parseFloat(kompensasiPromosi) || 0) + (parseFloat(lainnyaAmount) || 0);
+  const totalLainnya = lainnyaItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+  const totalTunjangan = (parseFloat(uangParkir) || 0) + (parseFloat(kompensasiPromosi) || 0) + totalLainnya;
 
   const fetchPayouts = async () => {
     try {
@@ -166,20 +176,21 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
     setSelectedPayout(payout);
     setUangParkir(parsed.uangParkir > 0 ? parsed.uangParkir.toString() : '');
     setKompensasiPromosi(parsed.kompensasiPromosi > 0 ? parsed.kompensasiPromosi.toString() : '');
-    setLainnyaAmount(parsed.lainnyaAmount > 0 ? parsed.lainnyaAmount.toString() : '');
-    setLainnyaLabel(parsed.lainnyaLabel);
+    setLainnyaItems(parsed.lainnyaItems);
     setShowBonusModal(true);
   };
 
   const handleUpdateBonus = async () => {
     if (!selectedPayout) return;
 
-    const total = (parseFloat(uangParkir) || 0) + (parseFloat(kompensasiPromosi) || 0) + (parseFloat(lainnyaAmount) || 0);
+    const total = totalTunjangan;
     const notesPayload = JSON.stringify({
       uangParkir: parseFloat(uangParkir) || 0,
       kompensasiPromosi: parseFloat(kompensasiPromosi) || 0,
-      lainnyaAmount: parseFloat(lainnyaAmount) || 0,
-      lainnyaLabel: lainnyaLabel.trim(),
+      lainnyaItems: lainnyaItems.filter(item => item.label.trim() || item.amount).map(item => ({
+        label: item.label.trim(),
+        amount: parseFloat(item.amount) || 0,
+      })),
     });
 
     try {
@@ -760,28 +771,50 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
-                  Lainnya
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={lainnyaLabel}
-                    onChange={(e) => setLainnyaLabel(e.target.value)}
-                    className="filter-input flex-1 px-3 py-2.5 rounded-lg bg-white"
-                    placeholder="Keterangan (cth: Transport, THR)"
-                  />
-                  <div className="relative w-40">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 pointer-events-none">Rp</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={lainnyaAmount ? Number(lainnyaAmount).toLocaleString('id-ID') : ''}
-                      onChange={(e) => setLainnyaAmount(e.target.value.replace(/[^\d]/g, ''))}
-                      className="filter-input w-full pl-9 pr-3 py-2.5 rounded-lg bg-white font-semibold text-right"
-                      placeholder="0"
-                    />
-                  </div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide">
+                    Lainnya
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setLainnyaItems(prev => [...prev, { label: '', amount: '' }])}
+                    className="text-xs text-blue-600 font-semibold hover:text-blue-800 flex items-center gap-1"
+                  >
+                    + Tambah
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {lainnyaItems.map((item, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        value={item.label}
+                        onChange={(e) => setLainnyaItems(prev => prev.map((it, i) => i === idx ? { ...it, label: e.target.value } : it))}
+                        className="filter-input flex-1 px-3 py-2.5 rounded-lg bg-white"
+                        placeholder="Keterangan (cth: Bonus, THR)"
+                      />
+                      <div className="relative w-40">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 pointer-events-none">Rp</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={item.amount ? Number(item.amount).toLocaleString('id-ID') : ''}
+                          onChange={(e) => setLainnyaItems(prev => prev.map((it, i) => i === idx ? { ...it, amount: e.target.value.replace(/[^\d]/g, '') } : it))}
+                          className="filter-input w-full pl-9 pr-3 py-2.5 rounded-lg bg-white font-semibold text-right"
+                          placeholder="0"
+                        />
+                      </div>
+                      {lainnyaItems.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setLainnyaItems(prev => prev.filter((_, i) => i !== idx))}
+                          className="text-red-400 hover:text-red-600 p-1"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -792,18 +825,24 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
                     <span className="text-sm text-slate-600 font-medium">Komisi Imbal Jasa</span>
                     <span className="text-sm font-semibold text-slate-900 currency-value">{formatCurrency(selectedPayout.basePayout)}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-slate-600 font-medium">Bonus</span>
-                    <span className="text-sm font-semibold text-slate-900 currency-value">{formatCurrency(selectedPayout.bonusAmount)}</span>
-                  </div>
-                  {totalTunjangan > 0 && (
+                  {(parseFloat(uangParkir) || 0) > 0 && (
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-slate-600 font-medium">Tunjangan Lainnya</span>
-                      <span className="text-sm font-semibold text-emerald-600 currency-value">
-                        +{formatCurrency(totalTunjangan.toString())}
-                      </span>
+                      <span className="text-sm text-slate-600 font-medium">Uang Parkir</span>
+                      <span className="text-sm font-semibold text-emerald-600 currency-value">+{formatCurrency(uangParkir)}</span>
                     </div>
                   )}
+                  {(parseFloat(kompensasiPromosi) || 0) > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600 font-medium">Kompensasi Promosi</span>
+                      <span className="text-sm font-semibold text-emerald-600 currency-value">+{formatCurrency(kompensasiPromosi)}</span>
+                    </div>
+                  )}
+                  {lainnyaItems.map((item, idx) => (parseFloat(item.amount) || 0) > 0 && (
+                    <div key={idx} className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600 font-medium">{item.label || 'Lainnya'}</span>
+                      <span className="text-sm font-semibold text-emerald-600 currency-value">+{formatCurrency(item.amount)}</span>
+                    </div>
+                  ))}
                   <div className="h-px bg-slate-300"></div>
                   <div className="flex justify-between items-center pt-1">
                     <span className="text-sm font-bold text-slate-800 uppercase tracking-wide">Total Payout</span>

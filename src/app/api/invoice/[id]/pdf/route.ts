@@ -86,7 +86,6 @@ export async function GET(
                 invoicePromoDiscount: invoiceDB.invoicePromoDiscount,
                 subtotal: invoiceDB.subtotal,
                 totalAmount: invoiceDB.totalAmount,
-                subscriptionEnd: customerDB.subscriptionEnd,
                 // Fallback fields from customerDB for legacy invoices with missing data
                 customerMonthlyFee: customerDB.monthlyFee,
                 customerSubscriptionPackage: customerDB.subscriptionPackage,
@@ -195,7 +194,13 @@ export async function GET(
             { label: 'Invoice Date:', value: formatDate(invoice.invoiceDate as string | Date | null) },
             { label: 'Due Date:', value: formatDate(dueDateValue as string | Date | null) },
             { label: 'Start Period:', value: formatDate(invoice.invoiceStartDate) },
-            { label: 'End Period:', value: formatDate(invoice.subscriptionEnd) },
+            { label: 'End Period:', value: (() => {
+                if (!invoice.invoiceStartDate) return '-';
+                const s = new Date(invoice.invoiceStartDate as string);
+                const lastDayNextMonth = new Date(s.getFullYear(), s.getMonth() + 2, 0).getDate();
+                const clampedDay = Math.min(s.getDate(), lastDayNextMonth);
+                return formatDate(new Date(s.getFullYear(), s.getMonth() + 1, clampedDay));
+            })() },
         ];
 
         const metaStartY = yPos;
@@ -278,7 +283,7 @@ export async function GET(
                 lineWidth: 0.3,
             },
             columnStyles: {
-                0: { cellWidth: 'auto' },
+                0: { cellWidth: 86, overflow: 'linebreak' },
                 1: { cellWidth: 18, halign: 'center' },
                 2: { cellWidth: 38, halign: 'right' },
                 3: { cellWidth: 38, halign: 'right' },
@@ -367,10 +372,12 @@ export async function GET(
         yPos += 6;
 
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.5);
+        doc.setFontSize(6.5);
         doc.setTextColor(50, 50, 50);
 
         const usableWidth = pageWidth - margin * 2;
+        const lineHeight = 3.8;
+        const termSpacing = 1.5;
 
         TERMS.forEach((term, index) => {
             const bullet = `${index + 1}. `;
@@ -379,20 +386,13 @@ export async function GET(
 
             const lines = doc.splitTextToSize(term, textWidth);
 
-            // Check if we need a new page
-            const neededHeight = lines.length * 4.5 + 2;
-            if (yPos + neededHeight > doc.internal.pageSize.getHeight() - 15) {
-                doc.addPage();
-                yPos = 15;
-            }
-
             doc.setFont('helvetica', 'bold');
             doc.text(bullet, margin, yPos);
             doc.setFont('helvetica', 'normal');
             lines.forEach((line: string, lineIndex: number) => {
-                doc.text(line, indentX, yPos + lineIndex * 4.5);
+                doc.text(line, indentX, yPos + lineIndex * lineHeight);
             });
-            yPos += lines.length * 4.5 + 2;
+            yPos += lines.length * lineHeight + termSpacing;
         });
 
         // ============ OUTPUT PDF ============

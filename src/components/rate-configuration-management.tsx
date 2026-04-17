@@ -25,11 +25,9 @@ interface MitraRow {
   id: string;
   mitraName: string;
   mitraCode: string;
-  bonusCommission: string | null;
   trialRatePerVisit: string | null;
-  configuredCount: number; // how many of 7 frequencies are set
+  configuredCount: number;
   rateConfigs: RateConfigRow[];
-  bonusRate: string | null;
 }
 
 interface RateConfigRow {
@@ -100,8 +98,6 @@ export default function RateConfigurationManagement({ session }: RateConfigurati
           id: m.id,
           mitraName: m.name || m.mitraName || '',
           mitraCode: m.mitraCode || '',
-          bonusCommission: m.bonusCommission || null,
-          bonusRate: m.bonusRate || null,
           trialRatePerVisit: m.trialRatePerVisit || null,
           configuredCount: mitraRates.filter(r => r.payoutRate !== '').length,
           rateConfigs: mitraRates,
@@ -191,16 +187,6 @@ export default function RateConfigurationManagement({ session }: RateConfigurati
 
                   {/* Code */}
                   <span className="text-xs font-mono text-gray-500">{mitra.mitraCode}</span>
-
-                  {/* Bonus */}
-                  {mitra.bonusCommission === 'Eligible' ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full w-fit">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
-                      Eligible
-                    </span>
-                  ) : (
-                    <span className="text-xs text-gray-400">—</span>
-                  )}
 
                   {/* Configured count */}
                   <div className="flex items-center gap-2">
