@@ -85,6 +85,8 @@ export const customerDB = pgTable('customer_db', {
   totalPaid: decimal('total_paid', { precision: 10, scale: 2 }).default('0'),
   outstandingBalance: decimal('outstanding_balance', { precision: 10, scale: 2 }).default('0'),
   customerNotes: text('customer_notes'),
+  churnTag: varchar('churn_tag', { length: 100 }),
+  churnReason: text('churn_reason'),
   totalSessions: integer('total_sessions').default(0),
   chosenDays: text('chosen_days'), // JSON string of selected days
   dayPattern: text('day_pattern'), // JSON: {"day1":"Monday","day2":"Friday","day3":null}
@@ -169,10 +171,11 @@ export const invoiceDB = pgTable('invoice_db', {
 
   // Invoice date fields (populated from customerDB.subscriptionStart)
   invoiceStartDate: date('invoice_start_date').notNull(), // Reference from customerDB.subscriptionStart
+  invoiceEndDate: date('invoice_end_date'), // Reference from customerDB.subscriptionEnd
   invoiceYears: integer('invoice_years').notNull(), // Year from invoiceStartDate
-  invoiceMonths: integer('invoice_months').notNull(), // Month from invoiceStartDate  
+  invoiceMonths: integer('invoice_months').notNull(), // Month from invoiceStartDate
   invoiceDays: integer('invoice_days').notNull(), // Day from invoiceStartDate
-  invoiceSubscription: varchar('invoice_subscription', { length: 50 }).notNull().default('Cleaning'), // Hardcoded "Cleaning"
+  invoiceSubscription: varchar('invoice_subscription', { length: 200 }).notNull().default('Cleaning'),
 
   // Customer info (populated from customerDB)
   invoiceCustomerName: varchar('invoice_customer_name', { length: 255 }).notNull(), // from customerDB.customerName

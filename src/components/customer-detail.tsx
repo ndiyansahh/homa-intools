@@ -8,6 +8,7 @@ import { Icons } from './icons';
 import { useBreadcrumbOverride } from '@/lib/breadcrumb-context';
 import { useToast } from '@/lib/toast';
 import { useConfirm } from '@/components/confirm-dialog';
+import CustomerForm from './customer-form';
 
 interface CustomerDetailProps {
   customerId: string;
@@ -76,6 +77,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   const [showUpdateDate, setShowUpdateDate] = useState(false);
   const [showAssignCleaner, setShowAssignCleaner] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [showRenewForm, setShowRenewForm] = useState(false);
 
   // Form states
   const [newDate, setNewDate] = useState('');
@@ -1241,7 +1243,53 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
     );
   }
 
+  const renewalStartDate = (() => {
+    if (!customer?.subscriptionEndRaw) return '';
+    const [y, m, d] = customer.subscriptionEndRaw.split('-').map(Number);
+    const next = new Date(y, m - 1, d + 1);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}`;
+  })();
+
+  const renewalSelectedDays = (() => {
+    if (!customer?.dayPattern) return [];
+    try {
+      const p = JSON.parse(customer.dayPattern);
+      return [p.day1, p.day2, p.day3].filter(Boolean) as string[];
+    } catch {
+      return [];
+    }
+  })();
+
   return (
+    <>
+    {showRenewForm && customer && (
+      <CustomerForm
+        session={session}
+        mode="renew"
+        renewalCustomerId={customer.id}
+        renewalPrefill={{
+          customerName: customer.customerName,
+          contact: customer.contact || '',
+          address: customer.address || '',
+          city: customer.city || '',
+          district: customer.district || '',
+          village: customer.village || '',
+          postalCode: customer.postalCode || '',
+          subscriptionPackageId: customer.subscriptionPackageId || '',
+          selectedDays: renewalSelectedDays,
+          startDate: renewalStartDate,
+          mitraId: customer.assignedMitraId || '',
+          mitraName: customer.assignedMitraName || '',
+          ltv: customer.ltv || 0,
+        }}
+        onClose={() => setShowRenewForm(false)}
+        onSuccess={() => {
+          setShowRenewForm(false);
+          fetchCustomer();
+        }}
+      />
+    )}
     <div className="space-y-6">
       {/* Header with Actions */}
       <div className="flex items-center justify-between">
@@ -1259,6 +1307,15 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
 
         {/* Action Buttons */}
         <div className="flex space-x-3">
+          {['ADMIN', 'OWNER'].includes(session.role) && customer.status === 'Churn' && (
+            <button
+              onClick={() => setShowRenewForm(true)}
+              className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              <Icons.refresh className="w-4 h-4 mr-2" />
+              Renew Subscription
+            </button>
+          )}
           <button
             onClick={async () => {
               // Initialize form with current customer data
@@ -2439,5 +2496,6 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
         </div>
       )}
     </div>
+    </>
   );
 }

@@ -115,8 +115,9 @@ export async function createInvoice(params: CreateInvoiceParams) {
     const promoDiscount = params.invoicePromoDiscount || 0;
     const totalAmount = subtotal - promoDiscount;
 
-    // Build subscription description from package name (varchar(50) limit)
-    const subscriptionDescription = (customer.subscriptionPackage || 'Cleaning').substring(0, 50);
+    const PREFIX = 'Monthly Subscription of ';
+    const rawPkg = customer.subscriptionPackage || 'Cleaning';
+    const subscriptionDescription = rawPkg.startsWith(PREFIX) ? rawPkg : `${PREFIX}${rawPkg}`;
 
     // Create invoice data
     const invoiceData = {
@@ -126,8 +127,9 @@ export async function createInvoice(params: CreateInvoiceParams) {
       invoiceNumber: invoiceNumber,
       invoiceNo: sequenceNumber,
 
-      // Date fields from customer subscription start
+      // Date fields from customer subscription start/end
       invoiceStartDate: subscriptionStartDate.toISOString().split('T')[0],
+      invoiceEndDate: customer.subscriptionEnd ?? null,
       invoiceYears: invoiceYears,
       invoiceMonths: invoiceMonths,
       invoiceDays: invoiceDays,
@@ -236,6 +238,7 @@ export async function getInvoicesWithFullData(filters?: {
         
         // Date fields
         invoiceStartDate: invoiceDB.invoiceStartDate,
+        invoiceEndDate: invoiceDB.invoiceEndDate,
         invoiceYears: invoiceDB.invoiceYears,
         invoiceMonths: invoiceDB.invoiceMonths,
         invoiceDays: invoiceDB.invoiceDays,

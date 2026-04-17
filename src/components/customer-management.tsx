@@ -29,28 +29,6 @@ interface ExpiringCustomer {
   daysUntilExpiry: number;
 }
 
-interface ChurnCustomer {
-  id: string;
-  customerName: string;
-  contact: string;
-  subscriptionPackage: string;
-  subscriptionEnd: string;
-  subscriptionStart: string;
-  monthlyFee: number;
-  city: string;
-  address: string;
-  district: string;
-  village: string;
-  postalCode: string;
-  assignedMitraId: string | null;
-  assignedMitraName: string | null;
-  backupMitraId: string | null;
-  subscriptionPackageId: string | null;
-  dayPattern: string | null;
-  ltv: number;
-  churnTag: string | null;
-  churnReason: string | null;
-}
 
 interface CustomerManagementProps {
   session: SessionData;
@@ -76,15 +54,11 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
   const [packageOptions, setPackageOptions] = useState<{ id: string; name: string }[]>([]);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'all' | 'expiring' | 'churn'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'expiring'>('all');
 
   // Expiring customers state
   const [expiringCustomers, setExpiringCustomers] = useState<ExpiringCustomer[]>([]);
   const [expiringLoading, setExpiringLoading] = useState(false);
-
-  // Churn customers state
-  const [churnCustomers, setChurnCustomers] = useState<ChurnCustomer[]>([]);
-  const [churnLoading, setChurnLoading] = useState(false);
 
   // Renew modal state
   const [renewalModal, setRenewalModal] = useState<{ open: boolean; customer: ExpiringCustomer | null }>({ open: false, customer: null });
@@ -172,24 +146,8 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
     }
   };
 
-  const fetchChurnCustomers = async () => {
-    setChurnLoading(true);
-    try {
-      const res = await fetch('/api/customers/churn');
-      if (res.ok) {
-        const data = await res.json();
-        setChurnCustomers(Array.isArray(data) ? data : data.data || data.items || []);
-      }
-    } catch (e) {
-      console.error('Error fetching churn customers:', e);
-    } finally {
-      setChurnLoading(false);
-    }
-  };
-
   useEffect(() => {
     fetchExpiringCustomers();
-    fetchChurnCustomers();
   }, []);
 
   const openRenewalModal = (customer: ExpiringCustomer) => {
@@ -561,21 +519,6 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
               </span>
             )}
           </button>
-          <button
-            onClick={() => setActiveTab('churn')}
-            className={`inline-flex items-center gap-2 px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === 'churn'
-                ? 'border-gray-600 text-gray-700'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Churned
-            {churnCustomers.length > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold bg-gray-500 text-white">
-                {churnCustomers.length}
-              </span>
-            )}
-          </button>
         </div>
 
         {/* Expiring Invoice Tab */}
@@ -664,115 +607,6 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
                             >
                               Stop
                             </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Churned Customers Tab */}
-        {activeTab === 'churn' && (
-          <div className="card">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-1">Churned Customers</h2>
-                  <p className="text-sm text-gray-500">Customers who have stopped their subscription. You can re-activate them with a renewal.</p>
-                </div>
-                <button
-                  onClick={fetchChurnCustomers}
-                  className="inline-flex items-center px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-gray-700"
-                >
-                  <Icons.refresh className="w-4 h-4 mr-1" />
-                  Refresh
-                </button>
-              </div>
-            </div>
-
-            {churnLoading ? (
-              <div className="p-8 text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600 mx-auto"></div>
-                <p className="mt-2 text-gray-600">Loading churned customers...</p>
-              </div>
-            ) : churnCustomers.length === 0 ? (
-              <div className="p-8 text-center">
-                <Icons.checkCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Churned Customers</h3>
-                <p className="text-gray-600">Great — no customers have churned yet.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                    <tr>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Customer</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Package</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Last Active</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Churn Tag</th>
-                      <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-100">
-                    {churnCustomers.map((customer) => (
-                      <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center">
-                              <span className="text-gray-500 font-semibold text-sm">
-                                {customer.customerName.charAt(0).toUpperCase()}
-                              </span>
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-semibold text-gray-900">{customer.customerName}</div>
-                              <div className="text-xs text-gray-500">{customer.city || '-'}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 max-w-xs">
-                          <div className="text-sm text-gray-700 truncate" title={customer.subscriptionPackage}>
-                            {customer.subscriptionPackage || <span className="text-gray-400">-</span>}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-700">{customer.subscriptionEnd ? formatDate(customer.subscriptionEnd) : '-'}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {customer.churnTag ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                              {customer.churnTag}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400 text-sm">-</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => router.push(`/app/customers/${customer.id}`)}
-                              className="inline-flex items-center px-3 py-1.5 bg-gray-50 text-gray-600 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors"
-                            >
-                              <Icons.eye className="w-3.5 h-3.5 mr-1" />
-                              View
-                            </button>
-                            {['ADMIN', 'OWNER'].includes(session.role) && (
-                              <button
-                                onClick={() => {
-                                  // Convert ChurnCustomer to ExpiringCustomer shape for renewal modal
-                                  openRenewalModal({
-                                    ...customer,
-                                    daysUntilExpiry: -999,
-                                  });
-                                }}
-                                className="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg text-sm font-medium transition-colors"
-                              >
-                                Renew
-                              </button>
-                            )}
                           </div>
                         </td>
                       </tr>
@@ -1023,7 +857,6 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
             onSuccess={() => {
               setRenewalModal({ open: false, customer: null });
               fetchExpiringCustomers();
-              fetchChurnCustomers();
               fetchCustomers();
             }}
           />
@@ -1042,7 +875,7 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">
-                Stop Subscription — {stopModal.customer.customerName}
+                Stop Subscription: {stopModal.customer.customerName}
               </h2>
               <button
                 onClick={() => setStopModal({ open: false, customer: null })}

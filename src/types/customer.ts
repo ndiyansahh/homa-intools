@@ -1,12 +1,12 @@
 export type AcquisitionType = 'HOMA' | 'Altrix';
 export type ResidentialType = 'House' | 'Office Space' | 'Apartment';
-export type SubscriptionStatus = 'Active' | 'Inactive' | 'Suspended' | 'Cancelled' | 'Trial' | 'Trial Scheduled' | 'Expired';
+export type SubscriptionStatus = 'Active' | 'Churn' | 'Suspended' | 'Cancelled' | 'Trial' | 'Trial Scheduled' | 'Expired';
 export type SubscriptionPackage =
   | 'Monthly Subscription of Regular Cleaning (3 hours per visit; 2 visits per week)'
   | 'Monthly Subscription of Frequent Cleaning (3 hours per visit; 3 visits per week)'
   | 'Monthly Subscription of Special Partnership (3 hours per visit; 1 visit per week)'
   | 'Monthly Subscription of Basic Cleaning (3 hours per visit; 1 visit per week)';
-export type ChurnTag = 'Internal' | 'External' | 'N/A';
+export type ChurnTag = string;
 
 export interface CustomerData {
   id: string;
@@ -27,11 +27,17 @@ export interface CustomerData {
   status: string; // freetext like "Churn", "Active", etc.
   cleaner1: string;
   cleaner2: string;
-  churnTag: ChurnTag;
+  churnTag: string;
   churnReason?: string;
   createdAt: string;
   updatedAt: string;
   isDeleted?: boolean;
+  // Renewal fields
+  subscriptionPackageId?: string;
+  assignedMitraId?: string;
+  assignedMitraName?: string;
+  dayPattern?: string;
+  subscriptionEndRaw?: string; // YYYY-MM-DD, for renewal start date computation
 }
 
 export interface CreateCustomerRequest {
@@ -51,7 +57,7 @@ export interface CreateCustomerRequest {
   status: string;
   cleaner1: string;
   cleaner2: string;
-  churnTag: ChurnTag;
+  churnTag: string;
   churnReason?: string;
 }
 

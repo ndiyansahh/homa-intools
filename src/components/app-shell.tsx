@@ -58,7 +58,7 @@ function AppShellInner({ children, session }: AppShellProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
-      <div className="flex h-screen">
+      <div className="flex min-h-screen">
         {/* Sidebar */}
         <Sidebar
           navigationItems={visibleNavItems}
@@ -70,7 +70,7 @@ function AppShellInner({ children, session }: AppShellProps) {
         />
 
         {/* Main content area */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0">
           {/* Topbar */}
           <Topbar
             breadcrumbs={breadcrumbs}
@@ -81,12 +81,10 @@ function AppShellInner({ children, session }: AppShellProps) {
           />
 
           {/* Page content */}
-          <main className="flex-1 overflow-y-auto bg-gray-50/50" role="main">
-            <div className="h-full">
-              <div className="h-full bg-white">
-                <div className="px-4 sm:px-6 lg:px-8 py-8">
-                  {children}
-                </div>
+          <main className="flex-1 bg-gray-50/50" role="main">
+            <div className="bg-white">
+              <div className="px-4 sm:px-6 lg:px-8 py-8">
+                {children}
               </div>
             </div>
           </main>

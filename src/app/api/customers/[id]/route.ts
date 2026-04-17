@@ -56,6 +56,7 @@ export async function GET(
           backupMitraId: customerDB.backupMitraId,
           invoiceId: customerDB.invoiceId,
           subscriptionPackage: customerDB.subscriptionPackage,
+          subscriptionPackageId: customerDB.subscriptionPackageId,
           subscriptionStart: customerDB.subscriptionStart,
           subscriptionEnd: customerDB.subscriptionEnd,
           subscriptionStatus: customerDB.subscriptionStatus,
@@ -68,6 +69,8 @@ export async function GET(
           chosenDays: customerDB.chosenDays,
           dayPattern: customerDB.dayPattern,
           ltv: customerDB.ltv,
+          churnTag: customerDB.churnTag,
+          churnReason: customerDB.churnReason,
           isActive: customerDB.isActive,
           isDeleted: customerDB.isDeleted,
           createdAt: customerDB.createdAt,
@@ -152,12 +155,18 @@ export async function GET(
       status: customerRecord.subscriptionStatus || 'Active',
       cleaner1: primaryMitra?.mitraName || '',
       cleaner2: backupMitra?.mitraName || '',
-      churnTag: (customerRecord as any).churnTag || null,
-      churnReason: (customerRecord as any).churnReason || '',
+      churnTag: customerRecord.churnTag || null,
+      churnReason: customerRecord.churnReason || '',
       createdAt: customerRecord.createdAt?.toISOString() || new Date().toISOString(),
       updatedAt: customerRecord.updatedAt?.toISOString() || new Date().toISOString(),
       isDeleted: customerRecord.isDeleted || false,
       invoiceId: customerRecord.invoiceId || undefined,
+      // Renewal fields
+      subscriptionPackageId: customerRecord.subscriptionPackageId || undefined,
+      assignedMitraId: customerRecord.assignedMitraId || undefined,
+      assignedMitraName: primaryMitra?.mitraName || undefined,
+      dayPattern: customerRecord.dayPattern || undefined,
+      subscriptionEndRaw: customerRecord.subscriptionEnd || undefined,
     };
 
     return NextResponse.json({

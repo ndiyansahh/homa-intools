@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { customerDB, mitraDB } from '@/lib/schema'
-import { and, eq, isNull, or } from 'drizzle-orm'
+import { and, eq, isNull, or, desc } from 'drizzle-orm'
 import { getSession } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
           )
         )
       )
-      .orderBy(customerDB.updatedAt)
+      .orderBy(desc(customerDB.updatedAt))
 
     const churnCustomers = results.map((customer) => ({
       id: customer.id,

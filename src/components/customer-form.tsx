@@ -754,33 +754,50 @@ export default function CustomerForm({ session, onClose, onSuccess, mode = 'crea
   };
 
   const resetForm = () => {
-    setFormData({
-      customerName: '',
-      acquisition: 'HOMA',
-      contact: '',
-      address: '',
-      district: '',
-      city: '',
-      village: '',
-      postalCode: '',
-      residentialType: 'House',
-      qtyPackage: 1,
-      subscriptionPackage: '',
-      subscriptionPackageId: '',
-      selectedDays: [],
-      ltv: 0,
-      firstDateSubscription: '',
-      status: 'Active',
-      cleaner1: '',
-      notes: '',
-      promoCode: '',
-      promoDiscount: '',
-    });
-    setDistricts([]);
-    setVillages([]);
-    setPreviewVisits([]);
-    setAvailableMitras([]);
-    setMitraAvailabilityMessage('');
+    if (mode === 'renew' && renewalPrefill) {
+      // Reset ke prefill data, hanya clear notes/promo
+      setFormData(prev => ({
+        ...prev,
+        notes: '',
+        promoCode: '',
+        promoDiscount: '',
+        subscriptionPackageId: renewalPrefill.subscriptionPackageId,
+        selectedDays: renewalPrefill.selectedDays,
+        firstDateSubscription: renewalPrefill.startDate,
+        cleaner1: renewalPrefill.mitraName,
+        qtyPackage: 1,
+      }));
+      setPreviewVisits([]);
+      setMitraAvailabilityMessage('');
+    } else {
+      setFormData({
+        customerName: '',
+        acquisition: 'HOMA',
+        contact: '',
+        address: '',
+        district: '',
+        city: '',
+        village: '',
+        postalCode: '',
+        residentialType: 'House',
+        qtyPackage: 1,
+        subscriptionPackage: '',
+        subscriptionPackageId: '',
+        selectedDays: [],
+        ltv: 0,
+        firstDateSubscription: '',
+        status: 'Active',
+        cleaner1: '',
+        notes: '',
+        promoCode: '',
+        promoDiscount: '',
+      });
+      setDistricts([]);
+      setVillages([]);
+      setPreviewVisits([]);
+      setAvailableMitras([]);
+      setMitraAvailabilityMessage('');
+    }
   };
 
   return (
@@ -1329,16 +1346,22 @@ export default function CustomerForm({ session, onClose, onSuccess, mode = 'crea
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Diskon / Promotion (Rp) <span className="text-xs text-gray-400">(opsional)</span>
+                  Diskon / Promotion <span className="text-xs text-gray-400">(opsional)</span>
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.promoDiscount ?? ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, promoDiscount: e.target.value }))}
-                  className="input-field"
-                  placeholder="0"
-                />
+                <div className="relative flex items-center">
+                  <span className="absolute left-3 text-sm text-gray-400 pointer-events-none select-none">Rp</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formData.promoDiscount ? Number(formData.promoDiscount).toLocaleString('id-ID') : ''}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                      setFormData(prev => ({ ...prev, promoDiscount: raw }));
+                    }}
+                    className="input-field pl-9 text-right font-medium"
+                    placeholder="0"
+                  />
+                </div>
               </div>
             </div>
           </div>
