@@ -58,7 +58,7 @@ export function isMitraAvailableOnDate(mitraId: string, date: Date, existingVisi
     return true;
   }
 
-  const dateStr = date.toISOString().split('T')[0];
+  const dateStr = date.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
 
   // Get visits for this mitra on this date
   const visitsOnDate = existingVisits.filter(visit =>
@@ -101,7 +101,7 @@ export function getMitraAvailabilityForPattern(
     for (const date of allDates) {
       if (!isMitraAvailableOnDate(mitra.id, date, existingVisits)) {
         availableForAll = false;
-        conflictDates.push(date.toISOString().split('T')[0]);
+        conflictDates.push(date.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }));
       }
     }
 
@@ -220,7 +220,7 @@ export async function createSubscriptionWithDayPattern(params: {
   for (const date of scheduledDates) {
     if (!isMitraAvailableOnDate(params.mitraId, date, existingVisits)) {
       throw new Error(
-        `Mitra not available on ${date.toISOString().split('T')[0]}. Please select another mitra or dates.`
+        `Mitra not available on ${date.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })}. Please select another mitra or dates.`
       );
     }
   }
@@ -232,8 +232,8 @@ export async function createSubscriptionWithDayPattern(params: {
       subscriptionPackageId: params.subscriptionPackageId,
       subscriptionPackage: pkg.subscriptionPackage,
       assignedMitraId: params.mitraId,
-      subscriptionStart: params.subscriptionStartDate.toISOString().split('T')[0],
-      subscriptionEnd: endDate.toISOString().split('T')[0],
+      subscriptionStart: params.subscriptionStartDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
+      subscriptionEnd: endDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
       subscriptionStatus: "Active",
       qtyPackage: months,
       monthlyFee: (pkg.priceNumeric * months).toString(),
@@ -253,7 +253,7 @@ export async function createSubscriptionWithDayPattern(params: {
       originalMitraId: params.mitraId,
       actualMitraId: params.mitraId,
       visitNumber: index + 1,
-      scheduledDate: date.toISOString().split('T')[0],
+      scheduledDate: date.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
       scheduledDay: date.toLocaleDateString('en-US', { weekday: 'long' }),
       status: "Done",
       completedAt: date,
@@ -277,10 +277,10 @@ export async function createSubscriptionWithDayPattern(params: {
       totalVisits: scheduledDates.length,
       visitsPerWeek: visitsPerWeek,
       dayPattern: selectedDays,
-      scheduledDates: scheduledDates.map(d => d.toISOString().split('T')[0]),
+      scheduledDates: scheduledDates.map(d => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })),
       subscriptionPeriod: {
-        start: params.subscriptionStartDate.toISOString().split('T')[0],
-        end: endDate.toISOString().split('T')[0]
+        start: params.subscriptionStartDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }),
+        end: endDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
       },
       assignedMitra: {
         mitraId: params.mitraId

@@ -138,7 +138,9 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
   const [startDate, setStartDate] = useState('');
   const [selectedMitra, setSelectedMitra] = useState('');
   const [promoCode, setPromoCode] = useState('');
-  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [promoDiscount, setPromoDiscount] = useState('');
+  const [scheduledDates, setScheduledDates] = useState<Array<{ visitNumber: number; date: string; day: string }>>([]);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   // Fetch trial data
   const fetchTrial = async () => {
@@ -436,7 +438,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
 
       if (response.ok) {
         const result = await response.json();
-        toast('error', result.message || 'Trial visit added successfully');
+        toast('success', result.message || 'Trial visit added successfully');
 
         // Reset form
         setNewTrialDate('');
@@ -722,7 +724,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
           fetchTrialVisits()
         ]);
 
-        toast('error', result.message || 'Mitra changed successfully.');
+        toast('success', result.message || 'Mitra changed successfully.');
       } else {
         const error = await response.json();
         toast('error', error.message || 'Failed to change mitra');
@@ -935,6 +937,39 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
     loadRegionsForTrial();
   }, [trial?.city, trial?.district]); // Only re-run if city or district changes
 
+  // Fetch visit schedule preview from API
+  useEffect(() => {
+    const fetchPreview = async () => {
+      const selectedDaysArray = selectedDays.filter(Boolean);
+      if (!selectedPackageId || selectedDaysArray.length === 0 || !startDate) {
+        setScheduledDates([]);
+        return;
+      }
+      try {
+        setLoadingPreview(true);
+        const response = await fetch('/api/subscriptions/preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subscriptionPackageId: selectedPackageId,
+            dayPattern: selectedDaysArray,
+            startDate,
+            qtyPackage: quantity,
+          }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) setScheduledDates(data.data.scheduledDates || []);
+        }
+      } catch (e) {
+        console.error('Error fetching visit preview:', e);
+      } finally {
+        setLoadingPreview(false);
+      }
+    };
+    if (showConversionForm) fetchPreview();
+  }, [selectedPackageId, selectedDays, startDate, quantity, showConversionForm]);
+
   // Check mitra availability when package, days, start date, or quantity changes
   useEffect(() => {
     if (showConversionForm) {
@@ -954,7 +989,8 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
       setSelectedMitra(trial?.assignedMitraId || '');
       setMitras([]);
       setPromoCode('');
-      setPromoDiscount(0);
+      setPromoDiscount('');
+      setScheduledDates([]);
       fetchSubscriptionPackages();
     }
   }, [showConversionForm]);
@@ -1038,7 +1074,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
       start_date: startDate,
       assigned_mitra: selectedMitra || trial.assignedMitraId || undefined,
       promo_code: promoCode || undefined,
-      promo_discount: promoDiscount > 0 ? promoDiscount : undefined,
+      promo_discount: Number(promoDiscount) > 0 ? Number(promoDiscount) : undefined,
     };
 
     await convertToCustomer(trial.id, conversionData);
@@ -1151,7 +1187,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                     <Icons.edit className="w-4 h-4 mr-2" />
                     Edit
                   </button>
-                  {trial.overallStatus !== 'Converted' && (
+                  {trial.overallStatus === 'Trial Scheduled' && (
                     <button
                       onClick={() => {
                         setShowConversionForm(true);
@@ -1394,12 +1430,15 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 font-medium">Rp</span>
                         <input
-                          type="number"
-                          value={promoDiscount}
-                          onChange={(e) => setPromoDiscount(parseInt(e.target.value) || 0)}
+                          type="text"
+                          inputMode="numeric"
+                          value={promoDiscount ? Number(promoDiscount).toLocaleString('id-ID') : ''}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                            setPromoDiscount(raw);
+                          }}
                           placeholder="0"
-                          min={0}
-                          className="w-full border border-gray-300 rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full border border-gray-300 rounded-md pl-9 pr-3 py-2 text-sm text-right font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
                     </div>
@@ -1413,10 +1452,12 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                       Visit Preview
                     </label>
                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-indigo-500 rounded-md p-4">
-                      <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div className="grid grid-cols-3 gap-4 text-sm mb-4">
                         <div>
                           <p className="text-gray-600 font-medium">Total Sessions</p>
-                          <p className="text-2xl font-bold text-indigo-600">{visitPreview.totalSessions} visits</p>
+                          <p className="text-2xl font-bold text-indigo-600">
+                            {loadingPreview ? '...' : scheduledDates.length > 0 ? scheduledDates.length : visitPreview.totalSessions} visits
+                          </p>
                         </div>
                         <div>
                           <p className="text-gray-600 font-medium">Schedule</p>
@@ -1427,6 +1468,31 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                           <p className="text-sm text-gray-900">{visitPreview.duration}</p>
                         </div>
                       </div>
+                      {loadingPreview && (
+                        <p className="text-xs text-indigo-500">Generating schedule...</p>
+                      )}
+                      {!loadingPreview && scheduledDates.length > 0 && (
+                        <div className="max-h-48 overflow-y-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="text-left text-indigo-700 border-b border-indigo-200">
+                                <th className="pb-1 pr-4">#</th>
+                                <th className="pb-1 pr-4">Day</th>
+                                <th className="pb-1">Date</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {scheduledDates.map((visit) => (
+                                <tr key={visit.visitNumber} className="border-t border-indigo-100">
+                                  <td className="py-1 pr-4 text-indigo-600 font-medium">Visit-{visit.visitNumber}</td>
+                                  <td className="py-1 pr-4 text-gray-700">{visit.day}</td>
+                                  <td className="py-1 text-gray-900">{visit.date}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1709,13 +1775,15 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-md font-medium text-gray-900">Trial Visits</h4>
-                    <button
-                      onClick={() => setShowAddTrialForm(!showAddTrialForm)}
-                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
-                    >
-                      <Icons.plus className="w-4 h-4 mr-1" />
-                      Add Trial Date
-                    </button>
+                    {trial.overallStatus !== 'Cancelled' && (
+                      <button
+                        onClick={() => setShowAddTrialForm(!showAddTrialForm)}
+                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                      >
+                        <Icons.plus className="w-4 h-4 mr-1" />
+                        Add Trial Date
+                      </button>
+                    )}
                   </div>
 
                   {/* Add Trial Form */}
@@ -1846,7 +1914,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                                       type="checkbox"
                                       checked={visit.status === 'Done'}
                                       onChange={(e) => updateVisitAttendance(visit.id, e.target.checked)}
-                                      disabled={isCancelled}
+                                      disabled={trial.overallStatus !== 'Trial Scheduled'}
                                       className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-50"
                                     />
                                     <span className="text-sm text-gray-700">Attended</span>

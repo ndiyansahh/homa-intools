@@ -78,15 +78,26 @@ export async function GET(
     let filteredVisits = visits;
     if (view === 'customer') {
       const subscriptionPackage = visits[0]?.subscriptionPackage;
+      const subscriptionStart = visits[0]?.subscriptionStart;
 
       if (subscriptionPackage === 'Trial') {
         // For Trial package in customer view: show ONLY Done visits
         filteredVisits = visits.filter(v => v.status === 'Done');
         console.log('🔒 Trial package - filtering to Done only');
       } else {
-        // For Non-Trial packages in customer view: show Done + Scheduled + Cancelled
-        filteredVisits = visits.filter(v => v.status === 'Done' || v.status === 'Scheduled' || v.status === 'Cancelled');
-        console.log('📋 Non-Trial package - showing Done + Scheduled + Cancelled');
+        // For Non-Trial (converted) packages in customer view:
+        // Only show visits from subscriptionStart onwards to exclude old trial visits
+        // Show Done + Scheduled + Cancelled
+        filteredVisits = visits.filter(v => {
+          const isValidStatus = v.status === 'Done' || v.status === 'Scheduled' || v.status === 'Cancelled';
+          if (!isValidStatus) return false;
+          // If subscriptionStart is set, only show visits on or after that date
+          if (subscriptionStart && v.scheduledDate) {
+            return v.scheduledDate >= subscriptionStart;
+          }
+          return true;
+        });
+        console.log('📋 Non-Trial package - showing visits from subscriptionStart onwards');
       }
     }
     // If view is not 'customer' (i.e., trial page), return all visits as-is

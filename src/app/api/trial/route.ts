@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { customerDB, attendanceScheduleDB, attendanceRecordDB, mitraDB, subscriptionPackageDB, visitDB } from '@/lib/schema';
-import { eq, desc, like, and, or } from 'drizzle-orm';
+import { eq, desc, like, and, or, gte } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/logger';
 import { createInvoice } from '@/lib/utils/invoiceUtils';
@@ -623,34 +623,22 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
           if (body.convert_to_customer && body.start_date && body.chosen_days && assignedMitraId) {
             console.log('🔄 Converting trial to customer - generating new visit schedule');
 
-            // Step 1: Delete all Scheduled AND Cancelled visits (keep ONLY Done as history)
+            // Step 1: Delete all visits on or after subscription start date (includes Done visits from /api/subscriptions step)
+            // Keep only trial Done visits BEFORE the subscription start date as history
             await tx
               .delete(visitDB)
               .where(
                 and(
                   eq(visitDB.customerId, body.id),
-                  or(
-                    eq(visitDB.status, 'Scheduled'),
-                    eq(visitDB.status, 'Cancelled')
-                  )
+                  gte(visitDB.scheduledDate, body.start_date)
                 )
               );
-            console.log('✅ Deleted old Scheduled and Cancelled visits (keeping Done only)');
+            console.log('✅ Deleted all visits from subscription start date onwards (keeping pre-subscription trial history)');
 
-            // Step 2: Count existing Done visits to continue numbering
-            const doneVisits = await tx
-              .select({ visitNumber: visitDB.visitNumber })
-              .from(visitDB)
-              .where(
-                and(
-                  eq(visitDB.customerId, body.id),
-                  eq(visitDB.status, 'Done')
-                )
-              );
-            const maxVisitNumber = doneVisits.length > 0
-              ? Math.max(...doneVisits.map(v => v.visitNumber))
-              : 0;
-            console.log('📊 Continuing from visit number:', maxVisitNumber);
+            // Step 2: New subscription visits always start from 1
+            // Trial Done visits are kept as history but filtered in customer view by subscriptionStart date
+            const maxVisitNumber = 0;
+            console.log('📊 New subscription visits will start from visitNumber 1');
 
             // Step 3: Generate visit dates based on chosen days and subscription dates
             const startDate = new Date(body.start_date);

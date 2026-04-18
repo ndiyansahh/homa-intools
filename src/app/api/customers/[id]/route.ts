@@ -10,6 +10,26 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+/**
+ * Parse a date string (YYYY-MM-DD or MM/DD/YYYY) safely without timezone shifts.
+ * Returns DD/MM/YYYY format for display.
+ */
+function formatDateToEnGB(dateStr: string): string {
+  if (!dateStr) return '';
+  // Handle ISO format: YYYY-MM-DD
+  const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
+  }
+  // Handle MM/DD/YYYY format
+  const usMatch = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (usMatch) {
+    return `${usMatch[2]}/${usMatch[1]}/${usMatch[3]}`;
+  }
+  // Fallback to Date parsing
+  return new Date(dateStr).toLocaleDateString('en-GB');
+}
+
 export async function GET(
   request: NextRequest,
   { params }: RouteParams
@@ -136,8 +156,8 @@ export async function GET(
       qtyPackage: qtyPackage,
       ltv: customerRecord.ltv || 0,
       monthlyFee: Number(customerRecord.monthlyFee) || 0,
-      firstDateSubscription: customerRecord.subscriptionStart ? new Date(customerRecord.subscriptionStart).toLocaleDateString('en-GB') : '',
-      subscriptionEnd: customerRecord.subscriptionEnd ? new Date(customerRecord.subscriptionEnd).toLocaleDateString('en-GB') : undefined,
+      firstDateSubscription: customerRecord.subscriptionStart ? formatDateToEnGB(customerRecord.subscriptionStart) : '',
+      subscriptionEnd: customerRecord.subscriptionEnd ? formatDateToEnGB(customerRecord.subscriptionEnd) : undefined,
       status: customerRecord.subscriptionStatus || 'Active',
       cleaner1: primaryMitra?.mitraName || '',
       cleaner2: backupMitra?.mitraName || '',

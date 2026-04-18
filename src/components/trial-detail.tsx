@@ -519,6 +519,18 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
         });
       }
     }
+    if (!isEditMode) {
+      // Entering edit mode - auto-fill start date with today
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+      setSubscriptionStartDate(today);
+    } else {
+      // Exiting edit mode - reset subscription states
+      setSubscriptionStartDate('');
+      setSelectedPackageId('');
+      setDayPattern({ day1: '', day2: '', day3: '' });
+      setPreviewVisits([]);
+      setSubscriptionQty(1);
+    }
     setIsEditMode(!isEditMode);
   };
 
@@ -802,7 +814,6 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
                       type="date"
                       value={subscriptionStartDate}
                       onChange={(e) => setSubscriptionStartDate(e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
                       className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                     {subscriptionStartDate && (
