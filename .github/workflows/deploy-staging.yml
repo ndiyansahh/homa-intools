@@ -1,0 +1,60 @@
+name: Deploy Staging
+
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check for migration files
+        id: migration
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1 HEAD -- 'drizzle/*.sql' | grep -v 'manual-' | grep -v 'neon-' | grep -v 'vps-' | head -1)
+          if [ -n "$CHANGED" ]; then
+            echo "has_migration=true" >> $GITHUB_OUTPUT
+            echo "Migration files changed: $CHANGED"
+          else
+            echo "has_migration=false" >> $GITHUB_OUTPUT
+            echo "No migration files changed"
+          fi
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            set -e
+            cd /var/www/homa-staging
+
+            echo "=== [1/5] Pulling latest code ==="
+            git pull origin staging
+
+            echo "=== [2/5] Installing dependencies ==="
+            npm install --production=false
+
+            echo "=== [3/5] Running migrations ==="
+            if [ "${{ steps.migration.outputs.has_migration }}" = "true" ]; then
+              echo "New migrations detected, running db:migrate..."
+              npm run db:migrate
+            else
+              echo "No migrations needed, skipping."
+            fi
+
+            echo "=== [4/5] Building application ==="
+            npm run build
+
+            echo "=== [5/5] Restarting PM2 ==="
+            pm2 restart homa-staging
+
+            echo "=== Deploy complete ==="
+            pm2 status homa-staging
