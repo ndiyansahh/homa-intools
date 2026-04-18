@@ -288,6 +288,8 @@ export async function POST(
       const visitRecords = scheduledDates.map((date, index) => ({
         customerId,
         mitraId: resolvedMitraId,
+        originalMitraId: resolvedMitraId,
+        actualMitraId: resolvedMitraId,
         visitNumber: currentMaxVisitNumber + index + 1,
         scheduledDate: formatDate(date),
         scheduledDay: date.toLocaleDateString('en-US', { weekday: 'long' }),

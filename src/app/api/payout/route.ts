@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { payoutDB, mitraDB, visitDB, mitraRateConfigDB, customerDB, payoutAdjustmentDB } from '@/lib/schema';
-import { eq, and, desc, gte, lte, like, ilike, count, isNull } from 'drizzle-orm';
+import { eq, and, or, desc, gte, lte, like, ilike, count, isNull } from 'drizzle-orm';
 import { logAuditEvent } from '@/lib/logger';
 import { getNormalRange } from '@/lib/utils/normalRange';
 import { extractVisitsPerWeek } from '@/lib/utils/subscriptionUtils';
@@ -314,9 +314,12 @@ export async function POST(request: NextRequest) {
         .leftJoin(customerDB, eq(visitDB.customerId, customerDB.id))
         .where(
           and(
-            eq(visitDB.actualMitraId, mitra.id), // Actually completed by this mitra
-            eq(visitDB.status, 'Done'), // Only completed visits
-            gte(visitDB.scheduledDate, toLocalDateString(monthStart)), // Scheduled in payout month
+            or(
+              eq(visitDB.actualMitraId, mitra.id),
+              and(isNull(visitDB.actualMitraId), eq(visitDB.mitraId, mitra.id))
+            ),
+            eq(visitDB.status, 'Done'),
+            gte(visitDB.scheduledDate, toLocalDateString(monthStart)),
             lte(visitDB.scheduledDate, toLocalDateString(monthEnd))
           )
         );

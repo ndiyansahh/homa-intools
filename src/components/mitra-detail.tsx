@@ -159,8 +159,9 @@ export default function MitraDetailView({ mitraId, onClose, onUpdate }: MitraDet
 
       if (response.ok) {
         toast('success', 'Mitra updated successfully');
-        await fetchMitra(); // Refresh data
-        if (onUpdate) onUpdate(); // Trigger parent refresh
+        await fetchMitra();
+        if (onUpdate) onUpdate();
+        onClose();
       } else {
         const errorData = await response.json();
         toast('info', `Failed to update mitra: ${errorData.message || 'Unknown error'}`);

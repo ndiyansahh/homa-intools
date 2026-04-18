@@ -250,13 +250,12 @@ export async function createSubscriptionWithDayPattern(params: {
     const visitRecords = scheduledDates.map((date, index) => ({
       customerId: params.customerId,
       mitraId: params.mitraId,
+      originalMitraId: params.mitraId,
+      actualMitraId: params.mitraId,
       visitNumber: index + 1,
       scheduledDate: date.toISOString().split('T')[0],
       scheduledDay: date.toLocaleDateString('en-US', { weekday: 'long' }),
-      // Feedback Feb 1: Default to Done (completed) so admin doesn't need to mark attendance
-      // Visits are still editable (change mitra, date, cancel)
       status: "Done",
-      // Set completedAt for payout calculation to work correctly
       completedAt: date,
       durationHours: 3,
       createdAt: new Date(),
