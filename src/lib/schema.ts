@@ -79,7 +79,7 @@ export const customerDB = pgTable('customer_db', {
   subscriptionStart: date('subscription_start'),
   subscriptionEnd: date('subscription_end'),
   subscriptionStatus: varchar('subscription_status', { length: 30 }).default('Active'),
-  // subscriptionQTY: integer('subscription_qty').default(1), // Column doesn't exist in actual database
+  qtyPackage: integer('qty_package').default(1),
   // subscriptionPerQTY: decimal('subscription_per_qty', { precision: 10, scale: 2 }).default('0'), // Column doesn't exist in actual database
   monthlyFee: decimal('monthly_fee', { precision: 10, scale: 2 }).default('0'),
   totalPaid: decimal('total_paid', { precision: 10, scale: 2 }).default('0'),

@@ -1101,7 +1101,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                       </option>
                       {Array.isArray(mitras) && mitras.map((mitra) => (
                         <option key={mitra.id} value={mitra.id}>
-                          {mitra.name} - {mitra.phone || 'No phone'}
+                          {mitra.name}
                         </option>
                       ))}
                     </select>
@@ -1174,7 +1174,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
                               <option value="">Select Mitra...</option>
                               {Array.isArray(mitras) && mitras.map((mitra) => (
                                 <option key={mitra.id} value={mitra.id}>
-                                  {mitra.name} - {mitra.phone || 'No phone'}
+                                  {mitra.name}
                                 </option>
                               ))}
                             </select>

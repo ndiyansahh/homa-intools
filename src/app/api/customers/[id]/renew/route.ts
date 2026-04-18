@@ -271,7 +271,8 @@ export async function POST(
         assignedMitraId: resolvedMitraId,
         subscriptionPackageId: resolvedPackageId,
         subscriptionPackage: pkg.subscriptionPackage,
-        monthlyFee: pkg.priceNumeric,
+        qtyPackage: qty,
+        monthlyFee: (Number(pkg.priceNumeric) * qty).toString(),
         dayPattern: JSON.stringify({
           day1: resolvedDayPattern.day1 ?? null,
           day2: resolvedDayPattern.day2 ?? null,

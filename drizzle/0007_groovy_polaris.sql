@@ -1,0 +1,1 @@
+ALTER TABLE "customer_db" ADD COLUMN "qty_package" integer DEFAULT 1;

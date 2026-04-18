@@ -58,7 +58,7 @@ function AppShellInner({ children, session }: AppShellProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen items-start">
         {/* Sidebar */}
         <Sidebar
           navigationItems={visibleNavItems}

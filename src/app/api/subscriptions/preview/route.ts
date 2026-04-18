@@ -7,7 +7,7 @@ import { generateScheduleDates, extractVisitsPerWeek } from '@/lib/utils/subscri
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body = await request.json();
-    const { subscriptionPackageId, dayPattern, startDate } = body;
+    const { subscriptionPackageId, dayPattern, startDate, qtyPackage } = body;
 
     // Validate required fields
     if (!subscriptionPackageId || !dayPattern || !Array.isArray(dayPattern) || !startDate) {
@@ -34,10 +34,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const pkg = packageResult[0];
     const visitsPerWeek = extractVisitsPerWeek(pkg.subscriptionPackage);
 
-    // Calculate subscription period (1 month)
+    // Calculate subscription period based on qtyPackage
+    const months = qtyPackage && qtyPackage > 0 ? qtyPackage : 1;
     const start = new Date(startDate);
     const end = new Date(start);
-    end.setMonth(end.getMonth() + 1);
+    end.setMonth(end.getMonth() + months);
     end.setDate(end.getDate() - 1);
 
     // Generate visit schedule

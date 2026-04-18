@@ -293,7 +293,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         subscriptionStart: (body as any).subscriptionStart || null,
         subscriptionEnd: (body as any).subscriptionEnd || null,
         subscriptionStatus: (body as any).subscriptionStatus || 'Active',
-        // subscriptionQTY: (body as any).subscriptionQTY || 1, // Column doesn't exist in actual database
+        qtyPackage: (body as any).qtyPackage || 1,
         // subscriptionPerQTY: (body as any).subscriptionPerQTY ? (body as any).subscriptionPerQTY.toString() : '0', // Column doesn't exist in actual database
         monthlyFee: (body as any).monthlyFee ? (body as any).monthlyFee.toString() : '0',
         totalPaid: '0',

@@ -892,19 +892,16 @@ export default function CustomerForm({ session, onClose, onSuccess, mode = 'crea
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Package Quantity * <span className="text-xs text-gray-500">(1 qty = 1 month)</span>
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="12"
+                <select
                   required
                   value={formData.qtyPackage}
-                  onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
+                  onChange={(e) => handleQuantityChange(parseInt(e.target.value))}
                   className="input-field"
-                  placeholder="1"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Duration: {formData.qtyPackage} calendar month(s)
-                </p>
+                >
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
+                    <option key={n} value={n}>{n} bulan</option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>

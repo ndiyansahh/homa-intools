@@ -475,14 +475,12 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
             .limit(1);
 
           if (mitraResult.length === 0) {
-            throw new Error('Assigned mitra not found');
+            console.warn(`⚠️ Assigned mitra ${body.assigned_mitra} not found, keeping existing assignment`);
+          } else if (mitraResult[0].status !== 'Active') {
+            console.warn(`⚠️ Assigned mitra ${body.assigned_mitra} is not active (status: ${mitraResult[0].status}), keeping existing assignment`);
+          } else {
+            assignedMitraId = body.assigned_mitra;
           }
-
-          if (mitraResult[0].status !== 'Active') {
-            throw new Error('Assigned mitra is not active');
-          }
-
-          assignedMitraId = body.assigned_mitra;
         }
 
         // 3. Prepare update data
@@ -555,8 +553,9 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
           // Update customer data with subscription package information
           updateData.monthlyFee = monthlyFee.toString();
-          updateData.subscriptionPackageId = subscriptionPackageId; // Link to subscription package
-          updateData.subscriptionStatus = 'Active'; // Set as active customer
+          updateData.subscriptionPackageId = subscriptionPackageId;
+          updateData.subscriptionStatus = 'Active';
+          updateData.qtyPackage = body.qty_package || 1;
 
           // Set subscription dates and calculate LTV
           if (body.start_date) {

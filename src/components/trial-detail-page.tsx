@@ -138,7 +138,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
   const [startDate, setStartDate] = useState('');
   const [selectedMitra, setSelectedMitra] = useState('');
   const [promoCode, setPromoCode] = useState('');
-  const [promoDiscount, setPromoDiscount] = useState('');
+  const [promoDiscount, setPromoDiscount] = useState(0);
 
   // Fetch trial data
   const fetchTrial = async () => {
@@ -954,7 +954,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
       setSelectedMitra(trial?.assignedMitraId || '');
       setMitras([]);
       setPromoCode('');
-      setPromoDiscount('');
+      setPromoDiscount(0);
       fetchSubscriptionPackages();
     }
   }, [showConversionForm]);
@@ -1038,7 +1038,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
       start_date: startDate,
       assigned_mitra: selectedMitra || trial.assignedMitraId || undefined,
       promo_code: promoCode || undefined,
-      promo_discount: promoDiscount ? Number(promoDiscount) : undefined,
+      promo_discount: promoDiscount > 0 ? promoDiscount : undefined,
     };
 
     await convertToCustomer(trial.id, conversionData);
@@ -1231,16 +1231,18 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
-                    Duration (Months) *
+                    Qty Package * <span className="text-gray-400 font-normal text-xs">(1 qty = 1 bulan)</span>
                   </label>
-                  <input
-                    type="number"
-                    min="1"
+                  <select
                     value={quantity}
-                    onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                    onChange={(e) => setQuantity(parseInt(e.target.value))}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                     disabled={!selectedPackageId}
-                  />
+                  >
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
+                      <option key={n} value={n}>{n} bulan</option>
+                    ))}
+                  </select>
                   {!selectedPackageId && (
                     <p className="text-xs text-gray-500 mt-1">Please select a package first</p>
                   )}
@@ -1387,16 +1389,19 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
-                        Diskon / Promotion (Rp) <span className="text-gray-400 font-normal text-xs">(opsional)</span>
+                        Diskon / Promotion <span className="text-gray-400 font-normal text-xs">(opsional)</span>
                       </label>
-                      <input
-                        type="number"
-                        value={promoDiscount}
-                        onChange={(e) => setPromoDiscount(e.target.value)}
-                        placeholder="0"
-                        min={0}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 font-medium">Rp</span>
+                        <input
+                          type="number"
+                          value={promoDiscount}
+                          onChange={(e) => setPromoDiscount(parseInt(e.target.value) || 0)}
+                          placeholder="0"
+                          min={0}
+                          className="w-full border border-gray-300 rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

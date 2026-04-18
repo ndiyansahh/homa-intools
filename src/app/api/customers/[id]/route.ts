@@ -60,8 +60,7 @@ export async function GET(
           subscriptionStart: customerDB.subscriptionStart,
           subscriptionEnd: customerDB.subscriptionEnd,
           subscriptionStatus: customerDB.subscriptionStatus,
-          // subscriptionQTY: customerDB.subscriptionQTY, // Column might not exist
-          // subscriptionPerQTY: customerDB.subscriptionPerQTY, // Column might not exist
+          qtyPackage: customerDB.qtyPackage,
           monthlyFee: customerDB.monthlyFee,
           totalPaid: customerDB.totalPaid,
           outstandingBalance: customerDB.outstandingBalance,
@@ -119,20 +118,7 @@ export async function GET(
     const customerRecord = result[0].customer;
     const primaryMitra = result[0].primaryMitra;
     
-    // Parse chosenDays to get qtyPackage if available
-    let qtyPackage = 1; // Default
-    try {
-      if (customerRecord.chosenDays) {
-        const chosenDays = JSON.parse(customerRecord.chosenDays);
-        // Count non-empty days
-        const activeDays = Object.values(chosenDays).filter(day => day && day !== '').length;
-        if (activeDays > 0) {
-          qtyPackage = activeDays;
-        }
-      }
-    } catch (e) {
-      console.log('Error parsing chosenDays:', e);
-    }
+    const qtyPackage = customerRecord.qtyPackage || 1;
     
     // Format customer data from database - all dynamic values
     const customerData: CustomerData & { monthlyFee: number; invoiceId?: string } = {

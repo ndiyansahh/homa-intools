@@ -53,6 +53,7 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
   
   // Package-driven subscription states
   const [selectedPackageId, setSelectedPackageId] = useState('');
+  const [subscriptionQty, setSubscriptionQty] = useState(1);
   const [requiredDays, setRequiredDays] = useState(0);
   const [dayPattern, setDayPattern] = useState({ day1: '', day2: '', day3: '' });
   const [subscriptionStartDate, setSubscriptionStartDate] = useState('');
@@ -159,7 +160,8 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
         body: JSON.stringify({
           subscriptionPackageId: selectedPackageId,
           dayPattern: selectedDays,
-          startDate: subscriptionStartDate
+          startDate: subscriptionStartDate,
+          qtyPackage: subscriptionQty
         })
       });
 
@@ -193,7 +195,8 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
           subscriptionPackageId: selectedPackageId,
           dayPattern,
           subscriptionStartDate,
-          mitraId: selectedMitraForSubscription
+          mitraId: selectedMitraForSubscription,
+          qtyPackage: subscriptionQty
         })
       });
 
@@ -763,11 +766,36 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
                   )}
                 </div>
 
-                {/* Step 2: Start Date Selection */}
+                {/* Step 2: Qty Package */}
+                {selectedPackageId && (
+                  <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                    <h5 className="text-sm font-medium text-orange-900 mb-2">
+                      <span className="inline-flex items-center justify-center w-6 h-6 bg-orange-600 text-white text-xs font-bold rounded-full mr-2">2</span>
+                      Package Quantity <span className="text-xs font-normal text-orange-700 ml-1">(1 qty = 1 month)</span>
+                    </h5>
+                    <input
+                      type="number"
+                      min="1"
+                      max="12"
+                      value={subscriptionQty}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 1;
+                        setSubscriptionQty(val);
+                        setPreviewVisits([]);
+                      }}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                    <div className="mt-2 text-sm text-orange-700">
+                      ✅ Duration: {subscriptionQty} calendar month{subscriptionQty > 1 ? 's' : ''}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Start Date Selection */}
                 {selectedPackageId && (
                   <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                     <h5 className="text-sm font-medium text-green-900 mb-2">
-                      <span className="inline-flex items-center justify-center w-6 h-6 bg-green-600 text-white text-xs font-bold rounded-full mr-2">2</span>
+                      <span className="inline-flex items-center justify-center w-6 h-6 bg-green-600 text-white text-xs font-bold rounded-full mr-2">3</span>
                       Select Start Date
                     </h5>
                     <input
@@ -779,17 +807,17 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
                     />
                     {subscriptionStartDate && (
                       <div className="mt-2 text-sm text-green-700">
-                        ✅ Subscription period: {subscriptionStartDate} to {new Date(new Date(subscriptionStartDate).getTime() + 30*24*60*60*1000).toISOString().split('T')[0]}
+                        ✅ Subscription period: {subscriptionStartDate} to {(() => { const d = new Date(subscriptionStartDate); d.setMonth(d.getMonth() + subscriptionQty); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; })()}
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* Step 3: Day Pattern Selection */}
+                {/* Step 4: Day Pattern Selection */}
                 {selectedPackageId && subscriptionStartDate && (
                   <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                     <h5 className="text-sm font-medium text-yellow-900 mb-2">
-                      <span className="inline-flex items-center justify-center w-6 h-6 bg-yellow-600 text-white text-xs font-bold rounded-full mr-2">3</span>
+                      <span className="inline-flex items-center justify-center w-6 h-6 bg-yellow-600 text-white text-xs font-bold rounded-full mr-2">4</span>
                       Select Day Pattern ({requiredDays} days required)
                     </h5>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -822,11 +850,11 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
                   </div>
                 )}
 
-                {/* Step 4: Visit Preview */}
+                {/* Step 5: Visit Preview */}
                 {previewVisits.length > 0 && (
                   <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
                     <h5 className="text-sm font-medium text-purple-900 mb-2">
-                      <span className="inline-flex items-center justify-center w-6 h-6 bg-purple-600 text-white text-xs font-bold rounded-full mr-2">4</span>
+                      <span className="inline-flex items-center justify-center w-6 h-6 bg-purple-600 text-white text-xs font-bold rounded-full mr-2">5</span>
                       Generated Visits Preview ({previewVisits.length} total)
                     </h5>
                     <div className="max-h-40 overflow-y-auto">
@@ -857,11 +885,11 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
                   </div>
                 )}
 
-                {/* Step 5: Mitra Selection */}
+                {/* Step 6: Mitra Selection */}
                 {(subscriptionStartDate && previewVisits.length > 0) && (
                   <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
                     <h5 className="text-sm font-medium text-indigo-900 mb-2">
-                      <span className="inline-flex items-center justify-center w-6 h-6 bg-indigo-600 text-white text-xs font-bold rounded-full mr-2">5</span>
+                      <span className="inline-flex items-center justify-center w-6 h-6 bg-indigo-600 text-white text-xs font-bold rounded-full mr-2">6</span>
                       Select Available Mitra
                     </h5>
                     {availableMitras.length > 0 ? (

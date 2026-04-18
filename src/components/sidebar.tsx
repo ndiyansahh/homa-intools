@@ -52,7 +52,7 @@ export default function Sidebar({ navigationItems, session, isOpen, isCollapsed,
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 bg-white backdrop-blur-xl border-r border-gray-200/20 shadow-xl transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
+        fixed inset-y-0 left-0 z-50 bg-white backdrop-blur-xl border-r border-gray-200/20 shadow-xl transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:inset-0
         ${isOpen ? 'translate-x-0 w-72' : '-translate-x-full lg:translate-x-0'}
         ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}
       `}>

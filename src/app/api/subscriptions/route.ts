@@ -22,7 +22,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       subscriptionPackageId,
       dayPattern,
       subscriptionStartDate,
-      mitraId
+      mitraId,
+      qtyPackage
     } = body;
 
     // Validate required fields
@@ -41,7 +42,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           subscriptionPackageId,
           dayPattern,
           subscriptionStartDate: new Date(subscriptionStartDate),
-          mitraId
+          mitraId,
+          qtyPackage: qtyPackage || 1
         },
         db,
         { customerDB, subscriptionPackageDB, visitDB, mitraDB }

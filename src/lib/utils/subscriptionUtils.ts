@@ -170,6 +170,7 @@ export async function createSubscriptionWithDayPattern(params: {
   dayPattern: { day1?: string; day2?: string; day3?: string };
   subscriptionStartDate: Date;
   mitraId: string;
+  qtyPackage?: number;
 }, db: any, { customerDB, subscriptionPackageDB, visitDB, mitraDB }: any) {
 
   // 1. Get package from database
@@ -200,8 +201,9 @@ export async function createSubscriptionWithDayPattern(params: {
   }
 
   // 5. Calculate subscription end date
+  const months = params.qtyPackage && params.qtyPackage > 0 ? params.qtyPackage : 1;
   const endDate = new Date(params.subscriptionStartDate);
-  endDate.setMonth(endDate.getMonth() + 1);
+  endDate.setMonth(endDate.getMonth() + months);
   endDate.setDate(endDate.getDate() - 1);
 
   // 6. Generate all scheduled dates
@@ -233,7 +235,8 @@ export async function createSubscriptionWithDayPattern(params: {
       subscriptionStart: params.subscriptionStartDate.toISOString().split('T')[0],
       subscriptionEnd: endDate.toISOString().split('T')[0],
       subscriptionStatus: "Active",
-      monthlyFee: pkg.priceNumeric,
+      qtyPackage: months,
+      monthlyFee: (pkg.priceNumeric * months).toString(),
       dayPattern: JSON.stringify({
         day1: params.dayPattern.day1 || null,
         day2: params.dayPattern.day2 || null,
