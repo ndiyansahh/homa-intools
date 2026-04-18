@@ -68,6 +68,8 @@ export interface UpdateCustomerRequest extends Partial<CreateCustomerRequest> {
 export interface CustomerListItem {
   id: string;
   customerName: string;
+  contact: string;
+  district: string | null;
   subscriptionPackage: string;
   subscriptionStatus: SubscriptionStatus;
   monthlyFee: number;

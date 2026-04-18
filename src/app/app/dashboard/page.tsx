@@ -170,7 +170,7 @@ export default async function DashboardPage() {
       change: completionRate > 0 ? `${completionRate}%` : 'None',
       trend: completionRate > 80 ? 'up' : 'neutral',
       icon: Icons.clock,
-      href: '/app/attendance',
+      href: '/app/customers',
     },
   ];
 

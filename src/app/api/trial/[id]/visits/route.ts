@@ -38,7 +38,7 @@ export async function GET(
 
     // Check if this is called from customer page
     const { searchParams } = new URL(request.url);
-    const view = searchParams.get('view'); // 'customer' or null
+    const view = searchParams.get('view'); // 'customer', 'all', or null
 
     console.log('🔍 Fetching visits for customer ID:', id, '| View:', view || 'trial');
 
@@ -76,7 +76,10 @@ export async function GET(
 
     // Filter visits based on view parameter and subscription package
     let filteredVisits = visits;
-    if (view === 'customer') {
+    if (view === 'all') {
+      // Return all visits without any filtering (for historical attendance slide-over)
+      filteredVisits = visits.filter(v => v.status === 'Done' || v.status === 'Scheduled' || v.status === 'Cancelled');
+    } else if (view === 'customer') {
       const subscriptionPackage = visits[0]?.subscriptionPackage;
       const subscriptionStart = visits[0]?.subscriptionStart;
 

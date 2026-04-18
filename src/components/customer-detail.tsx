@@ -104,6 +104,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
 
   // Visit/Attendance states
   const [visits, setVisits] = useState<Visit[]>([]);
+  const [allVisits, setAllVisits] = useState<Visit[]>([]); // Unfiltered, for historical slide-over
   const [loadingVisits, setLoadingVisits] = useState(false);
   const [editingDateVisitId, setEditingDateVisitId] = useState<string | null>(null);
   const [editingDateValue, setEditingDateValue] = useState('');
@@ -162,6 +163,40 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   // Invoice states
   const [invoices, setInvoices] = useState<any[]>([]);
   const [previewInvoice, setPreviewInvoice] = useState<{ id: string; number: string; blobUrl?: string } | null>(null);
+
+  // Historical attendance slide-over
+  const [historicalSlideOver, setHistoricalSlideOver] = useState<{ invoice: any } | null>(null);
+
+  const openHistoricalAttendance = (inv: any) => setHistoricalSlideOver({ invoice: inv });
+  const closeHistoricalAttendance = () => setHistoricalSlideOver(null);
+
+  const getVisitsForInvoice = (inv: any): Visit[] => {
+    if (!inv.invoiceStartDate) return [];
+    return allVisits.filter(v => {
+      if (!v.scheduledDate) return false;
+      const d = v.scheduledDate;
+      const afterStart = d >= inv.invoiceStartDate;
+      const beforeEnd = !inv.invoiceEndDate || d <= inv.invoiceEndDate;
+      return afterStart && beforeEnd;
+    });
+  };
+
+  // Visits to show in the main attendance section — scoped to active invoice period
+  const displayedVisits = (() => {
+    if (invoices.length === 0) return visits;
+    if (allVisits.length === 0) return visits;
+    const todayJkt = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+    todayJkt.setHours(0, 0, 0, 0);
+    const toDate = (s: string) => new Date(s + 'T00:00:00');
+    const ongoingInv = invoices.find(inv => {
+      if (!inv.invoiceStartDate || !inv.invoiceEndDate) return false;
+      return toDate(inv.invoiceStartDate) <= todayJkt && toDate(inv.invoiceEndDate) >= todayJkt;
+    });
+    const targetInv = ongoingInv ?? invoices.slice().sort((a, b) =>
+      (b.invoiceStartDate ?? '').localeCompare(a.invoiceStartDate ?? '')
+    )[0];
+    return getVisitsForInvoice(targetInv);
+  })();
 
   const openInvoicePreview = async (id: string, number: string) => {
     try {
@@ -258,27 +293,18 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
 
     try {
       setLoadingVisits(true);
-      // Add view=customer parameter to get filtered visits based on subscription package
-      const response = await fetch(`/api/trial/${customerId}/visits?view=customer&_t=${Date.now()}`);
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data) {
-          console.log('📊 Customer visits loaded:', {
-            total: result.data.length,
-            done: result.data.filter((v: any) => v.status === 'Done').length,
-            scheduled: result.data.filter((v: any) => v.status === 'Scheduled').length,
-            cancelled: result.data.filter((v: any) => v.status === 'Cancelled').length,
-            package: customer.subscriptionPackage,
-            visits: result.data
-          });
-          setVisits(result.data);
-        } else {
-          console.warn('⚠️ No visits data returned:', result);
-        }
-      } else {
-        console.error('❌ Failed to fetch visits, status:', response.status);
-        const errorText = await response.text();
-        console.error('Error response:', errorText);
+      const ts = Date.now();
+      const [customerRes, allRes] = await Promise.all([
+        fetch(`/api/trial/${customerId}/visits?view=customer&_t=${ts}`),
+        fetch(`/api/trial/${customerId}/visits?view=all&_t=${ts}`),
+      ]);
+      if (customerRes.ok) {
+        const result = await customerRes.json();
+        if (result.success && result.data) setVisits(result.data);
+      }
+      if (allRes.ok) {
+        const result = await allRes.json();
+        if (result.success && result.data) setAllVisits(result.data);
       }
     } catch (error) {
       console.error('❌ Error fetching customer visits:', error);
@@ -1540,13 +1566,22 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                         </span>
                       )}
                     </div>
-                    <button
-                      onClick={() => openInvoicePreview(inv.id, inv.invoiceNumber)}
-                      className="flex items-center gap-1 text-xs px-2 py-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 rounded-lg ml-3 shrink-0"
-                    >
-                      <Icons.download className="h-3.5 w-3.5" />
-                      Preview
-                    </button>
+                    <div className="flex items-center gap-1.5 ml-3 shrink-0">
+                      <button
+                        onClick={() => openHistoricalAttendance(inv)}
+                        className="flex items-center gap-1 text-xs px-2 py-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 rounded-lg"
+                      >
+                        <Icons.calendar className="h-3.5 w-3.5" />
+                        Attendance
+                      </button>
+                      <button
+                        onClick={() => openInvoicePreview(inv.id, inv.invoiceNumber)}
+                        className="flex items-center gap-1 text-xs px-2 py-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 rounded-lg"
+                      >
+                        <Icons.download className="h-3.5 w-3.5" />
+                        Preview
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -1577,7 +1612,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                     <h4 className="text-md font-medium text-gray-900">
                       Attendance Record
                       {(customer.subscriptionPackage as string) !== 'Trial' && (
-                        <span className="ml-2 text-xs text-gray-500">(Showing completed & scheduled visits)</span>
+                        <span className="ml-2 text-xs text-gray-500">(Current invoice period)</span>
                       )}
                     </h4>
                   </div>
@@ -1586,7 +1621,8 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="space-y-3">
-                    {visits.map((visit) => {
+                    {displayedVisits.map((visit, idx) => {
+                      const displayNumber = idx + 1;
                       const mitraChanged = visit.originalMitraId && visit.actualMitraId && visit.originalMitraId !== visit.actualMitraId;
                       const isLocked = visit.status === 'Done';
                       const isCancelled = visit.status === 'Cancelled';
@@ -1612,7 +1648,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                               <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                                 isCancelled ? 'bg-gray-200 text-gray-500' : visit.status === 'Done' ? 'bg-green-100 text-green-700' : 'bg-blue-50 text-blue-600'
                               }`}>
-                                {visit.visitNumber}
+                                {displayNumber}
                               </span>
                               <div className="flex items-center gap-2">
                                 <span className={`text-sm font-semibold ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
@@ -1731,7 +1767,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                   </div>
 
                   {/* Empty state */}
-                  {visits.length === 0 && (
+                  {displayedVisits.length === 0 && (
                     <div className="text-center text-gray-500 py-4">
                       No visits scheduled yet.
                     </div>
@@ -1769,6 +1805,133 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
           </div>
         </div>
       </div>
+
+      {/* Historical Attendance Slide-Over */}
+      {historicalSlideOver && (() => {
+        const inv = historicalSlideOver.invoice;
+        const invoiceVisits = getVisitsForInvoice(inv);
+        const formatDate = (d: string) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+        return (
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black/30 z-40 transition-opacity"
+              onClick={closeHistoricalAttendance}
+            />
+            {/* Panel */}
+            <div className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 flex flex-col">
+              {/* Header */}
+              <div className="flex items-start justify-between px-5 py-4 border-b border-gray-100">
+                <div>
+                  <p className="text-xs text-gray-400 font-mono mb-0.5">{inv.invoiceNumber}</p>
+                  <h3 className="text-base font-semibold text-gray-900">Attendance Record</h3>
+                  {inv.invoiceStartDate && (
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {formatDate(inv.invoiceStartDate)}{inv.invoiceEndDate ? ` → ${formatDate(inv.invoiceEndDate)}` : ''}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={closeHistoricalAttendance}
+                  className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <Icons.close className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Stats */}
+              {invoiceVisits.length > 0 && (
+                <div className="flex gap-3 px-5 py-3 border-b border-gray-100 bg-gray-50">
+                  <div className="flex-1 text-center">
+                    <div className="text-lg font-bold text-gray-900">{invoiceVisits.length}</div>
+                    <div className="text-xs text-gray-400">Total</div>
+                  </div>
+                  <div className="flex-1 text-center">
+                    <div className="text-lg font-bold text-green-600">{invoiceVisits.filter(v => v.status === 'Done').length}</div>
+                    <div className="text-xs text-gray-400">Done</div>
+                  </div>
+                  <div className="flex-1 text-center">
+                    <div className="text-lg font-bold text-amber-600">{invoiceVisits.filter(v => v.status === 'Scheduled').length}</div>
+                    <div className="text-xs text-gray-400">Scheduled</div>
+                  </div>
+                  <div className="flex-1 text-center">
+                    <div className="text-lg font-bold text-red-500">{invoiceVisits.filter(v => v.status === 'Cancelled').length}</div>
+                    <div className="text-xs text-gray-400">Cancelled</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Visit List */}
+              <div className="flex-1 overflow-y-auto px-5 py-4">
+                {invoiceVisits.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2">
+                    <Icons.calendar className="w-8 h-8 opacity-30" />
+                    <p className="text-sm">No attendance records for this period.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {invoiceVisits.map((visit, idx) => {
+                      const displayNumber = idx + 1;
+                      const isCancelled = visit.status === 'Cancelled';
+                      const isDone = visit.status === 'Done';
+                      return (
+                        <div
+                          key={visit.id}
+                          className={`rounded-xl border px-4 py-3 ${
+                            isCancelled
+                              ? 'bg-gray-50 border-gray-200 opacity-70'
+                              : isDone
+                              ? 'bg-green-50 border-green-200'
+                              : 'bg-white border-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                                isCancelled ? 'bg-gray-200 text-gray-500' : isDone ? 'bg-green-100 text-green-700' : 'bg-blue-50 text-blue-600'
+                              }`}>
+                                {displayNumber}
+                              </span>
+                              <span className={`text-sm font-semibold ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                                {visit.scheduledDate}
+                              </span>
+                              <span className="text-xs text-gray-400">{visit.scheduledDay}</span>
+                            </div>
+                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                              isDone ? 'bg-green-100 text-green-700' : isCancelled ? 'bg-red-100 text-red-600' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            }`}>
+                              {visit.status}
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <Icons.user className="w-3 h-3 text-gray-400" />
+                              <span className="text-xs text-gray-500">Mitra</span>
+                              <span className={`text-xs font-medium ${isCancelled ? 'text-gray-400' : 'text-gray-700'}`}>
+                                {visit.mitraName || '—'}
+                              </span>
+                            </div>
+                            {visit.actualDate && (
+                              <div className="flex items-center gap-1.5">
+                                <Icons.check className="w-3 h-3 text-green-500" />
+                                <span className="text-xs text-gray-500">Selesai</span>
+                                <span className="text-xs font-medium text-gray-700">{visit.actualDate}</span>
+                                {visit.updatedBy && (
+                                  <span className="text-xs text-gray-400">· {visit.updatedBy}</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        );
+      })()}
 
       {/* Edit Customer Modal */}
       {showUpdateDate && (

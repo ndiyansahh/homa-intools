@@ -136,6 +136,8 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
       .select({
         id: customerDB.id,
         customerName: customerDB.customerName,
+        contact: customerDB.contact,
+        district: customerDB.district,
         subscriptionPackage: customerDB.subscriptionPackage,
         subscriptionStatus: customerDB.subscriptionStatus,
         monthlyFee: customerDB.monthlyFee,
@@ -173,6 +175,8 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
     const customers: CustomerListItem[] = uniqueResults.map(customer => ({
       id: customer.id,
       customerName: customer.customerName,
+      contact: customer.contact || '',
+      district: customer.district || null,
       subscriptionPackage: customer.subscriptionPackage || '',
       subscriptionStatus: customer.subscriptionStatus as any || 'Active',
       monthlyFee: Number(customer.monthlyFee) || 0,

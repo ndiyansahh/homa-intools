@@ -31,13 +31,6 @@ export const navigationItems: NavigationItem[] = [
     description: 'Customer and visit tracking'
   },
   {
-    name: 'Attendance',
-    href: '/app/attendance',
-    icon: 'clock',
-    roles: ['ADMIN', 'OWNER', 'STAFF'],
-    description: 'Staff attendance management'
-  },
-  {
     name: 'Payouts',
     href: '/app/payouts',
     icon: 'currency',

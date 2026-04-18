@@ -710,6 +710,16 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
                               <div className="text-sm font-semibold text-gray-900">
                                 {customer.customerName}
                               </div>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                {customer.contact && (
+                                  <span className="text-xs text-gray-400 font-mono">
+                                    {customer.contact.replace(/(\d+)(\d{4})$/, (_, prefix, last4) => `${prefix.replace(/\d/g, '•')}${last4}`)}
+                                  </span>
+                                )}
+                                {customer.district && (
+                                  <span className="text-xs text-gray-400">· {customer.district}</span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>
