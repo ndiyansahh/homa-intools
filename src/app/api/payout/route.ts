@@ -435,6 +435,12 @@ export async function POST(request: NextRequest) {
           const intersectionStart = new Date(Math.max(billingCycle.start.getTime(), monthStart.getTime()));
           const intersectionEnd = new Date(Math.min(billingCycle.end.getTime(), monthEnd.getTime()));
 
+          // Skip if billing cycle doesn't overlap with payout month at all
+          if (intersectionEnd < intersectionStart) {
+            console.log(`   ⏭️  ${customerName}: billing cycle ${toLocalDateString(billingCycle.start)}→${toLocalDateString(billingCycle.end)} has no overlap with payout month, skipping`);
+            continue;
+          }
+
           console.log(`   📅 ${customerName}: Billing ${toLocalDateString(billingCycle.start)} to ${toLocalDateString(billingCycle.end)}`);
           console.log(`   📅   Intersection: ${toLocalDateString(intersectionStart)} to ${toLocalDateString(intersectionEnd)}`);
 
