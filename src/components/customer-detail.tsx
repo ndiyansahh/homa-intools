@@ -163,6 +163,8 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   // Invoice states
   const [invoices, setInvoices] = useState<any[]>([]);
   const [previewInvoice, setPreviewInvoice] = useState<{ id: string; number: string; blobUrl?: string } | null>(null);
+  const [actualEndDateConfirm, setActualEndDateConfirm] = useState<{ invoiceId: string; invoiceNumber: string; newDate: string } | null>(null);
+  const [savingActualEndDate, setSavingActualEndDate] = useState(false);
 
   // Historical attendance slide-over
   const [historicalSlideOver, setHistoricalSlideOver] = useState<{ invoice: any } | null>(null);
@@ -192,10 +194,22 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       if (!inv.invoiceStartDate || !inv.invoiceEndDate) return false;
       return toDate(inv.invoiceStartDate) <= todayJkt && toDate(inv.invoiceEndDate) >= todayJkt;
     });
-    const targetInv = ongoingInv ?? invoices.slice().sort((a, b) =>
+    // If ongoing invoice found, show its visits
+    if (ongoingInv) return getVisitsForInvoice(ongoingInv);
+    // Fallback to latest invoice
+    const latestInv = invoices.slice().sort((a, b) =>
       (b.invoiceStartDate ?? '').localeCompare(a.invoiceStartDate ?? '')
     )[0];
-    return getVisitsForInvoice(targetInv);
+    const latestInvVisits = getVisitsForInvoice(latestInv);
+    // If any visit has been rescheduled beyond invoice end date, show all visits from latest invoice start onwards
+    const hasRescheduledBeyond = latestInv?.invoiceEndDate && allVisits.some(v =>
+      v.scheduledDate && v.scheduledDate > latestInv.invoiceEndDate &&
+      latestInv.invoiceStartDate && v.scheduledDate >= latestInv.invoiceStartDate
+    );
+    if (hasRescheduledBeyond) {
+      return allVisits.filter(v => v.scheduledDate && latestInv.invoiceStartDate && v.scheduledDate >= latestInv.invoiceStartDate);
+    }
+    return latestInvVisits;
   })();
 
   const openInvoicePreview = async (id: string, number: string) => {
@@ -733,6 +747,22 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
         setSelectedVisitForDateEdit(null);
         await fetchVisits();
         toast('success', 'Visit date updated successfully');
+
+        // Check if new date is beyond current invoice end date
+        const activeInvoice = invoices.find(inv => {
+          if (!inv.invoiceStartDate || !inv.invoiceEndDate) return false;
+          const todayJkt = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+          todayJkt.setHours(0, 0, 0, 0);
+          return new Date(inv.invoiceStartDate + 'T00:00:00') <= todayJkt && new Date(inv.invoiceEndDate + 'T00:00:00') >= todayJkt;
+        }) ?? invoices.slice().sort((a, b) => (b.invoiceStartDate ?? '').localeCompare(a.invoiceStartDate ?? ''))[0];
+
+        if (activeInvoice?.invoiceEndDate && editDateValue > activeInvoice.invoiceEndDate) {
+          setActualEndDateConfirm({
+            invoiceId: activeInvoice.id,
+            invoiceNumber: activeInvoice.invoiceNumber,
+            newDate: editDateValue,
+          });
+        }
       } else {
         const error = await response.json();
         toast('error', error.message || 'Failed to update visit date');
@@ -741,6 +771,46 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       toast('error', 'Failed to update visit date');
     } finally {
       setSavingDateEdit(false);
+    }
+  };
+
+  const handleConfirmActualEndDate = async () => {
+    if (!actualEndDateConfirm) return;
+    try {
+      setSavingActualEndDate(true);
+
+      // 1. Update invoice actualEndDate
+      const invoiceRes = await fetch('/api/invoice', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoiceId: actualEndDateConfirm.invoiceId, actualEndDate: actualEndDateConfirm.newDate }),
+      });
+
+      if (!invoiceRes.ok) {
+        toast('error', 'Gagal update actual end date invoice');
+        return;
+      }
+
+      // 2. Update customerDB.subscriptionEnd to match the new actual end date
+      const customerRes = await fetch(`/api/customers/${customerId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionEnd: actualEndDateConfirm.newDate }),
+      });
+
+      if (!customerRes.ok) {
+        toast('error', 'Invoice diperbarui, tapi gagal update tanggal akhir langganan');
+        await fetchInvoices();
+        return;
+      }
+
+      toast('success', 'Tanggal akhir langganan & invoice diperbarui');
+      await Promise.all([fetchInvoices(), fetchCustomer()]);
+    } catch {
+      toast('error', 'Gagal update actual end date');
+    } finally {
+      setSavingActualEndDate(false);
+      setActualEndDateConfirm(null);
     }
   };
 
@@ -1563,6 +1633,9 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                         <span className="text-xs text-gray-400">
                           {formatInvDate(inv.invoiceStartDate)}
                           {inv.invoiceEndDate ? ` → ${formatInvDate(inv.invoiceEndDate)}` : ''}
+                          {inv.actualEndDate && inv.actualEndDate !== inv.invoiceEndDate && (
+                            <span className="ml-1 text-amber-600 font-medium">(actual: {formatInvDate(inv.actualEndDate)})</span>
+                          )}
                         </span>
                       )}
                     </div>
@@ -1805,6 +1878,37 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
           </div>
         </div>
       </div>
+
+      {/* Actual End Date Confirm Dialog */}
+      {actualEndDateConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+            <h3 className="text-base font-semibold text-gray-900 mb-2">Visit Dipindah ke Luar Periode Invoice</h3>
+            <p className="text-sm text-gray-600 mb-1">
+              Visit dipindah ke <span className="font-semibold">{actualEndDateConfirm.newDate}</span>, di luar periode invoice <span className="font-mono text-xs">{actualEndDateConfirm.invoiceNumber}</span>.
+            </p>
+            <p className="text-sm text-gray-600 mb-5">
+              Update <em>actual end date</em> invoice & tanggal akhir langganan ke tanggal ini?
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setActualEndDateConfirm(null)}
+                disabled={savingActualEndDate}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+              >
+                Tidak, biarkan
+              </button>
+              <button
+                onClick={handleConfirmActualEndDate}
+                disabled={savingActualEndDate}
+                className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-700 disabled:opacity-50"
+              >
+                {savingActualEndDate ? 'Menyimpan...' : 'Ya, update'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Historical Attendance Slide-Over */}
       {historicalSlideOver && (() => {

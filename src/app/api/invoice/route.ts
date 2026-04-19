@@ -188,6 +188,21 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Invoice ID is required' }, { status: 400 });
     }
 
+    // Handle actualEndDate update (visit rescheduled beyond invoice period)
+    if (body.actualEndDate !== undefined) {
+      if (body.actualEndDate && !/^\d{4}-\d{2}-\d{2}$/.test(body.actualEndDate)) {
+        return NextResponse.json({ error: 'Invalid date format. Use YYYY-MM-DD' }, { status: 400 });
+      }
+      try {
+        await db.update(invoiceDB)
+          .set({ actualEndDate: body.actualEndDate || null })
+          .where(eq(invoiceDB.id, body.invoiceId));
+        return NextResponse.json({ success: true, message: 'Invoice actual end date updated' });
+      } catch (dbError) {
+        return NextResponse.json({ error: 'Failed to update actual end date' }, { status: 500 });
+      }
+    }
+
     if (!body.status?.trim()) {
       return NextResponse.json({ error: 'Status is required' }, { status: 400 });
     }

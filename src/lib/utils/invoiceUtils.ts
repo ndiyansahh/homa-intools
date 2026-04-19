@@ -239,6 +239,7 @@ export async function getInvoicesWithFullData(filters?: {
         // Date fields
         invoiceStartDate: invoiceDB.invoiceStartDate,
         invoiceEndDate: invoiceDB.invoiceEndDate,
+        actualEndDate: invoiceDB.actualEndDate,
         invoiceYears: invoiceDB.invoiceYears,
         invoiceMonths: invoiceDB.invoiceMonths,
         invoiceDays: invoiceDB.invoiceDays,

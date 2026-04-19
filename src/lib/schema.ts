@@ -172,6 +172,7 @@ export const invoiceDB = pgTable('invoice_db', {
   // Invoice date fields (populated from customerDB.subscriptionStart)
   invoiceStartDate: date('invoice_start_date').notNull(), // Reference from customerDB.subscriptionStart
   invoiceEndDate: date('invoice_end_date'), // Reference from customerDB.subscriptionEnd
+  actualEndDate: date('actual_end_date'), // Overrides invoiceEndDate if visit rescheduled beyond period
   invoiceYears: integer('invoice_years').notNull(), // Year from invoiceStartDate
   invoiceMonths: integer('invoice_months').notNull(), // Month from invoiceStartDate
   invoiceDays: integer('invoice_days').notNull(), // Day from invoiceStartDate

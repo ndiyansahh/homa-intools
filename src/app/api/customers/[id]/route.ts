@@ -261,6 +261,7 @@ export async function PATCH(
       if (body.subscriptionPackage) updateData.subscriptionPackage = body.subscriptionPackage;
       if ((body as any).subscriptionStatus) updateData.subscriptionStatus = (body as any).subscriptionStatus;
       if ((body as any).subscriptionStart) updateData.subscriptionStart = (body as any).subscriptionStart;
+      if ((body as any).subscriptionEnd !== undefined) updateData.subscriptionEnd = (body as any).subscriptionEnd;
       if ((body as any).monthlyFee !== undefined) updateData.monthlyFee = (body as any).monthlyFee.toString();
       if ((body as any).chosenDays) updateData.chosenDays = (body as any).chosenDays;
       if ((body as any).ltv !== undefined) updateData.ltv = Number((body as any).ltv);
