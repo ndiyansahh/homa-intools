@@ -522,27 +522,47 @@ export async function POST(request: NextRequest) {
           }
 
           // Get normal range for this frequency (Topic #1)
+          // For 7x/week: normalMax is dynamic = actual days in payout month
+          let normalMin = totalScheduledInCycle;
           let normalMax = totalScheduledInCycle;
           try {
             const nr = getNormalRange(visitsPerWeek);
-            normalMax = nr.max;
+            normalMin = nr.min;
+            // 7x/week: dynamic normalMax = actual days in payout month
+            normalMax = visitsPerWeek === 7 ? monthEnd.getDate() : nr.max;
           } catch {}
 
           // Extra visits in cycle = scheduled beyond normal max
-          // e.g. 1x/week normalMax=5, but cycle has 6 scheduled → 1 extra visit
           const extraVisitsInCycle = Math.max(0, totalScheduledInCycle - normalMax);
 
-          // Base payout: pro-rata of completed vs total scheduled (TOPIC #2)
-          // Formula: completedInMonth / totalScheduledInCycle × monthlyRate
-          const basePayout = (completedInMonth / totalScheduledInCycle) * monthlyRate;
+          // Payout calculation (3 cases):
+          // Case 1: within normal range → 100% rate
+          // Case 2: below normal min → pro-rata: completedInMonth / normalMax × rate
+          // Case 3: above normal max → 100% + (extraVisits / normalMax × 100%) × rate
+          let basePayout = 0;
+          let percentage = 0;
+
+          if (completedInMonth >= normalMin && completedInMonth <= normalMax) {
+            // Case 1: normal range → full rate
+            basePayout = monthlyRate;
+            percentage = 100;
+          } else if (completedInMonth < normalMin) {
+            // Case 2: under-perform → pro-rata
+            basePayout = (completedInMonth / normalMax) * monthlyRate;
+            percentage = Math.round((completedInMonth / normalMax) * 100 * 100) / 100;
+          } else {
+            // Case 3: bonus visits → 100% + bonus
+            const bonusPct = (extraVisitsInCycle / normalMax) * 100;
+            basePayout = monthlyRate * (1 + bonusPct / 100);
+            percentage = Math.round((1 + bonusPct / 100) * 100 * 100) / 100;
+          }
 
           customerPayout = Math.round(basePayout);
-
-          const percentage = Math.round((completedInMonth / totalScheduledInCycle) * 100 * 100) / 100;
 
           payoutCalculationDetails = {
             method: 'TOPIC1_TOPIC2_FORMULA',
             visitsPerWeek,
+            normalMin,
             normalMax,
             totalScheduledInCycle,
             extraVisitsInCycle,
@@ -553,7 +573,7 @@ export async function POST(request: NextRequest) {
             totalPayout: customerPayout,
           };
 
-          console.log(`   ✓ ${customerName}: ${completedInMonth}/${totalScheduledInCycle} visits (${percentage}%) = Rp${customerPayout.toLocaleString()}`);
+          console.log(`   ✓ ${customerName}: ${completedInMonth} visits (normal ${normalMin}-${normalMax}) = ${percentage}% → Rp${customerPayout.toLocaleString()}`);
 
           totalBasePayout += customerPayout;
           totalScheduledVisits += totalScheduledInCycle;
