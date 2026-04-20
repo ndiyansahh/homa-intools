@@ -545,19 +545,25 @@ export async function POST(request: NextRequest) {
 
           // Payout calculation (3 cases):
           // Case 1: within normal range → 100% rate
-          // Case 2: below normal min → pro-rata: completedInMonth / normalMax × rate
+          // Case 2: below normal min → pro-rata: completedInMonth / denominator × rate
+          //         denominator = totalScheduledInCycle if < normalMax (e.g. mitra swap, short month)
+          //         denominator = normalMax if totalScheduledInCycle >= normalMax
           // Case 3: above normal max → 100% + (extraVisits / normalMax × 100%) × rate
           let basePayout = 0;
           let percentage = 0;
+
+          // Denominator for pro-rata: use actual scheduled when fewer than normalMax were scheduled
+          // This correctly handles mitra-swap (e.g. 2/4 scheduled = 50%, not 2/5 = 40%)
+          const proRataDenominator = Math.min(totalScheduledInCycle, normalMax);
 
           if (completedInMonth >= normalMin && completedInMonth <= normalMax) {
             // Case 1: normal range → full rate
             basePayout = monthlyRate;
             percentage = 100;
           } else if (completedInMonth < normalMin) {
-            // Case 2: under-perform → pro-rata
-            basePayout = (completedInMonth / normalMax) * monthlyRate;
-            percentage = Math.round((completedInMonth / normalMax) * 100 * 100) / 100;
+            // Case 2: under-perform → pro-rata against actual scheduled (capped at normalMax)
+            basePayout = (completedInMonth / proRataDenominator) * monthlyRate;
+            percentage = Math.round((completedInMonth / proRataDenominator) * 100 * 100) / 100;
           } else {
             // Case 3: bonus visits → 100% + bonus
             const bonusPct = (extraVisitsInCycle / normalMax) * 100;
@@ -572,6 +578,7 @@ export async function POST(request: NextRequest) {
             visitsPerWeek,
             normalMin,
             normalMax,
+            proRataDenominator,
             totalScheduledInCycle,
             extraVisitsInCycle,
             completedInMonth,
