@@ -56,6 +56,7 @@ interface Visit {
   mitraPhone: string | null;
   subscriptionPackage: string | null;
   subscriptionStart: string | null;
+  hasAuditLog: boolean;
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
@@ -124,6 +125,8 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   const [savingDateEdit, setSavingDateEdit] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedVisitHistory, setSelectedVisitHistory] = useState<any>(null);
+  const [visitAuditLogs, setVisitAuditLogs] = useState<any[]>([]);
+  const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
 
   // Bulk attendance selection states
   const [selectedVisits, setSelectedVisits] = useState<Set<string>>(new Set());
@@ -947,9 +950,22 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   };
 
   // Open history modal
-  const openHistoryModal = (visit: Visit) => {
+  const openHistoryModal = async (visit: Visit) => {
     setSelectedVisitHistory(visit);
+    setVisitAuditLogs([]);
     setShowHistoryModal(true);
+    setLoadingAuditLogs(true);
+    try {
+      const res = await fetch(`/api/visits/${visit.id}/history`);
+      if (res.ok) {
+        const data = await res.json();
+        setVisitAuditLogs(data.logs || []);
+      }
+    } catch {
+      setVisitAuditLogs([]);
+    } finally {
+      setLoadingAuditLogs(false);
+    }
   };
 
   // Fetch all mitras for schedule generation
@@ -1697,6 +1713,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                     {displayedVisits.map((visit, idx) => {
                       const displayNumber = idx + 1;
                       const mitraChanged = visit.originalMitraId && visit.actualMitraId && visit.originalMitraId !== visit.actualMitraId;
+                      const hasHistory = mitraChanged || !!visit.updatedBy;
                       const isLocked = visit.status === 'Done';
                       const isCancelled = visit.status === 'Cancelled';
                       const isEditingThisDate = editingDateVisitId === visit.id;
@@ -1824,7 +1841,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                                 Batalkan
                               </button>
                             )}
-                            {mitraChanged && (
+                            {hasHistory && (
                               <button
                                 onClick={() => openHistoryModal(visit)}
                                 className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 bg-white hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors"
@@ -1882,26 +1899,40 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       {/* Actual End Date Confirm Dialog */}
       {actualEndDateConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl">
-            <h3 className="text-base font-semibold text-gray-900 mb-2">Visit Dipindah ke Luar Periode Invoice</h3>
-            <p className="text-sm text-gray-600 mb-1">
-              Visit dipindah ke <span className="font-semibold">{actualEndDateConfirm.newDate}</span>, di luar periode invoice <span className="font-mono text-xs">{actualEndDateConfirm.invoiceNumber}</span>.
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+            {/* Icon */}
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-100 mb-5 mx-auto">
+              <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-3 text-center">Visit Dipindah ke Luar Periode Invoice</h3>
+            {/* Info box */}
+            <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">Tanggal baru</span>
+                <span className="font-semibold text-gray-900">{actualEndDateConfirm.newDate}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">Invoice</span>
+                <span className="font-mono text-xs text-gray-700 bg-white border border-gray-200 px-2 py-0.5 rounded">{actualEndDateConfirm.invoiceNumber}</span>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 text-center mb-6">
+              Update <span className="font-medium text-gray-800">actual end date</span> invoice & tanggal akhir langganan ke tanggal ini?
             </p>
-            <p className="text-sm text-gray-600 mb-5">
-              Update <em>actual end date</em> invoice & tanggal akhir langganan ke tanggal ini?
-            </p>
-            <div className="flex gap-2 justify-end">
+            <div className="flex gap-3">
               <button
                 onClick={() => setActualEndDateConfirm(null)}
                 disabled={savingActualEndDate}
-                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+                className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
               >
                 Tidak, biarkan
               </button>
               <button
                 onClick={handleConfirmActualEndDate}
                 disabled={savingActualEndDate}
-                className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-700 disabled:opacity-50"
+                className="flex-1 px-4 py-3 text-sm font-semibold text-white bg-gray-900 rounded-xl hover:bg-gray-700 disabled:opacity-50 transition-colors"
               >
                 {savingActualEndDate ? 'Menyimpan...' : 'Ya, update'}
               </button>
@@ -2638,37 +2669,96 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
 
       {/* View History Modal */}
       {showHistoryModal && selectedVisitHistory && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Mitra Change History - Visit #{selectedVisitHistory.visitNumber}</h3>
-            <div className="mb-4">
-              <p className="text-sm text-gray-600">
-                <strong>Date:</strong> {selectedVisitHistory.scheduledDate} ({selectedVisitHistory.scheduledDay})
-              </p>
-            </div>
-            <div className="space-y-3">
-              <div className="p-3 bg-blue-50 rounded border border-blue-200">
-                <p className="text-sm font-medium text-blue-900">Current Mitra</p>
-                <p className="text-sm text-blue-700">{selectedVisitHistory.mitraName}</p>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            {/* Header */}
+            <div className="flex items-start justify-between mb-1">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Riwayat Visit #{selectedVisitHistory.visitNumber}</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {selectedVisitHistory.scheduledDate} · {selectedVisitHistory.scheduledDay}
+                </p>
               </div>
-              {selectedVisitHistory.originalMitraId && selectedVisitHistory.originalMitraId !== selectedVisitHistory.actualMitraId && (
-                <div className="p-3 bg-gray-50 rounded border border-gray-200">
-                  <p className="text-sm font-medium text-gray-900">Original Mitra</p>
-                  <p className="text-sm text-gray-600">Changed from original assignment</p>
-                </div>
-              )}
-            </div>
-            <div className="flex justify-end mt-6">
               <button
-                onClick={() => {
-                  setShowHistoryModal(false);
-                  setSelectedVisitHistory(null);
-                }}
-                className="btn-secondary"
+                onClick={() => { setShowHistoryModal(false); setSelectedVisitHistory(null); setVisitAuditLogs([]); }}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100"
               >
-                Close
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
+
+            {/* Current state */}
+            <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 mt-4 mb-5">
+              <div>
+                <p className="text-xs text-gray-400 mb-0.5">Mitra saat ini</p>
+                <p className="text-sm font-semibold text-gray-900">{selectedVisitHistory.mitraName || '—'}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-gray-400 mb-0.5">Status</p>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                  selectedVisitHistory.status === 'Done' ? 'bg-green-100 text-green-700' :
+                  selectedVisitHistory.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
+                  'bg-gray-100 text-gray-600'
+                }`}>{selectedVisitHistory.status}</span>
+              </div>
+            </div>
+
+            {/* Timeline */}
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Riwayat Perubahan</p>
+            {loadingAuditLogs ? (
+              <div className="text-center py-6 text-sm text-gray-400">Memuat riwayat...</div>
+            ) : visitAuditLogs.length === 0 ? (
+              <div className="text-center py-6 text-sm text-gray-400">Belum ada riwayat perubahan.</div>
+            ) : (
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                {visitAuditLogs.map((log, i) => {
+                  const getActionMeta = (log: any) => {
+                    if (log.action === 'EDIT_DATE' || log.action === 'RESCHEDULE_VISIT') return { label: 'Edit Tanggal', color: 'bg-amber-100 text-amber-700' };
+                    if (log.action === 'CHANGE_MITRA') return { label: 'Ganti Mitra', color: 'bg-blue-100 text-blue-700' };
+                    if (log.action === 'CANCEL') return { label: 'Dibatalkan', color: 'bg-red-100 text-red-700' };
+                    if (log.action === 'RESTORE') return { label: 'Dijadwalkan Ulang', color: 'bg-green-100 text-green-700' };
+                    return { label: log.action, color: 'bg-gray-100 text-gray-600' };
+                  };
+                  const meta = getActionMeta(log);
+                  const date = new Date(log.createdAt);
+                  const dateStr = date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+                  const timeStr = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                  return (
+                    <div key={log.id} className="flex gap-3">
+                      <div className="flex flex-col items-center">
+                        <div className="w-2 h-2 rounded-full bg-gray-300 mt-1.5 shrink-0" />
+                        {i < visitAuditLogs.length - 1 && <div className="w-px flex-1 bg-gray-200 mt-1" />}
+                      </div>
+                      <div className="pb-3 flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${meta.color}`}>{meta.label}</span>
+                          <span className="text-xs text-gray-400">{dateStr} {timeStr}</span>
+                        </div>
+                        <p className="text-xs text-gray-500">{log.userEmail}</p>
+                        {log.oldValue && log.newValue && (
+                          <div className="mt-1.5 text-xs text-gray-500 space-y-0.5">
+                            {log.oldValue.scheduledDate && log.newValue.scheduledDate && (
+                              <p><span className="text-gray-400">Tanggal:</span> <span className="line-through">{log.oldValue.scheduledDate}</span> → <span className="font-medium text-gray-700">{log.newValue.scheduledDate}</span></p>
+                            )}
+                            {log.oldValue.mitraName && log.newValue.mitraName && (
+                              <p><span className="text-gray-400">Mitra:</span> <span className="line-through">{log.oldValue.mitraName}</span> → <span className="font-medium text-gray-700">{log.newValue.mitraName}</span></p>
+                            )}
+                            {log.newValue.changeReason && (
+                              <p><span className="text-gray-400">Alasan:</span> <span className="font-medium text-gray-700">{log.newValue.changeReason}</span></p>
+                            )}
+                            {log.newValue.reason && (
+                              <p><span className="text-gray-400">Alasan:</span> <span className="font-medium text-gray-700">{log.newValue.reason?.replace('Cancellation reason: ', '')}</span></p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

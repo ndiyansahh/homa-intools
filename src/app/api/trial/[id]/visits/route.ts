@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { visitDB, mitraDB, customerDB, auditLogDB } from '@/lib/schema';
+import { visitDB, mitraDB, customerDB, auditLogDB, visitActionHistoryDB } from '@/lib/schema';
 import { eq, and, or, sql, desc } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { logDetailedAudit, getChangedFields } from '@/lib/audit-logger.server';
@@ -67,6 +67,7 @@ export async function GET(
         // Include subscription package from customer
         subscriptionPackage: customerDB.subscriptionPackage,
         subscriptionStart: customerDB.subscriptionStart, // To differentiate trial vs customer visits
+        hasAuditLog: sql<boolean>`EXISTS (SELECT 1 FROM audit_log_db WHERE entity_type = 'visit' AND entity_id = ${visitDB.id})`,
       })
       .from(visitDB)
       .leftJoin(mitraDB, eq(visitDB.actualMitraId, mitraDB.id))
@@ -536,21 +537,34 @@ export async function PUT(
       console.error('Error creating payout adjustment:', adjustmentError);
     }
 
-    // Log detailed audit
-    const newVisitData = { ...oldVisitData, ...updateData };
-    const changes = getChangedFields(oldVisitData, newVisitData);
-
-    await logDetailedAudit({
-      userId: session.userId,
-      userEmail: session.email,
-      action: 'UPDATE_VISIT',
-      entityType: 'visit',
-      entityId: visitId,
-      oldValue: changes.old,
-      newValue: changes.new,
-      ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
-      userAgent: request.headers.get('user-agent') || undefined,
-    });
+    // Insert to visit_action_history_db
+    if (updateData.scheduledDate) {
+      await db.insert(visitActionHistoryDB).values({
+        visitId,
+        actionType: 'EDIT_DATE',
+        oldValue: { scheduledDate: oldVisitData.scheduledDate },
+        newValue: { scheduledDate: updateData.scheduledDate },
+        changedBy: session.email,
+      });
+    }
+    if (updateData.status === 'Cancelled') {
+      await db.insert(visitActionHistoryDB).values({
+        visitId,
+        actionType: 'CANCEL',
+        oldValue: { status: oldVisitData.status },
+        newValue: { status: 'Cancelled', reason: updateData.visitNotes },
+        changedBy: session.email,
+      });
+    }
+    if (updateData.status === 'Done' && oldVisitData.status === 'Cancelled') {
+      await db.insert(visitActionHistoryDB).values({
+        visitId,
+        actionType: 'RESTORE',
+        oldValue: { status: 'Cancelled' },
+        newValue: { status: 'Done' },
+        changedBy: session.email,
+      });
+    }
 
     console.log(`✅ Updated visit ${visitId} to status: ${status} by ${session.email}`);
 

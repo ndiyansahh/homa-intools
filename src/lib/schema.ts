@@ -438,6 +438,16 @@ export const mitraRateConfigDB = pgTable('mitra_rate_config_db', {
 });
 
 // Visit Mitra Change History Table - Track all mitra changes for a visit
+export const visitActionHistoryDB = pgTable('visit_action_history_db', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  visitId: uuid('visit_id').references(() => visitDB.id).notNull(),
+  actionType: varchar('action_type', { length: 50 }).notNull(), // 'EDIT_DATE', 'CANCEL', 'RESTORE'
+  oldValue: jsonb('old_value'),
+  newValue: jsonb('new_value'),
+  changedBy: varchar('changed_by', { length: 255 }), // email
+  changedAt: timestamp('changed_at', { withTimezone: true }).defaultNow(),
+});
+
 export const visitMitraChangeHistoryDB = pgTable('visit_mitra_change_history_db', {
   id: uuid('id').defaultRandom().primaryKey(),
   visitId: uuid('visit_id').references(() => visitDB.id).notNull(),

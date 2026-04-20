@@ -5,6 +5,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { getConfig, CONFIG_KEYS } from '@/lib/config';
 import { detectPayoutAdjustment, createPayoutAdjustments } from '@/lib/payout-adjustment';
+import { logDetailedAudit } from '@/lib/audit-logger.server';
 
 interface RouteParams {
   params: Promise<{
@@ -220,6 +221,24 @@ export async function POST(
       // Log error but don't fail the mitra change
       console.error('Error creating payout adjustment:', adjustmentError);
     }
+
+    // Log audit for mitra change
+    let fromMitraName = fromMitraId;
+    if (fromMitraId) {
+      const fromMitraResult = await db.select({ mitraName: mitraDB.mitraName }).from(mitraDB).where(eq(mitraDB.id, fromMitraId)).limit(1);
+      fromMitraName = fromMitraResult[0]?.mitraName || fromMitraId;
+    }
+    await logDetailedAudit({
+      userId: session.userId,
+      userEmail: session.email,
+      action: 'CHANGE_MITRA',
+      entityType: 'visit',
+      entityId: visitId,
+      oldValue: { mitraId: fromMitraId, mitraName: fromMitraName },
+      newValue: { mitraId: newMitraId, mitraName: newMitra.mitraName },
+      ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+      userAgent: request.headers.get('user-agent') || undefined,
+    });
 
     return NextResponse.json({
       success: true,

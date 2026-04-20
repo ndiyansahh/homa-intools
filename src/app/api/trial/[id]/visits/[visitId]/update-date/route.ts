@@ -3,6 +3,8 @@ import { db } from '@/lib/db';
 import { visitDB } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
+import { logDetailedAudit } from '@/lib/audit-logger.server';
+import { visitActionHistoryDB } from '@/lib/schema';
 
 interface RouteParams {
   params: Promise<{ id: string; visitId: string }>;
@@ -33,7 +35,7 @@ export async function PATCH(
     }
 
     const existing = await db
-      .select({ id: visitDB.id })
+      .select({ id: visitDB.id, scheduledDate: visitDB.scheduledDate })
       .from(visitDB)
       .where(eq(visitDB.id, visitId))
       .limit(1);
@@ -42,13 +44,25 @@ export async function PATCH(
       return NextResponse.json({ success: false, message: 'Visit not found' }, { status: 404 });
     }
 
+    const oldDate = existing[0].scheduledDate;
+
     await db
       .update(visitDB)
       .set({
         scheduledDate: newDate,
         scheduledDay: new Date(newDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' }),
+        updatedBy: session.email,
+        updatedAt: new Date(),
       })
       .where(eq(visitDB.id, visitId));
+
+    await db.insert(visitActionHistoryDB).values({
+      visitId,
+      actionType: 'EDIT_DATE',
+      oldValue: { scheduledDate: oldDate },
+      newValue: { scheduledDate: newDate },
+      changedBy: session.email,
+    });
 
     return NextResponse.json({ success: true, message: 'Visit date updated successfully' });
 
