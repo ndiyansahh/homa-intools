@@ -147,6 +147,7 @@ export default function MitraDetailView({ mitraId, onClose, onUpdate }: MitraDet
         subscriptionType: formData.subscriptionType,
         payoutRate: formData.payoutRate,
         joinDate: convertDateForApi(formData.joinDate),
+        mitraBonusCommission: formData.bonus,
       };
 
       const response = await fetch(`/api/mitra/${mitraId}`, {
@@ -320,6 +321,17 @@ export default function MitraDetailView({ mitraId, onClose, onUpdate }: MitraDet
                     <option value="">Select Type</option>
                     <option value="Full Time">Full Time</option>
                     <option value="Part Time">Part Time</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Bonus Eligibility</label>
+                  <select
+                    value={formData.bonus || 'Eligible'}
+                    onChange={(e) => handleChange('bonus', e.target.value)}
+                    className="input-field mt-1"
+                  >
+                    <option value="Eligible">Eligible</option>
+                    <option value="Not Eligible">Not Eligible</option>
                   </select>
                 </div>
                 <div>

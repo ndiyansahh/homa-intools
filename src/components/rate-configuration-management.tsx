@@ -26,6 +26,7 @@ interface MitraRow {
   mitraName: string;
   mitraCode: string;
   trialRatePerVisit: string | null;
+  mitraBonusCommission: string;
   configuredCount: number;
   rateConfigs: RateConfigRow[];
 }
@@ -99,6 +100,7 @@ export default function RateConfigurationManagement({ session }: RateConfigurati
           mitraName: m.name || m.mitraName || '',
           mitraCode: m.mitraCode || '',
           trialRatePerVisit: m.trialRatePerVisit || null,
+          mitraBonusCommission: m.mitraBonusCommission || 'Eligible',
           configuredCount: mitraRates.filter(r => r.payoutRate !== '').length,
           rateConfigs: mitraRates,
         };

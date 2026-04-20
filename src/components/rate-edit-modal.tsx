@@ -27,6 +27,7 @@ export interface RateEditMitraData {
   mitraCode: string;
   trialRatePerVisit: string | null;
   rateConfigs: RateConfigEntry[];
+  mitraBonusCommission?: string;
 }
 
 interface SaveResult {
@@ -72,6 +73,7 @@ export default function RateEditModal({ mitra, isReadOnly = false, skipLabel = '
     )
   );
   const [trialRate, setTrialRate] = useState(mitra.trialRatePerVisit || '');
+  const [bonusCommission, setBonusCommission] = useState(mitra.mitraBonusCommission || 'Eligible');
   const [saving, setSaving] = useState(false);
   const [saveResult, setSaveResult] = useState<SaveResult | null>(null);
 
@@ -133,6 +135,7 @@ export default function RateEditModal({ mitra, isReadOnly = false, skipLabel = '
 
       const mitraPayload: Record<string, unknown> = {
         trialRatePerVisit: trialRate ? parseFloat(trialRate) : null,
+        mitraBonusCommission: bonusCommission,
       };
 
       const mitraRes = await fetch(`/api/mitra/${mitra.id}`, {
@@ -259,6 +262,28 @@ export default function RateEditModal({ mitra, isReadOnly = false, skipLabel = '
                   className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm text-right font-medium bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
+            )}
+          </div>
+
+          {/* Bonus Eligibility */}
+          <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-800">Bonus Eligibility</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Mitra yang Not Eligible tidak bisa menerima bonus di payout</p>
+            </div>
+            {isReadOnly ? (
+              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${bonusCommission === 'Eligible' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                {bonusCommission}
+              </span>
+            ) : (
+              <select
+                value={bonusCommission}
+                onChange={e => setBonusCommission(e.target.value)}
+                className="w-48 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="Eligible">Eligible</option>
+                <option value="Not Eligible">Not Eligible</option>
+              </select>
             )}
           </div>
 

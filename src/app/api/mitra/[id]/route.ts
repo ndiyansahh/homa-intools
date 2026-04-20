@@ -58,6 +58,7 @@ export async function GET(
           // New fields
           subscriptionType: mitraDB.subscriptionType,
           monthlyBaseRate: mitraDB.monthlyBaseRate,
+          mitraBonusCommission: mitraDB.mitraBonusCommission,
         })
         .from(mitraDB)
         .where(
@@ -117,7 +118,7 @@ export async function GET(
           status: dbMitra.status as any || 'ACTIVE',
           tenure: calculatedTenure.toString(),
           exitDate: dbMitra.mitraExitDate || undefined,
-          bonus: '',
+          bonus: dbMitra.mitraBonusCommission || 'Eligible',
           createdAt: dbMitra.createdAt?.toISOString() || new Date().toISOString(),
           updatedAt: dbMitra.updatedAt?.toISOString() || new Date().toISOString(),
           isDeleted: false,
@@ -249,6 +250,15 @@ export async function PUT(
       updateData.monthlyBaseRate = typeof body.payoutRate === 'number' ? body.payoutRate.toString() : body.payoutRate;
     } else if (body.monthlyBaseRate !== undefined) {
       updateData.monthlyBaseRate = typeof body.monthlyBaseRate === 'number' ? body.monthlyBaseRate.toString() : body.monthlyBaseRate;
+    }
+
+    // Handle bonus commission eligibility
+    if ((body as any).mitraBonusCommission) {
+      const val = (body as any).mitraBonusCommission;
+      if (!['Eligible', 'Not Eligible'].includes(val)) {
+        return NextResponse.json({ error: 'mitraBonusCommission must be "Eligible" or "Not Eligible"' }, { status: 400 });
+      }
+      updateData.mitraBonusCommission = val;
     }
 
     // Handle subscription type

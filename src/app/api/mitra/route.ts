@@ -376,6 +376,7 @@ export async function POST(request: NextRequest) {
         subscriptionType: body.subscriptionType || 'Regular', // Default to Regular
         monthlyBaseRate: (payoutRateValue ?? 0).toString(),
         bonusRate: '0',
+        mitraBonusCommission: (body as any).mitraBonusCommission === 'Not Eligible' ? 'Not Eligible' : 'Eligible',
       };
 
       const result = await db
@@ -555,6 +556,7 @@ export async function GET(request: NextRequest) {
         subscriptionType: mitraDB.subscriptionType,
         bonusRate: mitraDB.bonusRate,
         trialRatePerVisit: mitraDB.trialRatePerVisit,
+        mitraBonusCommission: mitraDB.mitraBonusCommission,
       })
       .from(mitraDB)
       .where(whereClause)
@@ -582,6 +584,7 @@ export async function GET(request: NextRequest) {
       subscriptionType: (mitra.subscriptionType as MitraSubscriptionType) || 'Regular',
       payoutRate: mitra.monthlyBaseRate || '0',
       trialRatePerVisit: mitra.trialRatePerVisit || null,
+      mitraBonusCommission: mitra.mitraBonusCommission || 'Eligible',
     }));
 
     const totalPages = Math.ceil(total / limit);

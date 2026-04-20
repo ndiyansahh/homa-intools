@@ -313,6 +313,7 @@ export default function MitraManagement({ session }: MitraManagementProps) {
             mitraCode: createdMitra.mitraCode || '',
             trialRatePerVisit: null,
             rateConfigs: [],
+            mitraBonusCommission: (formData as any).mitraBonusCommission || 'Eligible',
           });
 
           // Real-time data refresh with indicator
@@ -817,6 +818,21 @@ export default function MitraManagement({ session }: MitraManagementProps) {
                   )}
                 </div>
 
+              </div>
+
+              {/* Bonus Eligibility */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Bonus Eligibility
+                </label>
+                <select
+                  value={(formData as any).mitraBonusCommission || 'Eligible'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, mitraBonusCommission: e.target.value } as any))}
+                  className="input-field"
+                >
+                  <option value="Eligible">Eligible</option>
+                  <option value="Not Eligible">Not Eligible</option>
+                </select>
               </div>
 
               {/* Address */}

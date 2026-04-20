@@ -2467,6 +2467,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                 value={editDateValue}
                 onChange={(e) => setEditDateValue(e.target.value)}
                 className="input-field"
+                min={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })}
               />
             </div>
             <div className="flex justify-end space-x-3">

@@ -735,6 +735,12 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
 
             {/* Modal Body */}
             <div className="p-6 space-y-4">
+              {!selectedPayout.bonusEligible && (
+                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+                  Mitra ini <strong className="mx-1">Not Eligible</strong> untuk bonus. Input bonus dinonaktifkan.
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
@@ -747,8 +753,9 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
                       inputMode="numeric"
                       value={uangParkir ? Number(uangParkir).toLocaleString('id-ID') : ''}
                       onChange={(e) => setUangParkir(e.target.value.replace(/[^\d]/g, ''))}
-                      className="filter-input w-full pl-9 pr-3 py-2.5 rounded-lg bg-white font-semibold text-right"
+                      className="filter-input w-full pl-9 pr-3 py-2.5 rounded-lg bg-white font-semibold text-right disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                       placeholder="0"
+                      disabled={!selectedPayout.bonusEligible}
                     />
                   </div>
                 </div>
@@ -763,8 +770,9 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
                       inputMode="numeric"
                       value={kompensasiPromosi ? Number(kompensasiPromosi).toLocaleString('id-ID') : ''}
                       onChange={(e) => setKompensasiPromosi(e.target.value.replace(/[^\d]/g, ''))}
-                      className="filter-input w-full pl-9 pr-3 py-2.5 rounded-lg bg-white font-semibold text-right"
+                      className="filter-input w-full pl-9 pr-3 py-2.5 rounded-lg bg-white font-semibold text-right disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                       placeholder="0"
+                      disabled={!selectedPayout.bonusEligible}
                     />
                   </div>
                 </div>
@@ -775,13 +783,15 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide">
                     Lainnya
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setLainnyaItems(prev => [...prev, { label: '', amount: '' }])}
-                    className="text-xs text-blue-600 font-semibold hover:text-blue-800 flex items-center gap-1"
-                  >
-                    + Tambah
-                  </button>
+                  {selectedPayout.bonusEligible && (
+                    <button
+                      type="button"
+                      onClick={() => setLainnyaItems(prev => [...prev, { label: '', amount: '' }])}
+                      className="text-xs text-blue-600 font-semibold hover:text-blue-800 flex items-center gap-1"
+                    >
+                      + Tambah
+                    </button>
+                  )}
                 </div>
                 <div className="space-y-2">
                   {lainnyaItems.map((item, idx) => (
@@ -790,8 +800,9 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
                         type="text"
                         value={item.label}
                         onChange={(e) => setLainnyaItems(prev => prev.map((it, i) => i === idx ? { ...it, label: e.target.value } : it))}
-                        className="filter-input flex-1 px-3 py-2.5 rounded-lg bg-white"
+                        className="filter-input flex-1 px-3 py-2.5 rounded-lg bg-white disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                         placeholder="Keterangan (cth: Bonus, THR)"
+                        disabled={!selectedPayout.bonusEligible}
                       />
                       <div className="relative w-40">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 pointer-events-none">Rp</span>
@@ -800,11 +811,12 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
                           inputMode="numeric"
                           value={item.amount ? Number(item.amount).toLocaleString('id-ID') : ''}
                           onChange={(e) => setLainnyaItems(prev => prev.map((it, i) => i === idx ? { ...it, amount: e.target.value.replace(/[^\d]/g, '') } : it))}
-                          className="filter-input w-full pl-9 pr-3 py-2.5 rounded-lg bg-white font-semibold text-right"
+                          className="filter-input w-full pl-9 pr-3 py-2.5 rounded-lg bg-white font-semibold text-right disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                           placeholder="0"
+                          disabled={!selectedPayout.bonusEligible}
                         />
                       </div>
-                      {lainnyaItems.length > 1 && (
+                      {lainnyaItems.length > 1 && selectedPayout.bonusEligible && (
                         <button
                           type="button"
                           onClick={() => setLainnyaItems(prev => prev.filter((_, i) => i !== idx))}

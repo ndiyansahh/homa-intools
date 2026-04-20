@@ -170,6 +170,7 @@ export async function GET(request: NextRequest) {
         totalPayout: payoutDB.totalPayout,
         status: payoutDB.status,
         bonusEligible: payoutDB.bonusEligible,
+        mitraBonusCommission: mitraDB.mitraBonusCommission,
         notes: payoutDB.notes,
         paidAt: payoutDB.paidAt,
         createdAt: payoutDB.createdAt,
@@ -194,10 +195,16 @@ export async function GET(request: NextRequest) {
     const total = Number(totalResult[0]?.count || 0);
     const totalPages = Math.ceil(total / limit);
 
+    // Override bonusEligible with current mitra status (not stale payout record value)
+    const payoutsWithCurrentEligibility = payouts.map(p => ({
+      ...p,
+      bonusEligible: p.mitraBonusCommission !== 'Not Eligible',
+    }));
+
     const response = {
       success: true,
-      items: payouts,
-      data: payouts,
+      items: payoutsWithCurrentEligibility,
+      data: payoutsWithCurrentEligibility,
       page,
       limit,
       total,
@@ -280,6 +287,7 @@ export async function POST(request: NextRequest) {
         baseRate: mitraDB.baseRate,
         monthlyBaseRate: mitraDB.monthlyBaseRate,
         trialRatePerVisit: mitraDB.trialRatePerVisit,
+        mitraBonusCommission: mitraDB.mitraBonusCommission,
       })
       .from(mitraDB)
       .where(eq(mitraDB.isActive, true));
@@ -600,7 +608,7 @@ export async function POST(request: NextRequest) {
       }
 
 
-      const bonusEligible = true;
+      const bonusEligible = mitra.mitraBonusCommission !== 'Not Eligible';
       let bonusAmount = 0;
 
       // Feature 8b: Check for pending adjustments for this mitra
