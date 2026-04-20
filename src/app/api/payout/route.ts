@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { payoutDB, mitraDB, visitDB, mitraRateConfigDB, customerDB, payoutAdjustmentDB, subscriptionPackageDB } from '@/lib/schema';
+import { payoutDB, mitraDB, visitDB, mitraRateConfigDB, customerDB, payoutAdjustmentDB, subscriptionPackageDB, invoiceDB } from '@/lib/schema';
 import { eq, and, or, desc, gte, lte, like, ilike, count, isNull } from 'drizzle-orm';
 import { logAuditEvent } from '@/lib/logger';
 import { getNormalRange } from '@/lib/utils/normalRange';
@@ -413,24 +413,39 @@ export async function POST(request: NextRequest) {
         // Use visitsPerWeek from package table (authoritative), fallback to parsing package name
         const packageVisitsPerWeek = firstVisit.packageVisitsPerWeek ?? extractVisitsPerWeek(subscriptionPackage);
 
-        // Step 3a: Get customer's subscription start date
-        const customerData = await db
-          .select({ subscriptionStart: customerDB.subscriptionStart })
-          .from(customerDB)
-          .where(eq(customerDB.id, customerId))
-          .limit(1);
+        // Step 3a: Get all invoices for this customer to find the correct billing anchor per visit
+        // We must NOT use customerDB.subscriptionStart because it always reflects the LATEST renewal period.
+        // After renewal, old visits would get a wrong billing cycle anchor.
+        const customerInvoices = await db
+          .select({
+            invoiceStartDate: invoiceDB.invoiceStartDate,
+            invoiceEndDate: invoiceDB.invoiceEndDate,
+          })
+          .from(invoiceDB)
+          .where(eq(invoiceDB.customerId, customerId));
 
-        if (!customerData.length || !customerData[0].subscriptionStart) {
-          console.log(`   ⚠️  No subscription start date for ${customerName}, skipping`);
+        if (!customerInvoices.length) {
+          console.log(`   ⚠️  No invoices found for ${customerName}, skipping`);
           continue;
         }
 
-        const subscriptionStart = customerData[0].subscriptionStart;
-
         // Step 3b: Group visits by billing cycle
-        // A visit belongs to whichever billing cycle its scheduledDate falls into.
+        // For each visit, find the invoice whose period contains the visit's scheduledDate,
+        // then use that invoice's start date as the billing cycle anchor.
         const visitsByBillingCycle = new Map<string, { visits: typeof visits; billingCycle: { start: Date; end: Date } }>();
         for (const visit of visits) {
+          const visitDate = visit.scheduledDate;
+          const matchingInvoice = customerInvoices.find(inv =>
+            inv.invoiceStartDate && inv.invoiceEndDate &&
+            visitDate >= inv.invoiceStartDate && visitDate <= inv.invoiceEndDate
+          );
+
+          if (!matchingInvoice) {
+            console.log(`   ⚠️  No matching invoice for ${customerName} visit on ${visitDate}, skipping`);
+            continue;
+          }
+
+          const subscriptionStart = matchingInvoice.invoiceStartDate!;
           const cycle = getBillingCycle(subscriptionStart, parseLocalDate(visit.scheduledDate));
           const cycleKey = toLocalDateString(cycle.start);
           if (!visitsByBillingCycle.has(cycleKey)) {
@@ -500,6 +515,7 @@ export async function POST(request: NextRequest) {
           }
 
           // Step 3e: Total scheduled visits in the FULL billing cycle (denominator)
+          // Exclude Cancelled visits — they should not count toward the denominator
           const scheduledInCycleRows = await db
             .select({ id: visitDB.id })
             .from(visitDB)
@@ -507,7 +523,9 @@ export async function POST(request: NextRequest) {
               and(
                 eq(visitDB.customerId, customerId),
                 gte(visitDB.scheduledDate, toLocalDateString(billingCycle.start)),
-                lte(visitDB.scheduledDate, toLocalDateString(billingCycle.end))
+                lte(visitDB.scheduledDate, toLocalDateString(billingCycle.end)),
+                // Only count active visits (Done or Scheduled), not Cancelled
+                or(eq(visitDB.status, 'Done'), eq(visitDB.status, 'Scheduled'))
               )
             );
 
