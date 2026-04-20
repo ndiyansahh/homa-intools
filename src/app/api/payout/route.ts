@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { payoutDB, mitraDB, visitDB, mitraRateConfigDB, customerDB, payoutAdjustmentDB } from '@/lib/schema';
+import { payoutDB, mitraDB, visitDB, mitraRateConfigDB, customerDB, payoutAdjustmentDB, subscriptionPackageDB } from '@/lib/schema';
 import { eq, and, or, desc, gte, lte, like, ilike, count, isNull } from 'drizzle-orm';
 import { logAuditEvent } from '@/lib/logger';
 import { getNormalRange } from '@/lib/utils/normalRange';
@@ -317,9 +317,11 @@ export async function POST(request: NextRequest) {
           scheduledDate: visitDB.scheduledDate,
           completedAt: visitDB.completedAt,
           status: visitDB.status,
+          packageVisitsPerWeek: subscriptionPackageDB.visitsPerWeek,
         })
         .from(visitDB)
         .leftJoin(customerDB, eq(visitDB.customerId, customerDB.id))
+        .leftJoin(subscriptionPackageDB, eq(customerDB.subscriptionPackageId, subscriptionPackageDB.id))
         .where(
           and(
             or(
@@ -408,6 +410,8 @@ export async function POST(request: NextRequest) {
         const firstVisit = visits[0];
         const customerName = firstVisit.customerName || 'Unknown';
         const subscriptionPackage = firstVisit.subscriptionPackage || 'Unknown';
+        // Use visitsPerWeek from package table (authoritative), fallback to parsing package name
+        const packageVisitsPerWeek = firstVisit.packageVisitsPerWeek ?? extractVisitsPerWeek(subscriptionPackage);
 
         // Step 3a: Get customer's subscription start date
         const customerData = await db
@@ -454,7 +458,7 @@ export async function POST(request: NextRequest) {
 
           // Step 3d: Get rate for this mitra + visitsPerWeek
           // New schema: look up by (mitraId, visitsPerWeek)
-          const visitsPerWeekForRate = extractVisitsPerWeek(subscriptionPackage);
+          const visitsPerWeekForRate = packageVisitsPerWeek;
 
           const rateConfigs = visitsPerWeekForRate > 0
             ? await db
@@ -510,8 +514,8 @@ export async function POST(request: NextRequest) {
           const totalScheduledInCycle = scheduledInCycleRows.length;
           const completedInMonth = cycleVisits.length;
 
-          // Step 3f: Extract visitsPerWeek
-          let visitsPerWeek = extractVisitsPerWeek(subscriptionPackage);
+          // Step 3f: Extract visitsPerWeek (use authoritative value from package table)
+          let visitsPerWeek = packageVisitsPerWeek;
           if (!visitsPerWeek || visitsPerWeek < 1 || visitsPerWeek > 7) {
             // Trial package has visitsPerWeek = 0 — skip from regular payout
             console.log(`   ⚠️  Skipping ${customerName} — Trial package has no regular payout frequency`);

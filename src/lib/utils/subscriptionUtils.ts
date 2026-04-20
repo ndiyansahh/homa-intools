@@ -9,8 +9,8 @@ import { eq, sql } from 'drizzle-orm';
 export function extractVisitsPerWeek(packageName: string): number {
   if (!packageName) return 0;
 
-  // Try to match x/week pattern first (common in new UI)
-  const xMatch = packageName.match(/(\d+)x\/week/i);
+  // Try to match x/week or "x per week" pattern (e.g. "3x/week" or "3x per week")
+  const xMatch = packageName.match(/(\d+)x\s*(?:\/\s*week|per\s*week)/i);
   if (xMatch) return parseInt(xMatch[1]);
 
   // Try to match "visits per week" pattern (long format)
