@@ -538,13 +538,14 @@ export default function CustomerForm({ session, onClose, onSuccess, mode = 'crea
         return;
       }
 
-      // Calculate end date based on quantity (months)
-      // Parse as local midnight to avoid UTC timezone shift
+      // Calculate end date: EDATE(start, qty) - 1, avoid UTC timezone shift
       const [sy, sm, sd] = formData.firstDateSubscription.split('-').map(Number);
       const startDate = new Date(sy, sm - 1, sd);
-      const endDate = new Date(sy, sm - 1, sd);
-      endDate.setMonth(endDate.getMonth() + formData.qtyPackage);
-      endDate.setDate(endDate.getDate() - 1); // Last day of subscription period
+      const daysInTarget = new Date(sy, sm - 1 + formData.qtyPackage + 1, 0).getDate();
+      const clampedD = Math.min(sd, daysInTarget);
+      const endDateObj = new Date(sy, sm - 1 + formData.qtyPackage, clampedD - 1);
+      const endDateStr = `${endDateObj.getFullYear()}-${String(endDateObj.getMonth() + 1).padStart(2, '0')}-${String(endDateObj.getDate()).padStart(2, '0')}`;
+      const startDateStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
 
       // Call the correct API endpoint with proper format
       const response = await fetch('/api/mitras/check-availability', {
@@ -554,8 +555,8 @@ export default function CustomerForm({ session, onClose, onSuccess, mode = 'crea
         },
         body: JSON.stringify({
           dayPattern: selectedDaysList,
-          startDate: startDate.toISOString().split('T')[0], // 'yyyy-mm-dd'
-          endDate: endDate.toISOString().split('T')[0], // 'yyyy-mm-dd'
+          startDate: startDateStr,
+          endDate: endDateStr,
           // Region filter disabled per client request (Feb 1, 2026)
           // city: formData.city, 
           // district: formData.district,
@@ -715,19 +716,19 @@ export default function CustomerForm({ session, onClose, onSuccess, mode = 'crea
       const selectedPackage = subscriptionPackages.find(pkg => pkg.id === formData.subscriptionPackageId);
       const monthlyFee = selectedPackage ? selectedPackage.priceNumeric * formData.qtyPackage : 0;
 
-      // Calculate subscription end date based on qtyPackage months
+      // Calculate subscription end date: EDATE(start, qty) - 1, avoid UTC timezone shift
       const [csy, csm, csd] = formData.firstDateSubscription.split('-').map(Number);
-      const startDate = new Date(csy, csm - 1, csd);
-      const endDate = new Date(csy, csm - 1, csd);
-      endDate.setMonth(endDate.getMonth() + formData.qtyPackage);
-      endDate.setDate(endDate.getDate() - 1); // Make it inclusive
+      const daysInTargetMonth = new Date(csy, csm - 1 + formData.qtyPackage + 1, 0).getDate();
+      const clampedDay = Math.min(csd, daysInTargetMonth);
+      const subEndDate = new Date(csy, csm - 1 + formData.qtyPackage, clampedDay - 1);
+      const subEndStr = `${subEndDate.getFullYear()}-${String(subEndDate.getMonth() + 1).padStart(2, '0')}-${String(subEndDate.getDate()).padStart(2, '0')}`;
 
       // Convert date format untuk API
       const requestData = {
         ...formData,
         firstDateSubscription: convertFromDateInputFormat(formData.firstDateSubscription),
         subscriptionStart: convertFromDateInputFormat(formData.firstDateSubscription),
-        subscriptionEnd: convertFromDateInputFormat(endDate.toISOString().split('T')[0]),
+        subscriptionEnd: convertFromDateInputFormat(subEndStr),
         subscriptionPackageId: formData.subscriptionPackageId,
         monthlyFee: monthlyFee,
       };
