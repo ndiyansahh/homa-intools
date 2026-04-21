@@ -539,8 +539,10 @@ export default function CustomerForm({ session, onClose, onSuccess, mode = 'crea
       }
 
       // Calculate end date based on quantity (months)
-      const startDate = new Date(formData.firstDateSubscription);
-      const endDate = new Date(startDate);
+      // Parse as local midnight to avoid UTC timezone shift
+      const [sy, sm, sd] = formData.firstDateSubscription.split('-').map(Number);
+      const startDate = new Date(sy, sm - 1, sd);
+      const endDate = new Date(sy, sm - 1, sd);
       endDate.setMonth(endDate.getMonth() + formData.qtyPackage);
       endDate.setDate(endDate.getDate() - 1); // Last day of subscription period
 
@@ -714,8 +716,9 @@ export default function CustomerForm({ session, onClose, onSuccess, mode = 'crea
       const monthlyFee = selectedPackage ? selectedPackage.priceNumeric * formData.qtyPackage : 0;
 
       // Calculate subscription end date based on qtyPackage months
-      const startDate = new Date(formData.firstDateSubscription);
-      const endDate = new Date(startDate);
+      const [csy, csm, csd] = formData.firstDateSubscription.split('-').map(Number);
+      const startDate = new Date(csy, csm - 1, csd);
+      const endDate = new Date(csy, csm - 1, csd);
       endDate.setMonth(endDate.getMonth() + formData.qtyPackage);
       endDate.setDate(endDate.getDate() - 1); // Make it inclusive
 
