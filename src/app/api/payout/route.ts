@@ -515,7 +515,8 @@ export async function POST(request: NextRequest) {
           }
 
           // Step 3e: Total scheduled visits in the FULL billing cycle (denominator)
-          // Exclude Cancelled visits — they should not count toward the denominator
+          // Include ALL visits (Done, Scheduled, Cancelled) — cancelled visits were
+          // scheduled and represent lost earning opportunity for the mitra
           const scheduledInCycleRows = await db
             .select({ id: visitDB.id })
             .from(visitDB)
@@ -523,9 +524,7 @@ export async function POST(request: NextRequest) {
               and(
                 eq(visitDB.customerId, customerId),
                 gte(visitDB.scheduledDate, toLocalDateString(billingCycle.start)),
-                lte(visitDB.scheduledDate, toLocalDateString(billingCycle.end)),
-                // Only count active visits (Done or Scheduled), not Cancelled
-                or(eq(visitDB.status, 'Done'), eq(visitDB.status, 'Scheduled'))
+                lte(visitDB.scheduledDate, toLocalDateString(billingCycle.end))
               )
             );
 
