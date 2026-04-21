@@ -561,11 +561,12 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
           if (body.start_date) {
             updateData.subscriptionStart = body.start_date;
 
-            // Calculate subscription end date: startDate + qty months - 1 day
+            // Calculate subscription end date: EDATE(start, qty) - 1
             const quantity = body.qty_package || 1;
             const [sy, sm, sd] = body.start_date.split('-').map(Number);
-            const endDate = new Date(sy, sm - 1 + quantity, sd);
-            endDate.setDate(endDate.getDate() - 1);
+            const daysInTargetMonth = new Date(sy, sm - 1 + quantity + 1, 0).getDate();
+            const clampedDay = Math.min(sd, daysInTargetMonth);
+            const endDate = new Date(sy, sm - 1 + quantity, clampedDay - 1);
             const ey = endDate.getFullYear();
             const em = String(endDate.getMonth() + 1).padStart(2, '0');
             const ed = String(endDate.getDate()).padStart(2, '0');

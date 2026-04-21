@@ -168,11 +168,14 @@ export async function POST(
 
     const pkg = packageResult[0]
 
-    // 7. Compute newEndDate = startDate + qtyPackage months - 1 day (Jakarta-aligned)
+    // 7. Compute newEndDate: EDATE(start, qty) - 1
     const qty = body.qtyPackage && body.qtyPackage > 0 ? body.qtyPackage : 1
-    const newEndDate = new Date(resolvedStartDate)
-    newEndDate.setMonth(newEndDate.getMonth() + qty)
-    newEndDate.setDate(newEndDate.getDate() - 1)
+    const rsy = resolvedStartDate.getFullYear()
+    const rsm = resolvedStartDate.getMonth() + 1
+    const rsd = resolvedStartDate.getDate()
+    const daysInTargetMonth = new Date(rsy, rsm - 1 + qty + 1, 0).getDate()
+    const clampedDay = Math.min(rsd, daysInTargetMonth)
+    const newEndDate = new Date(rsy, rsm - 1 + qty, clampedDay - 1)
 
     // 8. Generate scheduled dates
     const scheduledDates = generateScheduleDates(resolvedStartDate, newEndDate, selectedDays)
