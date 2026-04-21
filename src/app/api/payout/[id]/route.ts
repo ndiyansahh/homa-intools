@@ -59,11 +59,10 @@ export async function PUT(
     };
 
     if (tunjanganAmount !== undefined) {
-      // bonusAmount stays as the mitra's bonus rate — tunjangan is additive on top
       const basePayout = Number(payout.basePayout);
-      const bonusAmount = Number(payout.bonusAmount); // keep existing bonus rate
-      const newTotalPayout = basePayout + bonusAmount + Number(tunjanganAmount);
-      updateData.totalPayout = newTotalPayout.toString();
+      const newTunjangan = Number(tunjanganAmount);
+      updateData.bonusAmount = newTunjangan.toString();
+      updateData.totalPayout = (basePayout + newTunjangan).toString();
     }
 
     if (notes !== undefined) {

@@ -223,11 +223,11 @@ export async function GET(
         }
 
         const komisiImbalJasa = Number(payout.basePayout) || 0;
-        const bonusAmount = Number(payout.bonusAmount) || 0;
+        const bonusAmount = 0;
         const tunjangan = parseTunjangan(payout.notes);
-        const lainnyaTotal = tunjangan.lainnyaItems.reduce((sum, i) => sum + i.amount, 0);
+        const lainnyaTotal = tunjangan.lainnyaItems.reduce((sum: number, i: { label: string; amount: number }) => sum + i.amount, 0);
         const tunjanganTotal = tunjangan.uangParkir + tunjangan.kompensasiPromosi + lainnyaTotal;
-        const totalPembayaran = komisiImbalJasa + bonusAmount + tunjanganTotal;
+        const totalPembayaran = komisiImbalJasa + tunjanganTotal;
 
         // ============ JSON PREVIEW RETURN ============
         if (format === 'json') {
@@ -351,7 +351,7 @@ export async function GET(
         const tunjanganItems: { label: string; amount: number }[] = [];
         if (tunjangan.uangParkir > 0) tunjanganItems.push({ label: 'Uang Parkir', amount: tunjangan.uangParkir });
         if (tunjangan.kompensasiPromosi > 0) tunjanganItems.push({ label: 'Kompensasi Promosi', amount: tunjangan.kompensasiPromosi });
-        tunjangan.lainnyaItems.filter(i => i.amount > 0).forEach(i => tunjanganItems.push({ label: i.label || 'Lainnya', amount: i.amount }));
+        tunjangan.lainnyaItems.filter((i: { label: string; amount: number }) => i.amount > 0).forEach((i: { label: string; amount: number }) => tunjanganItems.push({ label: i.label || 'Lainnya', amount: i.amount }));
 
         if (tunjanganItems.length > 0) {
             doc.setFont('helvetica', 'bold');
@@ -402,7 +402,7 @@ export async function GET(
             });
 
             // Total row
-            const totalKomisi = regularRows.reduce((sum, r) => sum + r.payout, 0);
+            const totalKomisi = regularRows.reduce((sum: number, r) => sum + r.payout, 0);
             tableData.push(['Total', formatCurrency(totalKomisi), '', '', '']);
 
             autoTable(doc, {

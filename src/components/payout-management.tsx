@@ -656,7 +656,7 @@ export default function PayoutManagement({ session }: PayoutManagementProps) {
                         <div className="text-sm font-semibold text-slate-900 currency-value">{formatCurrency(payout.basePayout)}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="text-sm font-semibold text-emerald-600 currency-value">{formatCurrency(Number(payout.totalPayout) - Number(payout.basePayout) - Number(payout.bonusAmount))}</div>
+                        <div className="text-sm font-semibold text-emerald-600 currency-value">{formatCurrency(Number(payout.bonusAmount))}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="text-base font-bold text-slate-900 currency-value bg-slate-50 px-3 py-1.5 rounded-lg inline-block">

@@ -694,6 +694,7 @@ export async function POST(request: NextRequest) {
 
       // If notes exist, recalculate totalPayout to include tunjangan
       let finalTotalWithTunjangan = finalTotalPayout;
+      let preservedTunjanganTotal = 0;
       if (preservedNotes) {
         try {
           const parsed = JSON.parse(preservedNotes);
@@ -702,7 +703,8 @@ export async function POST(request: NextRequest) {
           const lainnyaTotal = Array.isArray(parsed.lainnyaItems)
             ? parsed.lainnyaItems.reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0)
             : (Number(parsed.lainnyaAmount) || 0);
-          finalTotalWithTunjangan = finalTotalPayout + uangParkir + kompensasiPromosi + lainnyaTotal;
+          preservedTunjanganTotal = uangParkir + kompensasiPromosi + lainnyaTotal;
+          finalTotalWithTunjangan = finalTotalPayout + preservedTunjanganTotal;
         } catch {}
       }
 
@@ -717,7 +719,7 @@ export async function POST(request: NextRequest) {
         totalVisits: totalCompletedVisits,
         pricePerVisit: '0',
         basePayout: finalBasePayout.toString(),
-        bonusAmount: bonusAmount.toString(),
+        bonusAmount: preservedTunjanganTotal.toString(),
         totalPayout: finalTotalWithTunjangan.toString(),
         status: 'Pending',
         bonusEligible,
