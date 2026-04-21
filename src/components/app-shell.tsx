@@ -70,7 +70,7 @@ function AppShellInner({ children, session }: AppShellProps) {
         />
 
         {/* Main content area */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 min-h-screen">
           {/* Topbar */}
           <Topbar
             breadcrumbs={breadcrumbs}
@@ -82,7 +82,7 @@ function AppShellInner({ children, session }: AppShellProps) {
 
           {/* Page content */}
           <main className="flex-1 bg-gray-50/50" role="main">
-            <div className="bg-white">
+            <div className="bg-white min-h-full">
               <div className="px-4 sm:px-6 lg:px-8 py-8">
                 {children}
               </div>
