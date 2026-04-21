@@ -258,9 +258,18 @@ export async function POST(request: NextRequest) {
     // Feature flag: Allow payout regeneration for testing
     const allowRegeneration = process.env.ALLOW_PAYOUT_REGENERATION === 'true';
 
+    // Map mitraId -> existing notes so we can restore after regeneration
+    const existingNotesMap = new Map<string, string | null>();
+
     if (existingPayouts.length > 0) {
       if (allowRegeneration) {
-        // Delete existing payouts for this period (testing mode)
+        // Preserve notes/tunjangan before deleting
+        const allExisting = await db
+          .select({ mitraId: payoutDB.mitraId, notes: payoutDB.notes })
+          .from(payoutDB)
+          .where(and(eq(payoutDB.year, year), eq(payoutDB.month, month)));
+        allExisting.forEach(p => existingNotesMap.set(p.mitraId, p.notes));
+
         console.log(`🔄 ALLOW_PAYOUT_REGENERATION=true: Deleting existing payouts for ${year}-${String(month).padStart(2, '0')}`);
         await db
           .delete(payoutDB)
@@ -680,21 +689,39 @@ export async function POST(request: NextRequest) {
       const finalBasePayout = totalBasePayout + totalAdjustmentAmount;
       const finalTotalPayout = finalBasePayout + bonusAmount;
 
+      // Restore notes (tunjangan) from previous record if regenerating
+      const preservedNotes = existingNotesMap.get(mitra.id) ?? null;
+
+      // If notes exist, recalculate totalPayout to include tunjangan
+      let finalTotalWithTunjangan = finalTotalPayout;
+      if (preservedNotes) {
+        try {
+          const parsed = JSON.parse(preservedNotes);
+          const uangParkir = Number(parsed.uangParkir) || 0;
+          const kompensasiPromosi = Number(parsed.kompensasiPromosi) || 0;
+          const lainnyaTotal = Array.isArray(parsed.lainnyaItems)
+            ? parsed.lainnyaItems.reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0)
+            : (Number(parsed.lainnyaAmount) || 0);
+          finalTotalWithTunjangan = finalTotalPayout + uangParkir + kompensasiPromosi + lainnyaTotal;
+        } catch {}
+      }
+
       const payoutRecord = {
         payoutId,
         mitraId: mitra.id,
         year,
         month,
         payoutDate: lastDayOfMonth,
-        monthlyRate: '0', // Not applicable anymore (different rates per customer)
+        monthlyRate: '0',
         scheduledVisits: totalScheduledVisits,
         totalVisits: totalCompletedVisits,
-        pricePerVisit: '0', // DEPRECATED
+        pricePerVisit: '0',
         basePayout: finalBasePayout.toString(),
         bonusAmount: bonusAmount.toString(),
-        totalPayout: finalTotalPayout.toString(),
+        totalPayout: finalTotalWithTunjangan.toString(),
         status: 'Pending',
         bonusEligible,
+        notes: preservedNotes,
         breakdown: JSON.stringify({
           customers: customerBreakdown,
           adjustments: adjustmentBreakdown.length > 0 ? adjustmentBreakdown : undefined,
