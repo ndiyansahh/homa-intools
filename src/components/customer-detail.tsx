@@ -163,6 +163,10 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   const [newVisitDate, setNewVisitDate] = useState('');
   const [newVisitMitra, setNewVisitMitra] = useState('');
 
+  // Attendance pagination
+  const VISITS_PER_PAGE = 7;
+  const [attendancePage, setAttendancePage] = useState(1);
+
   // Invoice states
   const [invoices, setInvoices] = useState<any[]>([]);
   const [previewInvoice, setPreviewInvoice] = useState<{ id: string; number: string; blobUrl?: string } | null>(null);
@@ -214,6 +218,12 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
     }
     return latestInvVisits;
   })();
+
+  const totalAttendancePages = Math.ceil(displayedVisits.length / VISITS_PER_PAGE);
+  const paginatedVisits = displayedVisits.slice(
+    (attendancePage - 1) * VISITS_PER_PAGE,
+    attendancePage * VISITS_PER_PAGE
+  );
 
   const openInvoicePreview = async (id: string, number: string) => {
     try {
@@ -317,7 +327,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       ]);
       if (customerRes.ok) {
         const result = await customerRes.json();
-        if (result.success && result.data) setVisits(result.data);
+        if (result.success && result.data) { setVisits(result.data); setAttendancePage(1); }
       }
       if (allRes.ok) {
         const result = await allRes.json();
@@ -1708,10 +1718,35 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
 
                   {/* Removed: Bulk attendance marking buttons (auto-Done workflow - feedback: too hassle for user) */}
                 </div>
+                {/* Summary stats */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-lg">
+                    <span className="text-xs text-gray-500">Total</span>
+                    <span className="text-xs font-bold text-gray-800">{displayedVisits.length}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 rounded-lg">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
+                    <span className="text-xs text-green-700">Done</span>
+                    <span className="text-xs font-bold text-green-800">{displayedVisits.filter(v => v.status === 'Done').length}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 rounded-lg">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                    <span className="text-xs text-red-600">Cancelled</span>
+                    <span className="text-xs font-bold text-red-700">{displayedVisits.filter(v => v.status === 'Cancelled').length}</span>
+                  </div>
+                  {displayedVisits.filter(v => v.status === 'Scheduled').length > 0 && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 rounded-lg">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                      <span className="text-xs text-amber-700">Scheduled</span>
+                      <span className="text-xs font-bold text-amber-800">{displayedVisits.filter(v => v.status === 'Scheduled').length}</span>
+                    </div>
+                  )}
+                </div>
+
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="space-y-3">
-                    {displayedVisits.map((visit, idx) => {
-                      const displayNumber = idx + 1;
+                    {paginatedVisits.map((visit, idx) => {
+                      const displayNumber = (attendancePage - 1) * VISITS_PER_PAGE + idx + 1;
                       const mitraChanged = visit.originalMitraId && visit.actualMitraId && visit.originalMitraId !== visit.actualMitraId;
                       const hasHistory = mitraChanged || !!visit.updatedBy;
                       const isLocked = visit.status === 'Done';
@@ -1855,6 +1890,44 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                       );
                     })}
                   </div>
+
+                  {/* Pagination */}
+                  {totalAttendancePages > 1 && (
+                    <div className="flex items-center justify-between pt-2 mt-1 border-t border-gray-200">
+                      <span className="text-xs text-gray-500">
+                        {(attendancePage - 1) * VISITS_PER_PAGE + 1}–{Math.min(attendancePage * VISITS_PER_PAGE, displayedVisits.length)} dari {displayedVisits.length} visit
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setAttendancePage(p => Math.max(1, p - 1))}
+                          disabled={attendancePage === 1}
+                          className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          ‹ Prev
+                        </button>
+                        {Array.from({ length: totalAttendancePages }, (_, i) => i + 1).map(p => (
+                          <button
+                            key={p}
+                            onClick={() => setAttendancePage(p)}
+                            className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${
+                              p === attendancePage
+                                ? 'bg-indigo-600 text-white border-indigo-600'
+                                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => setAttendancePage(p => Math.min(totalAttendancePages, p + 1))}
+                          disabled={attendancePage === totalAttendancePages}
+                          className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Next ›
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Empty state */}
                   {displayedVisits.length === 0 && (

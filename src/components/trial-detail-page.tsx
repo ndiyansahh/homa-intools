@@ -1232,8 +1232,9 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                       const pkg = subscriptionPackages.find(p => p.id === pkgId);
                       setSelectedPackageId(pkgId);
                       setSelectedPackage(pkg?.subscriptionPackage || '');
-                      // Reset days when package changes
-                      setSelectedDays([]);
+                      // Auto-select all days for 7x/week, otherwise reset
+                      const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+                      setSelectedDays(pkg?.visitsPerWeek === 7 ? allDays : []);
                     }}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                     disabled={loadingPackages}
@@ -1306,40 +1307,47 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Select Service Days ({selectedDaysCount}/{requiredVisitsPerWeek} selected) *
                     </label>
-                    <div className="grid grid-cols-4 gap-3">
-                      {Array.from({ length: requiredVisitsPerWeek }, (_, i) => i).map((index) => {
-                        const currentValue = selectedDays[index] || '';
-
-                        return (
-                          <div key={`day-${index}`}>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">
-                              Day {index + 1} *
-                            </label>
-                            <select
-                              value={currentValue}
-                              onChange={(e) => handleDayChange(index, e.target.value)}
-                              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                              required
-                            >
-                              <option value="">Select day...</option>
-                              {dayOptions.map((day) => (
-                                <option key={day.value} value={day.value}>
-                                  {day.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {selectedDaysCount !== requiredVisitsPerWeek && (
-                      <p className="text-xs text-red-500 mt-1">
-                        Please select exactly {requiredVisitsPerWeek} days for this package
-                      </p>
+                    {requiredVisitsPerWeek === 7 ? (
+                      <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                        Every day (Mon – Sun) — all 7 days auto-selected for daily package
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-4 gap-3">
+                          {Array.from({ length: requiredVisitsPerWeek }, (_, i) => i).map((index) => {
+                            const currentValue = selectedDays[index] || '';
+                            return (
+                              <div key={`day-${index}`}>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">
+                                  Day {index + 1} *
+                                </label>
+                                <select
+                                  value={currentValue}
+                                  onChange={(e) => handleDayChange(index, e.target.value)}
+                                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                                  required
+                                >
+                                  <option value="">Select day...</option>
+                                  {dayOptions.map((day) => (
+                                    <option key={day.value} value={day.value}>
+                                      {day.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {selectedDaysCount !== requiredVisitsPerWeek && (
+                          <p className="text-xs text-red-500 mt-1">
+                            Please select exactly {requiredVisitsPerWeek} days for this package
+                          </p>
+                        )}
+                        <p className="text-xs text-blue-600 mt-2">
+                          💡 You can select the same day multiple times for different time slots (e.g., Monday 08:00-11:00 & Monday 11:00-14:00)
+                        </p>
+                      </>
                     )}
-                    <p className="text-xs text-blue-600 mt-2">
-                      💡 You can select the same day multiple times for different time slots (e.g., Monday 08:00-11:00 & Monday 11:00-14:00)
-                    </p>
                   </div>
                 )}
 

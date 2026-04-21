@@ -125,25 +125,34 @@ export function calculateSubscriptionPrice(
   return packagePrice * durationMonths;
 }
 
+type DayPattern = {
+  day1?: string; day2?: string; day3?: string;
+  day4?: string; day5?: string; day6?: string; day7?: string;
+};
+
+function extractDaysFromPattern(dayPattern: DayPattern): string[] {
+  return [
+    dayPattern.day1, dayPattern.day2, dayPattern.day3,
+    dayPattern.day4, dayPattern.day5, dayPattern.day6, dayPattern.day7,
+  ].filter((day): day is string => !!day && day !== '');
+}
+
 // Validate day pattern against package requirements
 export function validateDayPattern(
-  dayPattern: { day1: string; day2: string; day3: string },
+  dayPattern: DayPattern,
   requiredDays: number
 ): {
   isValid: boolean;
   errors: string[];
 } {
   const errors: string[] = [];
-  const selectedDays = [dayPattern.day1, dayPattern.day2, dayPattern.day3]
-    .filter(day => day && day !== '');
+  const selectedDays = extractDaysFromPattern(dayPattern);
 
-  // Check if correct number of days selected
   if (selectedDays.length !== requiredDays) {
     errors.push(`Please select exactly ${requiredDays} day(s) for this package`);
   }
 
   // NOTE: Duplicate days are now allowed per Feedback 5a
-  // Customers can have multiple visits on the same day (e.g., Monday 08:00-11:00 & Monday 11:00-14:00)
 
   return {
     isValid: errors.length === 0,
@@ -152,26 +161,33 @@ export function validateDayPattern(
 }
 
 // Format day pattern for display
-export function formatDayPattern(dayPattern: { day1: string; day2: string; day3: string }): string {
-  const selectedDays = [dayPattern.day1, dayPattern.day2, dayPattern.day3]
-    .filter(day => day && day !== '');
+export function formatDayPattern(dayPattern: DayPattern): string {
+  const selectedDays = extractDaysFromPattern(dayPattern);
 
   if (selectedDays.length === 0) return 'No days selected';
   if (selectedDays.length === 1) return selectedDays[0];
   if (selectedDays.length === 2) return `${selectedDays[0]} and ${selectedDays[1]}`;
-
-  return `${selectedDays[0]}, ${selectedDays[1]}, and ${selectedDays[2]}`;
+  return selectedDays.slice(0, -1).join(', ') + ', and ' + selectedDays[selectedDays.length - 1];
 }
 
 // Create complete subscription with auto-generated visits
 export async function createSubscriptionWithDayPattern(params: {
   customerId: string;
   subscriptionPackageId: string;
-  dayPattern: { day1?: string; day2?: string; day3?: string };
+  dayPattern: DayPattern | string[];
   subscriptionStartDate: Date;
   mitraId: string;
   qtyPackage?: number;
 }, db: any, { customerDB, subscriptionPackageDB, visitDB, mitraDB }: any) {
+
+  // Normalise dayPattern — accept both array and object forms
+  const normalisedDayPattern: DayPattern = Array.isArray(params.dayPattern)
+    ? Object.fromEntries(
+        (params.dayPattern as string[])
+          .filter(Boolean)
+          .map((day, i) => [`day${i + 1}`, day])
+      ) as DayPattern
+    : params.dayPattern as DayPattern;
 
   // 1. Get package from database
   const packageResult = await db
@@ -189,9 +205,8 @@ export async function createSubscriptionWithDayPattern(params: {
   // 2. Extract visits per week
   const visitsPerWeek = extractVisitsPerWeek(pkg.subscriptionPackage);
 
-  // 3. Parse day pattern (remove null/empty)
-  const selectedDays = [params.dayPattern.day1, params.dayPattern.day2, params.dayPattern.day3]
-    .filter((day): day is string => day !== null && day !== undefined && day !== "");
+  // 3. Parse day pattern (remove null/empty) — supports up to 7 days
+  const selectedDays = extractDaysFromPattern(normalisedDayPattern);
 
   // 4. VALIDATE: selectedDays.length === visitsPerWeek
   if (selectedDays.length !== visitsPerWeek) {
@@ -238,9 +253,13 @@ export async function createSubscriptionWithDayPattern(params: {
       qtyPackage: months,
       monthlyFee: (pkg.priceNumeric * months).toString(),
       dayPattern: JSON.stringify({
-        day1: params.dayPattern.day1 || null,
-        day2: params.dayPattern.day2 || null,
-        day3: params.dayPattern.day3 || null
+        day1: normalisedDayPattern.day1 || null,
+        day2: normalisedDayPattern.day2 || null,
+        day3: normalisedDayPattern.day3 || null,
+        day4: normalisedDayPattern.day4 || null,
+        day5: normalisedDayPattern.day5 || null,
+        day6: normalisedDayPattern.day6 || null,
+        day7: normalisedDayPattern.day7 || null,
       }),
       totalSessions: scheduledDates.length,
       updatedAt: new Date()

@@ -824,12 +824,21 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
       {/* Renew Modal — reuses CustomerForm with mode="renew" */}
       {renewalModal.open && renewalModal.customer && (() => {
         const customer = renewalModal.customer;
+        // Detect visitsPerWeek from package name (e.g. "paket 7x/week" → 7)
+        const pkgName = customer.subscriptionPackage || '';
+        const vpwMatch = pkgName.match(/(\d+)x\s*\/?\s*week/i);
+        const visitsPerWeek = vpwMatch ? parseInt(vpwMatch[1]) : 0;
+        const ALL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
         // Parse day pattern JSON: {"day1":"Monday","day2":"Friday","day3":null}
         let selectedDays: string[] = [];
-        if (customer.dayPattern) {
+        if (visitsPerWeek === 7) {
+          // Always use all 7 days for daily package regardless of stored dayPattern
+          selectedDays = [...ALL_DAYS];
+        } else if (customer.dayPattern) {
           try {
             const parsed = JSON.parse(customer.dayPattern);
-            selectedDays = [parsed.day1, parsed.day2, parsed.day3].filter(Boolean) as string[];
+            selectedDays = [parsed.day1, parsed.day2, parsed.day3, parsed.day4, parsed.day5, parsed.day6, parsed.day7].filter(Boolean) as string[];
           } catch {
             selectedDays = customer.dayPattern.split(',').map((d: string) => d.trim()).filter(Boolean);
           }
@@ -858,6 +867,7 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
               postalCode: customer.postalCode || '',
               subscriptionPackageId: customer.subscriptionPackageId || '',
               selectedDays,
+              visitsPerWeek: selectedDays.length,
               startDate,
               mitraId: customer.assignedMitraId || '',
               mitraName: customer.assignedMitraName || '',

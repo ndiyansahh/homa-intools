@@ -15,6 +15,7 @@ interface RenewalPrefill {
   postalCode: string;
   subscriptionPackageId: string;
   selectedDays: string[];
+  visitsPerWeek?: number;
   startDate: string; // YYYY-MM-DD
   mitraId: string;
   mitraName: string;
@@ -89,6 +90,8 @@ const convertFromDateInputFormat = (yyyymmdd: string): string => {
   return `${month}/${day}/${year}`;
 };
 
+const ALL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
 export default function CustomerForm({ session, onClose, onSuccess, mode = 'create', renewalCustomerId, renewalPrefill }: CustomerFormProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -108,7 +111,7 @@ export default function CustomerForm({ session, onClose, onSuccess, mode = 'crea
         qtyPackage: 1,
         subscriptionPackage: '',
         subscriptionPackageId: renewalPrefill.subscriptionPackageId,
-        selectedDays: renewalPrefill.selectedDays,
+        selectedDays: renewalPrefill.visitsPerWeek === 7 ? [...ALL_DAYS] : renewalPrefill.selectedDays,
         ltv: renewalPrefill.ltv,
         firstDateSubscription: renewalPrefill.startDate,
         status: 'Active',
@@ -429,11 +432,13 @@ export default function CustomerForm({ session, onClose, onSuccess, mode = 'crea
   const handlePackageChange = (packageId: string) => {
     const selectedPackage = subscriptionPackages.find(pkg => pkg.id === packageId);
     if (selectedPackage) {
+      // Auto-select all days for 7x/week package
+      const autoSelectedDays = selectedPackage.visitsPerWeek === 7 ? [...ALL_DAYS] : [];
       setFormData(prev => ({
         ...prev,
         subscriptionPackageId: packageId,
         subscriptionPackage: selectedPackage.packageName,
-        selectedDays: [] // Reset days when package changes
+        selectedDays: autoSelectedDays,
       }));
       setPreviewVisits([]); // Clear preview
     }
@@ -620,7 +625,7 @@ export default function CustomerForm({ session, onClose, onSuccess, mode = 'crea
   };
 
   const selectedPackage = getSelectedPackage();
-  const requiredVisitsPerWeek = selectedPackage?.visitsPerWeek || 0;
+  const requiredVisitsPerWeek = selectedPackage?.visitsPerWeek || renewalPrefill?.visitsPerWeek || 0;
   const selectedDaysCount = formData.selectedDays.length;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -645,6 +650,10 @@ export default function CustomerForm({ session, onClose, onSuccess, mode = 'crea
             day1: formData.selectedDays[0] || null,
             day2: formData.selectedDays[1] || null,
             day3: formData.selectedDays[2] || null,
+            day4: formData.selectedDays[3] || null,
+            day5: formData.selectedDays[4] || null,
+            day6: formData.selectedDays[5] || null,
+            day7: formData.selectedDays[6] || null,
           },
           address: formData.address,
           city: formData.city,
@@ -723,12 +732,11 @@ export default function CustomerForm({ session, onClose, onSuccess, mode = 'crea
       const subEndDate = new Date(csy, csm - 1 + formData.qtyPackage, clampedDay - 1);
       const subEndStr = `${subEndDate.getFullYear()}-${String(subEndDate.getMonth() + 1).padStart(2, '0')}-${String(subEndDate.getDate()).padStart(2, '0')}`;
 
-      // Convert date format untuk API
       const requestData = {
         ...formData,
-        firstDateSubscription: convertFromDateInputFormat(formData.firstDateSubscription),
-        subscriptionStart: convertFromDateInputFormat(formData.firstDateSubscription),
-        subscriptionEnd: convertFromDateInputFormat(subEndStr),
+        firstDateSubscription: formData.firstDateSubscription,
+        subscriptionStart: formData.firstDateSubscription,
+        subscriptionEnd: subEndStr,
         subscriptionPackageId: formData.subscriptionPackageId,
         monthlyFee: monthlyFee,
       };
@@ -766,7 +774,7 @@ export default function CustomerForm({ session, onClose, onSuccess, mode = 'crea
         promoCode: '',
         promoDiscount: '',
         subscriptionPackageId: renewalPrefill.subscriptionPackageId,
-        selectedDays: renewalPrefill.selectedDays,
+        selectedDays: renewalPrefill.visitsPerWeek === 7 ? [...ALL_DAYS] : renewalPrefill.selectedDays,
         firstDateSubscription: renewalPrefill.startDate,
         cleaner1: renewalPrefill.mitraName,
         qtyPackage: 1,
@@ -1083,41 +1091,48 @@ export default function CustomerForm({ session, onClose, onSuccess, mode = 'crea
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     2. Select Visit Days ({selectedDaysCount}/{requiredVisitsPerWeek} selected) *
                   </label>
-                  <div className="grid grid-cols-4 gap-3">
-                    {Array.from({ length: requiredVisitsPerWeek }, (_, i) => i).map((index) => {
-                      const currentValue = formData.selectedDays[index] || '';
-
-                      return (
-                        <div key={`day-${index}`}>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Day {index + 1} *
-                          </label>
-                          <select
-                            value={currentValue}
-                            onChange={(e) => handleDayChange(index, e.target.value)}
-                            className="input-field"
-                            required
-                          >
-                            <option value="">Select day...</option>
-                            {dayOptions.map((day) => (
-                              <option key={day.value} value={day.value}>
-                                {day.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {selectedDaysCount !== requiredVisitsPerWeek && (
-                    <p className="text-xs text-red-500 mt-1">
-                      Please select exactly {requiredVisitsPerWeek} day(s) for this package
-                    </p>
+                  {requiredVisitsPerWeek === 7 ? (
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                      Every day (Mon – Sun) — all 7 days auto-selected for daily package
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-4 gap-3">
+                        {Array.from({ length: requiredVisitsPerWeek }, (_, i) => i).map((index) => {
+                          const currentValue = formData.selectedDays[index] || '';
+                          return (
+                            <div key={`day-${index}`}>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Day {index + 1} *
+                              </label>
+                              <select
+                                value={currentValue}
+                                onChange={(e) => handleDayChange(index, e.target.value)}
+                                className="input-field"
+                                required
+                              >
+                                <option value="">Select day...</option>
+                                {dayOptions.map((day) => (
+                                  <option key={day.value} value={day.value}>
+                                    {day.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {selectedDaysCount !== requiredVisitsPerWeek && (
+                        <p className="text-xs text-red-500 mt-1">
+                          Please select exactly {requiredVisitsPerWeek} day(s) for this package
+                        </p>
+                      )}
+                      <p className="text-xs text-blue-600 mt-2 flex items-center">
+                        <Icons.alert className="w-3 h-3 mr-1" />
+                        You can select the same day multiple times for different time slots (e.g., Monday 08:00-11:00 & Monday 11:00-14:00)
+                      </p>
+                    </>
                   )}
-                  <p className="text-xs text-blue-600 mt-2 flex items-center">
-                    <Icons.alert className="w-3 h-3 mr-1" />
-                    You can select the same day multiple times for different time slots (e.g., Monday 08:00-11:00 & Monday 11:00-14:00)
-                  </p>
                 </div>
               </div>
             )}
@@ -1270,22 +1285,24 @@ export default function CustomerForm({ session, onClose, onSuccess, mode = 'crea
                   onChange={(e) => setFormData(prev => ({ ...prev, cleaner1: e.target.value }))}
                   className="input-field"
                   required
-                  disabled={loadingMitras || availableMitras.length === 0}
+                  disabled={loadingMitras}
                 >
                   <option value="">
-                    {loadingMitras ? 'Checking availability...' :
-                      availableMitras.length === 0 ? 'No mitras available' :
-                        'Select mitra...'}
+                    {loadingMitras ? 'Checking availability...' : 'Select mitra...'}
                   </option>
                   {availableMitras.map((mitra, index) => (
                     <option key={`mitra1-${mitra.id}-${index}`} value={mitra.name}>
                       {mitra.name}
                     </option>
                   ))}
+                  {/* Ensure currently assigned mitra is always selectable even if not in available list */}
+                  {formData.cleaner1 && !availableMitras.find(m => m.name === formData.cleaner1) && (
+                    <option value={formData.cleaner1}>{formData.cleaner1} (current)</option>
+                  )}
                 </select>
                 {!loadingMitras && availableMitras.length === 0 && previewVisits.length > 0 && (
-                  <p className="text-xs text-red-500 mt-1">
-                    No mitras available for selected schedule. Please choose different days or date.
+                  <p className="text-xs text-amber-600 mt-1">
+                    No mitras passed availability check — you can still select a mitra manually.
                   </p>
                 )}
                 {formData.cleaner1 && (

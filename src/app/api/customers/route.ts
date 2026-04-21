@@ -352,9 +352,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       if (newCustomerId && assignedMitraId && (body as any).subscriptionStart && (body as any).selectedDays) {
         console.log('🔄 Generating visit schedule for new customer');
 
-        const startDate = new Date((body as any).subscriptionStart);
+        const parseLocalMidnight = (dateStr: string) => {
+          const [y, m, d] = dateStr.split('-').map(Number);
+          return new Date(y, m - 1, d);
+        };
+        const startDate = parseLocalMidnight((body as any).subscriptionStart);
         const endDate = (body as any).subscriptionEnd
-          ? new Date((body as any).subscriptionEnd)
+          ? parseLocalMidnight((body as any).subscriptionEnd)
           : new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000); // Default 30 days
 
         const visitDates: { date: Date; day: string }[] = [];
@@ -383,7 +387,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             originalMitraId: assignedMitraId,
             actualMitraId: assignedMitraId,
             visitNumber: index + 1,
-            scheduledDate: visit.date.toISOString().split('T')[0],
+            scheduledDate: `${visit.date.getFullYear()}-${String(visit.date.getMonth() + 1).padStart(2, '0')}-${String(visit.date.getDate()).padStart(2, '0')}`,
             scheduledDay: visit.day,
             status: 'Done', // Feedback 4: Auto-attended so admin doesn't need to mark
             completedAt: visit.date, // For payout calculation

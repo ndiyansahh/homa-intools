@@ -18,6 +18,10 @@ interface RenewRequestBody {
     day1?: string
     day2?: string
     day3?: string
+    day4?: string
+    day5?: string
+    day6?: string
+    day7?: string
   }
   address?: string
   city?: string
@@ -125,7 +129,7 @@ export async function POST(
     }
 
     // 5. Resolve dayPattern
-    let resolvedDayPattern: { day1?: string; day2?: string; day3?: string }
+    let resolvedDayPattern: { day1?: string; day2?: string; day3?: string; day4?: string; day5?: string; day6?: string; day7?: string }
     if (body.dayPattern) {
       resolvedDayPattern = body.dayPattern
     } else if (customer.dayPattern) {
@@ -138,11 +142,15 @@ export async function POST(
       resolvedDayPattern = {}
     }
 
-    // Extract active days as array
+    // Extract active days as array (up to 7 days for daily packages)
     const selectedDays = [
       resolvedDayPattern.day1,
       resolvedDayPattern.day2,
       resolvedDayPattern.day3,
+      resolvedDayPattern.day4,
+      resolvedDayPattern.day5,
+      resolvedDayPattern.day6,
+      resolvedDayPattern.day7,
     ].filter((day): day is string => !!day && day !== '')
 
     if (selectedDays.length === 0) {
@@ -286,6 +294,10 @@ export async function POST(
           day1: resolvedDayPattern.day1 ?? null,
           day2: resolvedDayPattern.day2 ?? null,
           day3: resolvedDayPattern.day3 ?? null,
+          day4: resolvedDayPattern.day4 ?? null,
+          day5: resolvedDayPattern.day5 ?? null,
+          day6: resolvedDayPattern.day6 ?? null,
+          day7: resolvedDayPattern.day7 ?? null,
         }),
         totalSessions: newTotalSessions,
         invoiceId: newInvoiceId,
