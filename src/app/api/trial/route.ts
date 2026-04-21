@@ -561,12 +561,15 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
           if (body.start_date) {
             updateData.subscriptionStart = body.start_date;
 
-            // Calculate subscription end date based on quantity (1 qty = 1 month)
+            // Calculate subscription end date: startDate + qty months - 1 day
             const quantity = body.qty_package || 1;
-            const startDate = new Date(body.start_date);
-            const endDate = new Date(startDate);
-            endDate.setMonth(endDate.getMonth() + quantity);
-            updateData.subscriptionEnd = endDate.toISOString().split('T')[0];
+            const [sy, sm, sd] = body.start_date.split('-').map(Number);
+            const endDate = new Date(sy, sm - 1 + quantity, sd);
+            endDate.setDate(endDate.getDate() - 1);
+            const ey = endDate.getFullYear();
+            const em = String(endDate.getMonth() + 1).padStart(2, '0');
+            const ed = String(endDate.getDate()).padStart(2, '0');
+            updateData.subscriptionEnd = `${ey}-${em}-${ed}`;
 
             // Set LTV based on quantity (1 qty = 1 month)
             updateData.ltv = quantity;
