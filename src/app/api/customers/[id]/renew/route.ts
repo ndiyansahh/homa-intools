@@ -81,21 +81,27 @@ export async function POST(
 
     const customer = customerResult[0]
 
+    // Parse YYYY-MM-DD string as local midnight (no timezone shift)
+    const parseLocalDate = (dateStr: string): Date => {
+      const [y, m, d] = dateStr.split('-').map(Number)
+      return new Date(y, m - 1, d)
+    }
+
     // 2. Resolve newStartDate
     let resolvedStartDate: Date
     if (body.newStartDate) {
-      resolvedStartDate = new Date(body.newStartDate + 'T00:00:00+07:00')
+      resolvedStartDate = parseLocalDate(body.newStartDate)
     } else if (customer.subscriptionEnd) {
       // subscriptionEnd + 1 day
-      const endDate = new Date(customer.subscriptionEnd + 'T00:00:00+07:00')
+      const endDate = parseLocalDate(customer.subscriptionEnd)
       endDate.setDate(endDate.getDate() + 1)
       resolvedStartDate = endDate
     } else {
       // Fallback: today in Jakarta time
       const now = new Date()
-      const jakartaOffset = 7 * 60 // minutes
+      const jakartaOffset = 7 * 60
       const jakartaTime = new Date(now.getTime() + jakartaOffset * 60 * 1000)
-      resolvedStartDate = new Date(jakartaTime.toISOString().split('T')[0] + 'T00:00:00+07:00')
+      resolvedStartDate = parseLocalDate(jakartaTime.toISOString().split('T')[0])
     }
 
     // 3. Resolve packageId
