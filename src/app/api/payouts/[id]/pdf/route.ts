@@ -195,25 +195,38 @@ export async function GET(
 
         // Parse tunjangan from notes JSON
         function parseTunjangan(notes: string | null) {
-            if (!notes) return { uangParkir: 0, kompensasiPromosi: 0, lainnyaAmount: 0, lainnyaLabel: '' };
+            if (!notes) return { uangParkir: 0, kompensasiPromosi: 0, lainnyaItems: [] as { label: string; amount: number }[] };
             try {
                 const p = JSON.parse(notes);
                 if (typeof p === 'object' && p !== null) {
+                    // New format: lainnyaItems array
+                    if (Array.isArray(p.lainnyaItems)) {
+                        return {
+                            uangParkir: Number(p.uangParkir) || 0,
+                            kompensasiPromosi: Number(p.kompensasiPromosi) || 0,
+                            lainnyaItems: p.lainnyaItems
+                                .filter((i: any) => i.label || i.amount)
+                                .map((i: any) => ({ label: i.label || '', amount: Number(i.amount) || 0 })),
+                        };
+                    }
+                    // Legacy format: single lainnyaLabel + lainnyaAmount
                     return {
                         uangParkir: Number(p.uangParkir) || 0,
                         kompensasiPromosi: Number(p.kompensasiPromosi) || 0,
-                        lainnyaAmount: Number(p.lainnyaAmount) || 0,
-                        lainnyaLabel: p.lainnyaLabel || '',
+                        lainnyaItems: (p.lainnyaLabel || p.lainnyaAmount)
+                            ? [{ label: p.lainnyaLabel || '', amount: Number(p.lainnyaAmount) || 0 }]
+                            : [],
                     };
                 }
             } catch {}
-            return { uangParkir: 0, kompensasiPromosi: 0, lainnyaAmount: 0, lainnyaLabel: notes };
+            return { uangParkir: 0, kompensasiPromosi: 0, lainnyaItems: [] };
         }
 
         const komisiImbalJasa = Number(payout.basePayout) || 0;
         const bonusAmount = Number(payout.bonusAmount) || 0;
         const tunjangan = parseTunjangan(payout.notes);
-        const tunjanganTotal = tunjangan.uangParkir + tunjangan.kompensasiPromosi + tunjangan.lainnyaAmount;
+        const lainnyaTotal = tunjangan.lainnyaItems.reduce((sum, i) => sum + i.amount, 0);
+        const tunjanganTotal = tunjangan.uangParkir + tunjangan.kompensasiPromosi + lainnyaTotal;
         const totalPembayaran = komisiImbalJasa + bonusAmount + tunjanganTotal;
 
         // ============ JSON PREVIEW RETURN ============
@@ -338,7 +351,7 @@ export async function GET(
         const tunjanganItems: { label: string; amount: number }[] = [];
         if (tunjangan.uangParkir > 0) tunjanganItems.push({ label: 'Uang Parkir', amount: tunjangan.uangParkir });
         if (tunjangan.kompensasiPromosi > 0) tunjanganItems.push({ label: 'Kompensasi Promosi', amount: tunjangan.kompensasiPromosi });
-        if (tunjangan.lainnyaAmount > 0) tunjanganItems.push({ label: tunjangan.lainnyaLabel || 'Lainnya', amount: tunjangan.lainnyaAmount });
+        tunjangan.lainnyaItems.filter(i => i.amount > 0).forEach(i => tunjanganItems.push({ label: i.label || 'Lainnya', amount: i.amount }));
 
         if (tunjanganItems.length > 0) {
             doc.setFont('helvetica', 'bold');
