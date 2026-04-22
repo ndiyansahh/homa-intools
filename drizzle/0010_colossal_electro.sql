@@ -1,0 +1,1 @@
+ALTER TABLE "invoice_db" ADD COLUMN "scheduled_visits_count" integer DEFAULT 0;

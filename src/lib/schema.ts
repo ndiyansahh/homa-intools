@@ -186,6 +186,7 @@ export const invoiceDB = pgTable('invoice_db', {
   // Invoice line items (populated from customerDB)
   invoiceQty: integer('invoice_qty').notNull(), // from customerDB.subscriptionQTY
   invoicePricePerQty: decimal('invoice_price_per_qty', { precision: 10, scale: 2 }).notNull(), // from customerDB.subscriptionPerQTY
+  scheduledVisitsCount: integer('scheduled_visits_count').default(0), // Total visits generated when invoice was created (denominator for payout)
 
   // Promo and discount
   invoicePromoCode: varchar('invoice_promo_code', { length: 50 }), // Free text

@@ -47,6 +47,7 @@ export async function GET(
       .select({
         id: visitDB.id,
         customerId: visitDB.customerId,
+        invoiceId: visitDB.invoiceId,
         mitraId: visitDB.mitraId,
         originalMitraId: visitDB.originalMitraId,
         actualMitraId: visitDB.actualMitraId,
@@ -59,7 +60,7 @@ export async function GET(
         visitNotes: visitDB.visitNotes,
         createdAt: visitDB.createdAt,
         updatedAt: visitDB.updatedAt,
-        updatedBy: visitDB.updatedBy, // Who last updated this visit
+        updatedBy: visitDB.updatedBy,
         completedAt: visitDB.completedAt,
         // Include mitra info (actual mitra for display)
         mitraName: mitraDB.mitraName,
@@ -413,6 +414,7 @@ export async function PUT(
       // 5. Create new visit with status Done (considered as "present")
       const newVisitRecord = {
         customerId: customerId,
+        invoiceId: oldVisitData.invoiceId || undefined, // Inherit invoiceId from original visit
         mitraId: mitraIdForNewVisit,
         originalMitraId: mitraIdForNewVisit,
         actualMitraId: mitraIdForNewVisit,

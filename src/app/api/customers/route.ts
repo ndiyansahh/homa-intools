@@ -395,6 +395,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }));
 
           await db.insert(visitDB).values(visitRecords);
+
+          // Update invoice with scheduled visits count (denominator for payout)
+          if (invoiceId) {
+            await db.update(invoiceDB).set({ scheduledVisitsCount: visitRecords.length }).where(eq(invoiceDB.id, invoiceId));
+          }
+
           console.log(`✅ Created ${visitRecords.length} visit records for new customer (Invoice: ${invoiceId || 'N/A'})`);
         }
       }

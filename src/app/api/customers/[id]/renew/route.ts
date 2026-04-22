@@ -308,6 +308,7 @@ export async function POST(
       // Insert new visit records
       const visitRecords = scheduledDates.map((date, index) => ({
         customerId,
+        invoiceId: newInvoiceId || undefined,
         mitraId: resolvedMitraId,
         originalMitraId: resolvedMitraId,
         actualMitraId: resolvedMitraId,
@@ -323,6 +324,11 @@ export async function POST(
       }))
 
       await tx.insert(visitDB).values(visitRecords)
+
+      // Update invoice with scheduled visits count (denominator for payout)
+      if (newInvoiceId) {
+        await tx.update(invoiceDB).set({ scheduledVisitsCount: visitRecords.length }).where(eq(invoiceDB.id, newInvoiceId))
+      }
     })
 
     return NextResponse.json({

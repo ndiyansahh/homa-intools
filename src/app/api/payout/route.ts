@@ -319,6 +319,7 @@ export async function POST(request: NextRequest) {
         .select({
           visitId: visitDB.id,
           customerId: visitDB.customerId,
+          invoiceId: visitDB.invoiceId,
           customerName: customerDB.customerName,
           subscriptionPackageId: customerDB.subscriptionPackageId,
           subscriptionPackage: customerDB.subscriptionPackage,
@@ -427,8 +428,10 @@ export async function POST(request: NextRequest) {
         // After renewal, old visits would get a wrong billing cycle anchor.
         const customerInvoices = await db
           .select({
+            id: invoiceDB.id,
             invoiceStartDate: invoiceDB.invoiceStartDate,
             invoiceEndDate: invoiceDB.invoiceEndDate,
+            scheduledVisitsCount: invoiceDB.scheduledVisitsCount,
           })
           .from(invoiceDB)
           .where(eq(invoiceDB.customerId, customerId));
@@ -438,16 +441,31 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
+        // Build invoice lookup map by id for quick access
+        const invoiceById = new Map(customerInvoices.map(inv => [inv.id, inv]));
+
         // Step 3b: Group visits by billing cycle
-        // For each visit, find the invoice whose period contains the visit's scheduledDate,
-        // then use that invoice's start date as the billing cycle anchor.
-        const visitsByBillingCycle = new Map<string, { visits: typeof visits; billingCycle: { start: Date; end: Date } }>();
+        // For each visit, find the invoice whose period contains the visit's scheduledDate.
+        // TC-028B edge case: if visit is beyond invoice end date (rescheduled), use visit.invoiceId
+        // to find the original invoice — visit is paid in the month it occurs, using original denominator.
+        const visitsByBillingCycle = new Map<string, { visits: typeof visits; billingCycle: { start: Date; end: Date }; invoiceId: string }>();
         for (const visit of visits) {
           const visitDate = visit.scheduledDate;
-          const matchingInvoice = customerInvoices.find(inv =>
+
+          // First: try to match by invoice period (normal case)
+          let matchingInvoice = customerInvoices.find(inv =>
             inv.invoiceStartDate && inv.invoiceEndDate &&
             visitDate >= inv.invoiceStartDate && visitDate <= inv.invoiceEndDate
           );
+
+          // TC-028B: visit beyond end date — use original invoice via visit.invoiceId
+          if (!matchingInvoice && visit.invoiceId) {
+            const originalInvoice = invoiceById.get(visit.invoiceId);
+            if (originalInvoice) {
+              matchingInvoice = originalInvoice;
+              console.log(`   📌 ${customerName} visit on ${visitDate} is beyond invoice end date — using original invoice ${originalInvoice.invoiceStartDate}→${originalInvoice.invoiceEndDate}`);
+            }
+          }
 
           if (!matchingInvoice) {
             console.log(`   ⚠️  No matching invoice for ${customerName} visit on ${visitDate}, skipping`);
@@ -456,9 +474,10 @@ export async function POST(request: NextRequest) {
 
           const subscriptionStart = matchingInvoice.invoiceStartDate!;
           const cycle = getBillingCycle(subscriptionStart, parseLocalDate(visit.scheduledDate));
-          const cycleKey = toLocalDateString(cycle.start);
+          // Use invoiceId as part of cycle key to handle beyond-end-date visits correctly
+          const cycleKey = `${matchingInvoice.id}::${toLocalDateString(cycle.start)}`;
           if (!visitsByBillingCycle.has(cycleKey)) {
-            visitsByBillingCycle.set(cycleKey, { visits: [], billingCycle: cycle });
+            visitsByBillingCycle.set(cycleKey, { visits: [], billingCycle: cycle, invoiceId: matchingInvoice.id });
           }
           visitsByBillingCycle.get(cycleKey)!.visits.push(visit);
         }
@@ -466,7 +485,7 @@ export async function POST(request: NextRequest) {
         console.log(`   📋 ${customerName}: ${visitsByBillingCycle.size} billing cycle(s) in this month`);
 
         // Step 3c: Process each billing cycle separately
-        for (const [, { visits: cycleVisits, billingCycle }] of visitsByBillingCycle.entries()) {
+        for (const [, { visits: cycleVisits, billingCycle, invoiceId: cycleInvoiceId }] of visitsByBillingCycle.entries()) {
           // Intersection of billing cycle with the payout calendar month
           const intersectionStart = new Date(Math.max(billingCycle.start.getTime(), monthStart.getTime()));
           const intersectionEnd = new Date(Math.min(billingCycle.end.getTime(), monthEnd.getTime()));
@@ -524,20 +543,30 @@ export async function POST(request: NextRequest) {
           }
 
           // Step 3e: Total scheduled visits in the FULL billing cycle (denominator)
-          // Include ALL visits (Done, Scheduled, Cancelled) — cancelled visits were
-          // scheduled and represent lost earning opportunity for the mitra
-          const scheduledInCycleRows = await db
-            .select({ id: visitDB.id })
-            .from(visitDB)
-            .where(
-              and(
-                eq(visitDB.customerId, customerId),
-                gte(visitDB.scheduledDate, toLocalDateString(billingCycle.start)),
-                lte(visitDB.scheduledDate, toLocalDateString(billingCycle.end))
-              )
-            );
+          // TC-028B: use invoice.scheduledVisitsCount if available — this is the fixed denominator
+          // set when invoice was created, unaffected by reschedule beyond end date.
+          // Fallback: query visits in cycle range (existing logic for old data without scheduledVisitsCount)
+          const cycleInvoice = cycleInvoiceId ? invoiceById.get(cycleInvoiceId) : undefined;
+          let totalScheduledInCycle: number;
 
-          const totalScheduledInCycle = scheduledInCycleRows.length;
+          if (cycleInvoice && cycleInvoice.scheduledVisitsCount && cycleInvoice.scheduledVisitsCount > 0) {
+            totalScheduledInCycle = cycleInvoice.scheduledVisitsCount;
+            console.log(`   📊 Using invoice scheduledVisitsCount=${totalScheduledInCycle} as denominator`);
+          } else {
+            // Fallback: query visits in billing cycle range (existing logic)
+            const scheduledInCycleRows = await db
+              .select({ id: visitDB.id })
+              .from(visitDB)
+              .where(
+                and(
+                  eq(visitDB.customerId, customerId),
+                  gte(visitDB.scheduledDate, toLocalDateString(billingCycle.start)),
+                  lte(visitDB.scheduledDate, toLocalDateString(billingCycle.end))
+                )
+              );
+            totalScheduledInCycle = scheduledInCycleRows.length;
+          }
+
           const completedInMonth = cycleVisits.length;
 
           // Step 3f: Extract visitsPerWeek (use authoritative value from package table)
@@ -568,6 +597,8 @@ export async function POST(request: NextRequest) {
             normalMin = nr.min;
             // 7x/week: dynamic normalMax = actual days in payout month
             normalMax = visitsPerWeek === 7 ? monthEnd.getDate() : nr.max;
+            // 7x/week: normalMin also dynamic = normalMax (every day package, no range tolerance)
+            if (visitsPerWeek === 7) normalMin = normalMax;
           } catch {}
 
           // Extra visits in cycle = scheduled beyond normal max

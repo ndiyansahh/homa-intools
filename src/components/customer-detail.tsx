@@ -62,6 +62,7 @@ interface Visit {
   completedAt: string | null;
   updatedBy?: string;
   updatedByAt?: string;
+  invoiceId?: string | null;
 }
 
 export default function CustomerDetail({ customerId, session }: CustomerDetailProps) {
@@ -183,6 +184,9 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
     if (!inv.invoiceStartDate) return [];
     return allVisits.filter(v => {
       if (!v.scheduledDate) return false;
+      // If visit has invoiceId, use it as primary anchor (catches beyond-end-date reschedules)
+      if (v.invoiceId && inv.id) return v.invoiceId === inv.id;
+      // Fallback: date range filter
       const d = v.scheduledDate;
       const afterStart = d >= inv.invoiceStartDate;
       const beforeEnd = !inv.invoiceEndDate || d <= inv.invoiceEndDate;
@@ -1566,7 +1570,22 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
             {customer.subscriptionEnd && (
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">End Date Subscription</label>
-                <div className="text-sm text-gray-900 font-mono">{customer.subscriptionEnd}</div>
+                <div className="text-sm text-gray-900 font-mono">
+                  {(() => {
+                    const latestInv = invoices.slice().sort((a: any, b: any) => (b.invoiceStartDate ?? '').localeCompare(a.invoiceStartDate ?? ''))[0];
+                    const invoiceEnd = latestInv?.invoiceEndDate;
+                    const actualEnd = latestInv?.actualEndDate;
+                    const displayEnd = invoiceEnd || customer.subscriptionEnd;
+                    return (
+                      <>
+                        {displayEnd}
+                        {actualEnd && actualEnd !== invoiceEnd && (
+                          <span className="ml-1 text-amber-600 font-medium text-xs">(actual: {new Date(actualEnd).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })})</span>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
             )}
             <div>

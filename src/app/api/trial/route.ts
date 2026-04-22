@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { customerDB, attendanceScheduleDB, attendanceRecordDB, mitraDB, subscriptionPackageDB, visitDB } from '@/lib/schema';
-import { eq, desc, like, and, or, gte } from 'drizzle-orm';
+import { customerDB, attendanceScheduleDB, attendanceRecordDB, mitraDB, subscriptionPackageDB, visitDB, invoiceDB } from '@/lib/schema';
+import { eq, desc, like, and, or, gte, sql } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/logger';
 import { createInvoice } from '@/lib/utils/invoiceUtils';
@@ -706,6 +706,23 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
             .update(customerDB)
             .set({ invoiceId: invoice.id })
             .where(eq(customerDB.id, body.id));
+
+          // Link all visit records to this invoice
+          await db
+            .update(visitDB)
+            .set({ invoiceId: invoice.id })
+            .where(eq(visitDB.customerId, body.id));
+
+          // Update invoice with scheduled visits count (denominator for payout)
+          const visitCount = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(visitDB)
+            .where(eq(visitDB.customerId, body.id));
+          await db
+            .update(invoiceDB)
+            .set({ scheduledVisitsCount: Number(visitCount[0]?.count || 0) })
+            .where(eq(invoiceDB.id, invoice.id));
+
           console.log(`✅ Invoice created for converted customer: ${invoice.invoiceNumber}`);
         } catch (invoiceError: any) {
           console.error('⚠️ Failed to create invoice during trial conversion:', invoiceError);
