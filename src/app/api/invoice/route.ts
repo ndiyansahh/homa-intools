@@ -207,7 +207,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Status is required' }, { status: 400 });
     }
 
-    if (!['Paid', 'Overdue', 'Cancelled'].includes(body.status)) {
+    if (!['Paid', 'Overdue', 'Open', 'Cancelled'].includes(body.status)) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
 

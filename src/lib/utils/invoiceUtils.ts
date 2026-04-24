@@ -292,7 +292,7 @@ export async function getInvoicesWithFullData(filters?: {
  * Updates invoice status and payment information
  */
 export async function updateInvoicePayment(invoiceId: string, paymentData: {
-  status: 'Paid' | 'Overdue' | 'Cancelled';
+  status: 'Paid' | 'Overdue' | 'Open' | 'Cancelled';
   paymentMethod?: string;
   paidAt?: Date;
   notes?: string;

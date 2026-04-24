@@ -131,7 +131,18 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
     const churnCount = statusCountResult.filter(r => r.status === 'Churn').reduce((s, r) => s + r.count, 0);
     const totalAll = statusCountResult.reduce((s, r) => s + r.count, 0);
 
-    // Get paginated customers from database with latest invoice
+    // Subquery: latest invoice date per customer
+    const latestInvoiceSub = db
+      .select({
+        customerId: invoiceDB.customerId,
+        latestDate: max(invoiceDB.invoiceDate).as('latestDate'),
+      })
+      .from(invoiceDB)
+      .where(or(eq(invoiceDB.isDeleted, false), isNull(invoiceDB.isDeleted)))
+      .groupBy(invoiceDB.customerId)
+      .as('latest_inv');
+
+    // Get paginated customers from database with latest invoice (1 row per customer)
     const result = await db
       .select({
         id: customerDB.id,
@@ -145,32 +156,25 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
         ltv: customerDB.ltv,
         createdAt: customerDB.createdAt,
         updatedAt: customerDB.updatedAt,
-        invoiceNumber: invoiceDB.invoiceNumber, // 7a: Invoice ID Display
-        invoiceDbId: invoiceDB.id, // UUID for PDF download
+        invoiceNumber: invoiceDB.invoiceNumber,
+        invoiceDbId: invoiceDB.id,
       })
       .from(customerDB)
+      .leftJoin(latestInvoiceSub, eq(latestInvoiceSub.customerId, customerDB.id))
       .leftJoin(
         invoiceDB,
         and(
           eq(invoiceDB.customerId, customerDB.id),
+          eq(invoiceDB.invoiceDate, latestInvoiceSub.latestDate),
           or(eq(invoiceDB.isDeleted, false), isNull(invoiceDB.isDeleted))
         )
       )
       .where(whereClause)
-      .orderBy(desc(customerDB.createdAt), desc(invoiceDB.createdAt)) // Prioritize most recent invoice
+      .orderBy(desc(customerDB.createdAt))
       .limit(limit)
       .offset(offset);
 
-    // De-duplicate customers (LEFT JOIN may return multiple rows if customer has multiple invoices)
-    // Keep the first row per customer which has the most recent invoice due to ORDER BY
-    const seenCustomers = new Set<string>();
-    const uniqueResults = result.filter(customer => {
-      if (seenCustomers.has(customer.id)) {
-        return false;
-      }
-      seenCustomers.add(customer.id);
-      return true;
-    });
+    const uniqueResults = result;
 
     const customers: CustomerListItem[] = uniqueResults.map(customer => ({
       id: customer.id,

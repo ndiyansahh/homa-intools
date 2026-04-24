@@ -173,6 +173,8 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   const [previewInvoice, setPreviewInvoice] = useState<{ id: string; number: string; blobUrl?: string } | null>(null);
   const [actualEndDateConfirm, setActualEndDateConfirm] = useState<{ invoiceId: string; invoiceNumber: string; newDate: string } | null>(null);
   const [savingActualEndDate, setSavingActualEndDate] = useState(false);
+  const [invoiceStatusEditing, setInvoiceStatusEditing] = useState<string | null>(null);
+  const [invoiceStatusSaving, setInvoiceStatusSaving] = useState<string | null>(null);
 
   // Historical attendance slide-over
   const [historicalSlideOver, setHistoricalSlideOver] = useState<{ invoice: any } | null>(null);
@@ -258,6 +260,25 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
       if (data.success) setInvoices(data.data);
     } catch (err) {
       console.error('Error fetching invoices:', err);
+    }
+  };
+
+  const handleInvoiceStatusChange = async (invoiceId: string, newStatus: string) => {
+    setInvoiceStatusSaving(invoiceId);
+    try {
+      const res = await fetch('/api/invoice', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoiceId, status: newStatus }),
+      });
+      if (res.ok) {
+        setInvoices(prev => prev.map(inv => inv.id === invoiceId ? { ...inv, status: newStatus } : inv));
+      }
+    } catch (err) {
+      console.error('Error updating invoice status:', err);
+    } finally {
+      setInvoiceStatusSaving(null);
+      setInvoiceStatusEditing(null);
     }
   };
 
@@ -1660,6 +1681,14 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                   ? 'border-blue-200 bg-blue-50'
                   : 'border-gray-100 bg-gray-50';
 
+                const invStatusStyle: Record<string, string> = {
+                  'Paid':      'bg-green-100 text-green-700',
+                  'Open':      'bg-blue-100 text-blue-700',
+                  'Overdue':   'bg-red-100 text-red-700',
+                  'Cancelled': 'bg-gray-100 text-gray-500',
+                };
+                const canEditStatus = ['ADMIN', 'OWNER'].includes(session?.role ?? '');
+
                 return (
                   <div
                     key={inv.id}
@@ -1671,6 +1700,30 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                         {periodStatus && (
                           <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold ${statusStyle[periodStatus]}`}>
                             {periodStatus}
+                          </span>
+                        )}
+                        {/* Payment status */}
+                        {invoiceStatusEditing === inv.id && canEditStatus ? (
+                          <select
+                            autoFocus
+                            disabled={invoiceStatusSaving === inv.id}
+                            defaultValue={inv.status ?? 'Open'}
+                            onBlur={() => setInvoiceStatusEditing(null)}
+                            onChange={(e) => handleInvoiceStatusChange(inv.id, e.target.value)}
+                            className="text-xs border border-gray-300 rounded px-1 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          >
+                            <option value="Paid">Paid</option>
+                            <option value="Open">Open</option>
+                            <option value="Overdue">Overdue</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
+                        ) : (
+                          <span
+                            onClick={() => canEditStatus && setInvoiceStatusEditing(inv.id)}
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold ${invStatusStyle[inv.status ?? 'Open'] ?? 'bg-gray-100 text-gray-500'} ${canEditStatus ? 'cursor-pointer hover:opacity-75' : ''}`}
+                            title={canEditStatus ? 'Klik untuk ubah status' : undefined}
+                          >
+                            {inv.status ?? 'Open'}
                           </span>
                         )}
                       </div>
