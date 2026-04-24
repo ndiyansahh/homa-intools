@@ -3,6 +3,7 @@ config({ path: '.env.local' });
 
 import { db } from '../src/lib/db';
 import { customerDB, mitraDB, invoiceDB, visitDB } from '../src/lib/schema';
+import { eq } from 'drizzle-orm';
 
 const MONTHS: Record<string, string> = {
   Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
@@ -165,6 +166,28 @@ async function main() {
 
   const finalCount = await db.select({ id: visitDB.id }).from(visitDB);
   console.log(`Total visits in DB: ${finalCount.length}`);
+
+  // Update assignedMitraId on each customer based on their first visit's mitra
+  console.log('\n=== Updating assignedMitraId per customer ===');
+  const customers = await db.select({ id: customerDB.id, name: customerDB.name }).from(customerDB);
+  let updated = 0;
+  for (const customer of customers) {
+    const firstVisit = await db
+      .select({ mitraId: visitDB.mitraId })
+      .from(visitDB)
+      .where(eq(visitDB.customerId, customer.id))
+      .orderBy(visitDB.scheduledDate)
+      .limit(1);
+    if (firstVisit.length > 0 && firstVisit[0].mitraId) {
+      await db.update(customerDB)
+        .set({ assignedMitraId: firstVisit[0].mitraId })
+        .where(eq(customerDB.id, customer.id));
+      console.log(`  SET assignedMitraId: ${customer.name}`);
+      updated++;
+    }
+  }
+  console.log(`Updated: ${updated} customers`);
+
   process.exit(0);
 }
 
