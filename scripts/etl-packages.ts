@@ -53,7 +53,7 @@ async function main() {
 
   const existing = await db.select().from(subscriptionPackageDB);
   console.log(`Existing packages in DB: ${existing.length}`);
-  existing.forEach(p => console.log(`  - [${p.isActive ? 'ACTIVE' : 'INACTIVE'}] ${p.subscriptionPackage} → ${p.priceNumeric}`));
+  existing.forEach(p => console.log(`  - ${p.subscriptionPackage} → ${p.priceNumeric}`));
 
   console.log('\nProcessing GSheet packages...\n');
 
@@ -66,9 +66,9 @@ async function main() {
 
     if (match) {
       // Check if anything changed
-      if (match.priceNumeric !== pkg.priceNumeric || match.isActive !== pkg.isActive) {
+      if (match.priceNumeric !== pkg.priceNumeric) {
         await db.update(subscriptionPackageDB)
-          .set({ priceNumeric: pkg.priceNumeric, isActive: pkg.isActive })
+          .set({ priceNumeric: pkg.priceNumeric })
           .where(eq(subscriptionPackageDB.id, match.id));
         console.log(`  UPDATED: ${pkg.subscriptionPackage}`);
         updated++;
@@ -82,7 +82,6 @@ async function main() {
         pricePerQty: pkg.pricePerQty,
         priceNumeric: pkg.priceNumeric,
         visitsPerWeek: pkg.visitsPerWeek,
-        isActive: pkg.isActive,
       });
       console.log(`  INSERTED: ${pkg.subscriptionPackage}`);
       inserted++;
@@ -94,7 +93,7 @@ async function main() {
 
   const final = await db.select().from(subscriptionPackageDB);
   console.log(`\nFinal packages in DB: ${final.length}`);
-  final.forEach(p => console.log(`  [${p.id}] [${p.isActive ? 'ACTIVE' : 'INACTIVE'}] ${p.subscriptionPackage} → ${p.priceNumeric}`));
+  final.forEach(p => console.log(`  [${p.id}] ${p.subscriptionPackage} → ${p.priceNumeric}`));
 
   process.exit(0);
 }
