@@ -169,9 +169,9 @@ async function main() {
 
   // Update assignedMitraId on each customer based on their first visit's mitra
   console.log('\n=== Updating assignedMitraId per customer ===');
-  const customers = await db.select({ id: customerDB.id, name: customerDB.name }).from(customerDB);
+  const allCustomers = await db.select({ id: customerDB.id, name: customerDB.customerName }).from(customerDB);
   let updated = 0;
-  for (const customer of customers) {
+  for (const customer of allCustomers) {
     const firstVisit = await db
       .select({ mitraId: visitDB.mitraId })
       .from(visitDB)
