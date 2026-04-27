@@ -500,7 +500,7 @@ export async function POST(request: NextRequest) {
 
         // Step 3c: Process each billing cycle separately
         for (const [, { visits: cycleVisits, billingCycle, invoiceId: cycleInvoiceId }] of visitsByBillingCycle.entries()) {
-          // Intersection of billing cycle with the payout calendar month
+          // Intersection of billing cycle with the payout calendar month (for overlap check only)
           const intersectionStart = new Date(Math.max(billingCycle.start.getTime(), monthStart.getTime()));
           const intersectionEnd = new Date(Math.min(billingCycle.end.getTime(), monthEnd.getTime()));
 
@@ -510,8 +510,18 @@ export async function POST(request: NextRequest) {
             continue;
           }
 
+          // For breakdown display, use actual min/max scheduledDate of visits in this group
+          // (beyond-end-date visits have scheduledDate outside billingCycle.end, so intersection
+          // would wrongly cap them — use actual dates instead)
+          const visitDatesInMonth = cycleVisits
+            .map(v => v.scheduledDate)
+            .filter(Boolean)
+            .sort();
+          const displayStart = visitDatesInMonth[0] ?? toLocalDateString(intersectionStart);
+          const displayEnd = visitDatesInMonth[visitDatesInMonth.length - 1] ?? toLocalDateString(intersectionEnd);
+
           console.log(`   📅 ${customerName}: Billing ${toLocalDateString(billingCycle.start)} to ${toLocalDateString(billingCycle.end)}`);
-          console.log(`   📅   Intersection: ${toLocalDateString(intersectionStart)} to ${toLocalDateString(intersectionEnd)}`);
+          console.log(`   📅   Display range: ${displayStart} to ${displayEnd}`);
 
           // Step 3d: Get rate for this mitra + visitsPerWeek
           // New schema: look up by (mitraId, visitsPerWeek)
@@ -673,8 +683,8 @@ export async function POST(request: NextRequest) {
             customerId,
             customerName,
             subscriptionPackage,
-            billingCycleStart: toLocalDateString(intersectionStart),
-            billingCycleEnd: toLocalDateString(intersectionEnd),
+            billingCycleStart: displayStart,
+            billingCycleEnd: displayEnd,
             scheduledVisits: totalScheduledInCycle,
             completedVisits: completedInMonth,
             monthlyRate,
