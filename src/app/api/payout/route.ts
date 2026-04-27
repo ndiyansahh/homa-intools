@@ -422,6 +422,8 @@ export async function POST(request: NextRequest) {
         const subscriptionPackage = firstVisit.subscriptionPackage || 'Unknown';
         // Use visitsPerWeek from package table (authoritative), fallback to parsing package name
         const packageVisitsPerWeek = firstVisit.packageVisitsPerWeek ?? extractVisitsPerWeek(subscriptionPackage);
+        // Accumulates per-billing-cycle entries; merged into one row after the loop (TC-028A)
+        const cycleBreakdownEntries: any[] = [];
 
         // Step 3a: Get all invoices for this customer to find the correct billing anchor per visit
         // We must NOT use customerDB.subscriptionStart because it always reflects the LATEST renewal period.
@@ -504,15 +506,21 @@ export async function POST(request: NextRequest) {
           const intersectionStart = new Date(Math.max(billingCycle.start.getTime(), monthStart.getTime()));
           const intersectionEnd = new Date(Math.min(billingCycle.end.getTime(), monthEnd.getTime()));
 
-          // Skip if billing cycle doesn't overlap with payout month at all
-          if (intersectionEnd < intersectionStart) {
+          // Skip if billing cycle doesn't overlap with payout month AND there are no visits
+          // in the payout month either. Beyond-end-date rescheduled visits (TC-028B) have
+          // scheduledDate inside the payout month but a billing cycle that ends before it —
+          // they must not be skipped; the cycle group exists only because of those visits.
+          const hasVisitsInPayoutMonth = cycleVisits.some(v =>
+            v.scheduledDate >= toLocalDateString(monthStart) && v.scheduledDate <= toLocalDateString(monthEnd)
+          );
+          if (intersectionEnd < intersectionStart && !hasVisitsInPayoutMonth) {
             console.log(`   ⏭️  ${customerName}: billing cycle ${toLocalDateString(billingCycle.start)}→${toLocalDateString(billingCycle.end)} has no overlap with payout month, skipping`);
             continue;
           }
 
-          // For breakdown display, use actual min/max scheduledDate of visits in this group
-          // (beyond-end-date visits have scheduledDate outside billingCycle.end, so intersection
-          // would wrongly cap them — use actual dates instead)
+          // For breakdown display, use actual min/max scheduledDate of visits in this group.
+          // Beyond-end-date visits have scheduledDate outside billingCycle.end so intersection
+          // would give wrong bounds — always use actual visit dates.
           const visitDatesInMonth = cycleVisits
             .map(v => v.scheduledDate)
             .filter(Boolean)
@@ -679,7 +687,7 @@ export async function POST(request: NextRequest) {
           totalScheduledVisits += totalScheduledInCycle;
           totalCompletedVisits += completedInMonth;
 
-          customerBreakdown.push({
+          cycleBreakdownEntries.push({
             customerId,
             customerName,
             subscriptionPackage,
@@ -692,6 +700,36 @@ export async function POST(request: NextRequest) {
             calculationDetails: payoutCalculationDetails,
           });
         } // End billing cycle loop
+
+        // TC-028A: merge multiple billing-cycle entries for the same customer into one row.
+        // This happens when a beyond-end-date rescheduled visit falls into a new billing period
+        // after renewal, creating a second row. We combine completed visits, sum payout, and
+        // extend the date range — denominator stays from the entry with the most scheduled visits.
+        if (cycleBreakdownEntries.length > 1) {
+          const merged = cycleBreakdownEntries.reduce((acc, entry) => {
+            const combinedCompleted = acc.completedVisits + entry.completedVisits;
+            const combinedPayout = acc.payout + entry.payout;
+            const mergedStart = acc.billingCycleStart < entry.billingCycleStart ? acc.billingCycleStart : entry.billingCycleStart;
+            const mergedEnd = acc.billingCycleEnd > entry.billingCycleEnd ? acc.billingCycleEnd : entry.billingCycleEnd;
+            // Use the larger scheduledVisits as the denominator (original billing cycle)
+            const dominantEntry = acc.scheduledVisits >= entry.scheduledVisits ? acc : entry;
+            return {
+              ...dominantEntry,
+              billingCycleStart: mergedStart,
+              billingCycleEnd: mergedEnd,
+              completedVisits: combinedCompleted,
+              payout: combinedPayout,
+              calculationDetails: {
+                ...dominantEntry.calculationDetails,
+                completedInMonth: combinedCompleted,
+              },
+            };
+          });
+          console.log(`   🔀 ${customerName}: merged ${cycleBreakdownEntries.length} billing cycle rows → ${merged.completedVisits}/${merged.scheduledVisits} visits (${merged.billingCycleStart} to ${merged.billingCycleEnd})`);
+          customerBreakdown.push(merged);
+        } else if (cycleBreakdownEntries.length === 1) {
+          customerBreakdown.push(cycleBreakdownEntries[0]);
+        }
       } // End customer loop
 
       if (totalBasePayout === 0) {
