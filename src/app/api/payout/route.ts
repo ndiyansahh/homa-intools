@@ -458,11 +458,14 @@ export async function POST(request: NextRequest) {
             visitDate >= inv.invoiceStartDate && visitDate <= inv.invoiceEndDate
           );
 
-          // TC-028B: visit beyond end date — use original invoice via visit.invoiceId
+          // TC-028A/B: visit beyond end date — use original invoice via visit.invoiceId.
+          // Mark as beyondEndDate so we skip getBillingCycle and use invoice dates directly.
+          let beyondEndDate = false;
           if (!matchingInvoice && visit.invoiceId) {
             const originalInvoice = invoiceById.get(visit.invoiceId);
             if (originalInvoice) {
               matchingInvoice = originalInvoice;
+              beyondEndDate = true;
               console.log(`   📌 ${customerName} visit on ${visitDate} is beyond invoice end date — using original invoice ${originalInvoice.invoiceStartDate}→${originalInvoice.invoiceEndDate}`);
             }
           }
@@ -472,8 +475,19 @@ export async function POST(request: NextRequest) {
             continue;
           }
 
-          const subscriptionStart = matchingInvoice.invoiceStartDate!;
-          const cycle = getBillingCycle(subscriptionStart, parseLocalDate(visit.scheduledDate));
+          // For beyond-end-date visits, use invoice period directly as the billing cycle.
+          // Calling getBillingCycle with the rescheduled date would compute a new future cycle
+          // (e.g. 22 May–21 Jun instead of 22 Apr–21 May), causing a wrong denominator.
+          let cycle: { start: Date; end: Date };
+          if (beyondEndDate) {
+            cycle = {
+              start: parseLocalDate(matchingInvoice.invoiceStartDate!),
+              end: parseLocalDate(matchingInvoice.invoiceEndDate!),
+            };
+          } else {
+            cycle = getBillingCycle(matchingInvoice.invoiceStartDate!, parseLocalDate(visit.scheduledDate));
+          }
+
           // Use invoiceId as part of cycle key to handle beyond-end-date visits correctly
           const cycleKey = `${matchingInvoice.id}::${toLocalDateString(cycle.start)}`;
           if (!visitsByBillingCycle.has(cycleKey)) {
@@ -531,9 +545,9 @@ export async function POST(request: NextRequest) {
               monthlyRate = Number(anyRateConfig[0].payoutRate);
               console.log(`   ℹ️  No rate for ${visitsPerWeekForRate}x/week, using default rate config: Rp${monthlyRate.toLocaleString()}`);
             } else {
-              // Fallback 2: use mitra's base rate from mitra table
-              monthlyRate = Number(mitra.monthlyBaseRate) || Number(mitra.baseRate) || 0;
-              console.log(`   ⚠️  No rate config found for ${mitra.mitraName}, using base rate: Rp${monthlyRate.toLocaleString()}`);
+              // Fallback 2: use mitra's monthlyBaseRate only (baseRate is deprecated and unreliable)
+              monthlyRate = Number(mitra.monthlyBaseRate) || 0;
+              console.log(`   ⚠️  No rate config found for ${mitra.mitraName}, using monthlyBaseRate: Rp${monthlyRate.toLocaleString()}`);
             }
           }
 

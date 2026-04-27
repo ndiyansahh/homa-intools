@@ -1596,7 +1596,12 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                     const latestInv = invoices.slice().sort((a: any, b: any) => (b.invoiceStartDate ?? '').localeCompare(a.invoiceStartDate ?? ''))[0];
                     const invoiceEnd = latestInv?.invoiceEndDate;
                     const actualEnd = latestInv?.actualEndDate;
-                    const displayEnd = invoiceEnd || customer.subscriptionEnd;
+                    const rawEnd = invoiceEnd || customer.subscriptionEnd;
+                    const formatToDisplay = (d: string) => {
+                      const [y, m, day] = d.split('-');
+                      return y && m && day ? `${day}/${m}/${y}` : d;
+                    };
+                    const displayEnd = rawEnd ? formatToDisplay(rawEnd) : rawEnd;
                     return (
                       <>
                         {displayEnd}
@@ -1771,7 +1776,15 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Backup Mitra</label>
-                <div className="text-base font-medium text-gray-900">{customer.cleaner2 || '—'}</div>
+                {customer.backupMitraNames && customer.backupMitraNames.length > 0 ? (
+                  <div className="flex flex-col gap-1">
+                    {customer.backupMitraNames.map((name, i) => (
+                      <div key={i} className="text-base font-medium text-gray-900">{name}</div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-base font-medium text-gray-900">—</div>
+                )}
               </div>
             </div>
 
