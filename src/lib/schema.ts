@@ -14,11 +14,13 @@ import {
   jsonb,
   customType,
 } from 'drizzle-orm/pg-core';
-const uuidArray = customType<{ data: string[]; driverData: string }>({
+const uuidArray = customType<{ data: string[]; driverData: string | string[] }>({
   dataType() { return 'uuid[]'; },
   toDriver(value: string[]) { return `{${value.join(',')}}` as unknown as string; },
-  fromDriver(value: string) {
-    if (!value || value === '{}') return [];
+  fromDriver(value: string | string[]) {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (value === '{}') return [];
     return value.replace(/^\{|\}$/g, '').split(',').filter(Boolean);
   },
 });

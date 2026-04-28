@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { customerDB, mitraDB } from '@/lib/schema';
-import { eq, and, or, sql, inArray } from 'drizzle-orm';
+import { customerDB, mitraDB, visitDB } from '@/lib/schema';
+import { eq, and, or, sql, ne } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { logDetailedAudit, getChangedFields } from '@/lib/audit-logger.server';
 import type { CustomerData, CustomerApiError, UpdateCustomerRequest } from '@/types/customer';
@@ -118,17 +118,19 @@ export async function GET(
       );
     }
 
-    // Get backup mitras from array
-    const backupMitraIds = result[0].customer.backupMitraIds ?? [];
-    let backupMitraNames: string[] = [];
-    if (backupMitraIds.length > 0) {
-      const backupResults = await db
-        .select({ id: mitraDB.id, mitraName: mitraDB.mitraName })
-        .from(mitraDB)
-        .where(inArray(mitraDB.id, backupMitraIds));
-      const mitraMap = new Map(backupResults.map(m => [m.id, m.mitraName]));
-      backupMitraNames = backupMitraIds.map(id => mitraMap.get(id)).filter(Boolean) as string[];
-    }
+    // Get backup mitras from visit history — unique mitras who handled visits other than the primary
+    const primaryMitraId = result[0].customer.assignedMitraId;
+    const visitMitras = await db
+      .selectDistinct({ mitraId: visitDB.mitraId, mitraName: mitraDB.mitraName })
+      .from(visitDB)
+      .leftJoin(mitraDB, eq(visitDB.mitraId, mitraDB.id))
+      .where(
+        and(
+          eq(visitDB.customerId, customerId),
+          primaryMitraId ? ne(visitDB.mitraId, primaryMitraId) : sql`true`
+        )
+      );
+    const backupMitraNames = [...new Map(visitMitras.map(v => [v.mitraId, v.mitraName])).values()].filter(Boolean) as string[];
 
     const customerRecord = result[0].customer;
     const primaryMitra = result[0].primaryMitra;
