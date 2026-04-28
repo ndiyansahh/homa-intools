@@ -22,7 +22,7 @@ interface ExpiringCustomer {
   postalCode: string;
   assignedMitraId: string | null;
   assignedMitraName: string | null;
-  backupMitraId: string | null;
+  backupMitraIds: string[];
   subscriptionPackageId: string | null;
   dayPattern: string | null;
   ltv: number;

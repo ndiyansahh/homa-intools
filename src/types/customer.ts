@@ -27,6 +27,7 @@ export interface CustomerData {
   status: string; // freetext like "Churn", "Active", etc.
   cleaner1: string;
   cleaner2: string;
+  backupMitraNames?: string[];
   churnTag: string;
   churnReason?: string;
   createdAt: string;

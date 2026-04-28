@@ -115,7 +115,7 @@ export async function POST(
           .from(mitraDB)
           .where(eq(mitraDB.mitraName, cleaner1))
           .limit(1);
-        
+
         if (primaryMitra.length > 0) {
           primaryMitraId = primaryMitra[0].id;
         }
@@ -127,7 +127,7 @@ export async function POST(
           .from(mitraDB)
           .where(eq(mitraDB.mitraName, cleaner2))
           .limit(1);
-        
+
         if (backupMitra.length > 0) {
           backupMitraId = backupMitra[0].id;
         }
@@ -140,7 +140,18 @@ export async function POST(
 
       // Update mitra IDs if found in database
       if (primaryMitraId) updateData.assignedMitraId = primaryMitraId;
-      if (backupMitraId) updateData.backupMitraId = backupMitraId;
+      if (backupMitraId) {
+        // Get existing backup mitra IDs and append if not already present
+        const existing = await db
+          .select({ backupMitraIds: customerDB.backupMitraIds })
+          .from(customerDB)
+          .where(eq(customerDB.id, customerId))
+          .limit(1);
+        const existingIds = existing[0]?.backupMitraIds ?? [];
+        updateData.backupMitraIds = existingIds.includes(backupMitraId)
+          ? existingIds
+          : [...existingIds, backupMitraId];
+      }
 
       await db
         .update(customerDB)
@@ -158,7 +169,7 @@ export async function POST(
             cleaner1, 
             cleaner2,
             primaryMitraId,
-            backupMitraId
+            backupMitraId: backupMitraId || null
           }
         });
       }

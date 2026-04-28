@@ -12,8 +12,17 @@ import {
   primaryKey,
   date,
   jsonb,
+  customType,
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+const uuidArray = customType<{ data: string[]; driverData: string }>({
+  dataType() { return 'uuid[]'; },
+  toDriver(value: string[]) { return `{${value.join(',')}}` as unknown as string; },
+  fromDriver(value: string) {
+    if (!value || value === '{}') return [];
+    return value.replace(/^\{|\}$/g, '').split(',').filter(Boolean);
+  },
+});
+import { relations, sql } from 'drizzle-orm';
 
 // User Table - Authentication (ADR 0002)
 export const userDB = pgTable('user_db', {
@@ -72,7 +81,7 @@ export const customerDB = pgTable('customer_db', {
   // residentialType: varchar('residential_type', { length: 50 }).default('House'), // TODO: Enable after database migration
   // Cleaner assignment fields
   assignedMitraId: uuid('assigned_mitra_id').references(() => mitraDB.id),
-  backupMitraId: uuid('backup_mitra_id').references(() => mitraDB.id),
+  backupMitraIds: uuidArray('backup_mitra_ids').default([]),
   invoiceId: uuid('invoice_id'), // Reference to invoice_db (will be linked after invoice creation)
   subscriptionPackageId: uuid('subscription_package_id').references(() => subscriptionPackageDB.id),
   subscriptionPackage: varchar('subscription_package', { length: 255 }),
@@ -515,10 +524,6 @@ export const customerRelations = relations(customerDB, ({ one, many }) => ({
   }),
   assignedMitra: one(mitraDB, {
     fields: [customerDB.assignedMitraId],
-    references: [mitraDB.id],
-  }),
-  backupMitra: one(mitraDB, {
-    fields: [customerDB.backupMitraId],
     references: [mitraDB.id],
   }),
   invoices: many(invoiceDB),

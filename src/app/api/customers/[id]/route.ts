@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { customerDB, mitraDB } from '@/lib/schema';
-import { eq, and, or, sql } from 'drizzle-orm';
+import { eq, and, or, sql, inArray } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { logDetailedAudit, getChangedFields } from '@/lib/audit-logger.server';
 import type { CustomerData, CustomerApiError, UpdateCustomerRequest } from '@/types/customer';
@@ -73,7 +73,7 @@ export async function GET(
           village: customerDB.village,
           postalCode: customerDB.postalCode,
           assignedMitraId: customerDB.assignedMitraId,
-          backupMitraId: customerDB.backupMitraId,
+          backupMitraIds: customerDB.backupMitraIds,
           invoiceId: customerDB.invoiceId,
           subscriptionPackage: customerDB.subscriptionPackage,
           subscriptionPackageId: customerDB.subscriptionPackageId,
@@ -118,21 +118,16 @@ export async function GET(
       );
     }
 
-    // Get backup mitra separately if exists
-    let backupMitra = null;
-    if (result[0].customer.backupMitraId) {
-      const backupResult = await db
-        .select({
-          id: mitraDB.id,
-          mitraName: mitraDB.mitraName,
-        })
+    // Get backup mitras from array
+    const backupMitraIds = result[0].customer.backupMitraIds ?? [];
+    let backupMitraNames: string[] = [];
+    if (backupMitraIds.length > 0) {
+      const backupResults = await db
+        .select({ id: mitraDB.id, mitraName: mitraDB.mitraName })
         .from(mitraDB)
-        .where(eq(mitraDB.id, result[0].customer.backupMitraId))
-        .limit(1);
-      
-      if (backupResult.length > 0) {
-        backupMitra = backupResult[0];
-      }
+        .where(inArray(mitraDB.id, backupMitraIds));
+      const mitraMap = new Map(backupResults.map(m => [m.id, m.mitraName]));
+      backupMitraNames = backupMitraIds.map(id => mitraMap.get(id)).filter(Boolean) as string[];
     }
 
     const customerRecord = result[0].customer;
@@ -160,7 +155,8 @@ export async function GET(
       subscriptionEnd: customerRecord.subscriptionEnd ? formatDateToEnGB(customerRecord.subscriptionEnd) : undefined,
       status: customerRecord.subscriptionStatus || 'Active',
       cleaner1: primaryMitra?.mitraName || '',
-      cleaner2: backupMitra?.mitraName || '',
+      cleaner2: backupMitraNames.join(', '),
+      backupMitraNames: backupMitraNames,
       churnTag: customerRecord.churnTag || '',
       churnReason: customerRecord.churnReason || '',
       createdAt: customerRecord.createdAt?.toISOString() || new Date().toISOString(),

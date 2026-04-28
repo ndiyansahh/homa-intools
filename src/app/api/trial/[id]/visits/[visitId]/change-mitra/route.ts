@@ -198,6 +198,22 @@ export async function POST(
       })
       .where(eq(visitDB.id, visitId));
 
+    // Append newMitraId to customer's backupMitraIds (if not already primary or in list)
+    const customerFull = await db
+      .select({ assignedMitraId: customerDB.assignedMitraId, backupMitraIds: customerDB.backupMitraIds })
+      .from(customerDB)
+      .where(eq(customerDB.id, id))
+      .limit(1);
+    if (customerFull.length > 0) {
+      const { assignedMitraId, backupMitraIds } = customerFull[0];
+      const existing = backupMitraIds ?? [];
+      if (newMitraId !== assignedMitraId && !existing.includes(newMitraId)) {
+        await db.update(customerDB)
+          .set({ backupMitraIds: [...existing, newMitraId] })
+          .where(eq(customerDB.id, id));
+      }
+    }
+
     console.log(`✅ Mitra changed for visit ${visitId}: ${fromMitraId} → ${newMitraId} (Sequence #${sequenceNumber})`);
 
     // Feature 8b: Detect payout adjustments needed when mitra changes

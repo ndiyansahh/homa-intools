@@ -89,7 +89,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
       conditions.push(
         or(
           eq(customerDB.assignedMitraId, assignedMitra),
-          eq(customerDB.backupMitraId, assignedMitra)
+          sql`${assignedMitra} = ANY(${customerDB.backupMitraIds})`
         )
       );
     }
@@ -259,7 +259,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
       // Find mitra IDs for the selected cleaners
       let assignedMitraId = null;
-      let backupMitraId = null;
+      let backupMitraIds: string[] = [];
 
       if ((body as any).cleaner1) {
         const primaryMitra = await db
@@ -281,7 +281,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           .limit(1);
 
         if (backupMitra.length > 0) {
-          backupMitraId = backupMitra[0].id;
+          backupMitraIds = [backupMitra[0].id];
         }
       }
 
@@ -297,7 +297,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         subscriptionPackage: body.subscriptionPackage || null,
         subscriptionPackageId: (body as any).subscriptionPackageId || null,
         assignedMitraId: assignedMitraId,
-        backupMitraId: backupMitraId,
+        backupMitraIds: backupMitraIds,
         subscriptionStart: (body as any).subscriptionStart || null,
         subscriptionEnd: (body as any).subscriptionEnd || null,
         subscriptionStatus: (body as any).subscriptionStatus || 'Active',
@@ -318,7 +318,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         cleaner1: (body as any).cleaner1,
         cleaner2: (body as any).cleaner2,
         assignedMitraId,
-        backupMitraId
+        backupMitraIds
       });
 
       const result = await db
