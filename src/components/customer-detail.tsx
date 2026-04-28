@@ -1722,14 +1722,28 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                 return (
                   <div
                     key={inv.id}
-                    className={`flex items-center justify-between px-3 py-3 rounded-lg border ${rowStyle}`}
+                    className={`rounded-lg border ${rowStyle} px-4 py-3 space-y-2`}
                   >
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono text-gray-700">{inv.invoiceNumber}</span>
-                        {periodStatus && (
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold ${statusStyle[periodStatus]}`}>
-                            {periodStatus}
+                    {/* Row 1: invoice number + period badge */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-mono font-medium text-gray-700 truncate">{inv.invoiceNumber}</span>
+                      {periodStatus && (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${statusStyle[periodStatus]}`}>
+                          {periodStatus}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Row 2: date range + payment status + actions */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {inv.invoiceStartDate && (
+                          <span className="text-xs text-gray-400 truncate">
+                            {formatInvDate(inv.invoiceStartDate)}
+                            {inv.invoiceEndDate ? ` → ${formatInvDate(inv.invoiceEndDate)}` : ''}
+                            {inv.actualEndDate && inv.actualEndDate !== inv.invoiceEndDate && (
+                              <span className="ml-1 text-amber-600 font-medium">(actual: {formatInvDate(inv.actualEndDate)})</span>
+                            )}
                           </span>
                         )}
                         {/* Payment status */}
@@ -1750,38 +1764,29 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
                         ) : (
                           <span
                             onClick={() => canEditStatus && setInvoiceStatusEditing(inv.id)}
-                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold ${invStatusStyle[inv.status ?? 'Open'] ?? 'bg-gray-100 text-gray-500'} ${canEditStatus ? 'cursor-pointer hover:opacity-75' : ''}`}
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${invStatusStyle[inv.status ?? 'Open'] ?? 'bg-gray-100 text-gray-500'} ${canEditStatus ? 'cursor-pointer hover:opacity-75' : ''}`}
                             title={canEditStatus ? 'Klik untuk ubah status' : undefined}
                           >
                             {inv.status ?? 'Open'}
                           </span>
                         )}
                       </div>
-                      {inv.invoiceStartDate && (
-                        <span className="text-xs text-gray-400">
-                          {formatInvDate(inv.invoiceStartDate)}
-                          {inv.invoiceEndDate ? ` → ${formatInvDate(inv.invoiceEndDate)}` : ''}
-                          {inv.actualEndDate && inv.actualEndDate !== inv.invoiceEndDate && (
-                            <span className="ml-1 text-amber-600 font-medium">(actual: {formatInvDate(inv.actualEndDate)})</span>
-                          )}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5 ml-3 shrink-0">
-                      <button
-                        onClick={() => openHistoricalAttendance(inv)}
-                        className="flex items-center gap-1 text-xs px-2 py-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 rounded-lg"
-                      >
-                        <Icons.calendar className="h-3.5 w-3.5" />
-                        Attendance
-                      </button>
-                      <button
-                        onClick={() => openInvoicePreview(inv.id, inv.invoiceNumber)}
-                        className="flex items-center gap-1 text-xs px-2 py-1.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 rounded-lg"
-                      >
-                        <Icons.download className="h-3.5 w-3.5" />
-                        Preview
-                      </button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => openHistoricalAttendance(inv)}
+                          className="inline-flex items-center gap-1 text-xs px-2.5 py-1 bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                          <Icons.calendar className="h-3 w-3" />
+                          Attendance
+                        </button>
+                        <button
+                          onClick={() => openInvoicePreview(inv.id, inv.invoiceNumber)}
+                          className="inline-flex items-center gap-1 text-xs px-2.5 py-1 bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                          <Icons.download className="h-3 w-3" />
+                          Preview
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
