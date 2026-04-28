@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { visitDB, mitraDB, customerDB } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
+import { visitDB, mitraDB, customerDB, invoiceDB } from '@/lib/schema';
+import { eq, sql } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 
 interface RouteParams {
@@ -124,6 +124,13 @@ export async function POST(
     };
 
     await db.insert(visitDB).values([visitRecord]);
+
+    // Increment scheduledVisitsCount on the active invoice so payout denominator stays dynamic
+    if (customer[0].invoiceId) {
+      await db.update(invoiceDB)
+        .set({ scheduledVisitsCount: sql`scheduled_visits_count + 1` })
+        .where(eq(invoiceDB.id, customer[0].invoiceId));
+    }
 
     console.log(`✅ Created visit #${visitRecord.visitNumber} for ${customer[0].customerName} on ${visitDate} with ${mitra[0].mitraName}`);
 
