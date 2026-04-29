@@ -78,6 +78,13 @@
       "when": 1776842198805,
       "tag": "0010_colossal_electro",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1777449179730,
+      "tag": "0011_regular_nightmare",
+      "breakpoints": true
     }
   ]
 }

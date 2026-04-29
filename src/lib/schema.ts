@@ -212,7 +212,7 @@ export const invoiceDB = pgTable('invoice_db', {
   totalAmount: decimal('total_amount', { precision: 12, scale: 2 }).notNull(),
 
   // Status
-  status: varchar('status', { length: 20 }).default('Pending'), // Pending, Paid, Overdue, Cancelled
+  status: varchar('status', { length: 20 }).default('Open'), // Open, Paid, Overdue, Cancelled
   paidAt: timestamp('paid_at'),
   paymentMethod: varchar('payment_method', { length: 50 }),
 

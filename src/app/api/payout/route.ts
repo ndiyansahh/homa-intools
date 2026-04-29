@@ -481,10 +481,10 @@ export async function POST(request: NextRequest) {
           // Calling getBillingCycle with the rescheduled date would compute a new future cycle
           // (e.g. 22 May–21 Jun instead of 22 Apr–21 May), causing a wrong denominator.
           let cycle: { start: Date; end: Date };
-          if (beyondEndDate) {
+          if (beyondEndDate && matchingInvoice.invoiceEndDate) {
             cycle = {
               start: parseLocalDate(matchingInvoice.invoiceStartDate!),
-              end: parseLocalDate(matchingInvoice.invoiceEndDate!),
+              end: parseLocalDate(matchingInvoice.invoiceEndDate),
             };
           } else {
             cycle = getBillingCycle(matchingInvoice.invoiceStartDate!, parseLocalDate(visit.scheduledDate));
