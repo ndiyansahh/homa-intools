@@ -362,7 +362,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
   // Fetch all active mitras (for trial assignment - no availability check needed)
   const fetchAllMitras = async () => {
     try {
-      const response = await fetch('/api/mitra?status=Active');
+      const response = await fetch('/api/mitra?status=Active&limit=100');
       if (response.ok) {
         const result = await response.json();
         // API returns { items: [...], page, total, totalPages }

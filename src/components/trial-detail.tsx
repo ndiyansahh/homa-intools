@@ -85,7 +85,7 @@ export default function TrialDetailView({ trialId, onClose }: TrialDetailProps) 
   const fetchMitras = async () => {
     try {
       setLoadingMitras(true);
-      const response = await fetch('/api/mitra');
+      const response = await fetch('/api/mitra?status=Active&limit=100');
       
       if (response.ok) {
         const data = await response.json();
