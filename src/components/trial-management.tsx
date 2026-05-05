@@ -246,7 +246,7 @@ export default function TrialManagement({ session }: TrialManagementProps) {
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
       // Fetch active mitras
-      const params = '?status=Active';
+      const params = '?status=Active&limit=100';
       const response = await fetch(`/api/mitra${params}`, {
         signal: controller.signal
       });
