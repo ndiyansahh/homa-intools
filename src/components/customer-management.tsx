@@ -150,6 +150,12 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
     fetchExpiringCustomers();
   }, []);
 
+  useEffect(() => {
+    if (activeTab === 'expiring') {
+      fetchExpiringCustomers();
+    }
+  }, [activeTab]);
+
   const openRenewalModal = (customer: ExpiringCustomer) => {
     setRenewalModal({ open: true, customer });
   };
