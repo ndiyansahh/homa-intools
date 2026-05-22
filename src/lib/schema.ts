@@ -66,6 +66,7 @@ export const subscriptionPackageDB = pgTable('subscription_package_db', {
   pricePerQty: varchar('price_per_qty', { length: 50 }).notNull(),
   priceNumeric: decimal('price_numeric', { precision: 10, scale: 2 }).notNull(),
   visitsPerWeek: integer('visits_per_week').default(1).notNull(), // Bug #4 fix: Store frequency as dedicated field
+  isActive: boolean('is_active').default(true).notNull(), // false = deactivated/legacy package
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });

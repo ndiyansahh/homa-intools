@@ -53,7 +53,7 @@ export async function middleware(request: NextRequest) {
   if (requiresCSRFProtection(request)) {
     const isValid = await validateCSRFToken(request);
     if (!isValid) {
-      console.warn('⚠️ CSRF validation failed:', {
+      console.warn('CSRF validation failed:', {
         path: pathname,
         method: request.method,
         ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',

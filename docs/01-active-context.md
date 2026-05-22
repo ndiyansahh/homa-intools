@@ -1,9 +1,33 @@
 # 01 - Active Context (Master File)
 
-**Last Updated:** 2026-03-07 (Night)
-**Current Sprint:** Critical Production Bugfix (Mar 7, 2026) + Documentation Verification
-**Status:** ✅ 4 Critical Bugs Fixed, ✅ Payout Logic Verified, ⏳ VPS Deployment Pending
+**Last Updated:** 2026-05-21
+**Current Sprint:** Production Seed Data (May 21, 2026)
+**Status:** ✅ 4 Critical Bugs Fixed, ✅ Payout Logic Verified, ✅ ETL Updated, ⏳ VPS Deployment Pending
 **Progress:** 100% (Code + Docs), 0% (Deployment)
+
+---
+
+## 🎯 CURRENT STATUS (May 21, 2026)
+
+### Production Seed CSV Format - ✅ FINALIZED
+
+**CSV Template Header (76 columns):**
+```
+invoice_number | client_name | address | subscription_package | start_date | end_date | new_end_date | mitra_1 | day_1..day_7 | visit_1..visit_31 | backup_mitra_1..backup_mitra_31 | total_visits
+```
+
+**Column Rules:**
+| Kolom | Required | Format | Ket |
+|-------|----------|--------|-----|
+| `day_1..day_7` | Required | Monday / Tuesday / dst | Hari kunjungan rutin, sisanya kosong |
+| `visit_1..visit_31` | Required | `YYYY-MM-DD` → Done, `YYYY-MM-DD\nALASAN` → Cancelled, kosong → skip | Tanggal final (sudah include reschedule) |
+| `backup_mitra_1..backup_mitra_31` | Optional | `Nama Mitra (MITRA-XXXXXX-XXXXXX)` | Index 1-to-1 dengan visit_X. Kosong = pakai mitra_1. Jika reschedule + ganti mitra: ubah tanggal di visit_X dan isi backup_mitra_X |
+| `total_visits` | Required | Integer | Engine baca sampai kolom ini, ignore sisanya |
+
+**ETL Script:** `scripts/etl-visits.ts` — sudah support `backupMitras[]` per visit
+- `originalMitraId` = selalu `mitra_1` (audit trail)
+- `actualMitraId` = backup mitra jika ada, fallback ke `mitra_1`
+- Payout otomatis dihitung ke mitra yang actual kerja
 
 ---
 

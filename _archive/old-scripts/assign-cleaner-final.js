@@ -6,7 +6,6 @@ async function assignCleanerFinal() {
   });
 
   try {
-    console.log('Assigning cleaners to trials...');
 
     // Get available mitras
     const mitras = await pool.query(`
@@ -14,8 +13,7 @@ async function assignCleanerFinal() {
       FROM mitra_db 
       WHERE status = 'Active' AND is_active = true AND is_deleted = false
     `);
-    console.log('✓ Available mitras:', mitras.rows);
-
+    
     // Get trial customers without assigned cleaners
     const trials = await pool.query(`
       SELECT id, customer_name
@@ -25,7 +23,6 @@ async function assignCleanerFinal() {
       AND assigned_mitra_id IS NULL
       LIMIT 5
     `);
-    console.log('✓ Trials without cleaners:', trials.rows);
 
     // Assign mitras to trials
     for (let i = 0; i < Math.min(trials.rows.length, mitras.rows.length); i++) {
@@ -40,12 +37,10 @@ async function assignCleanerFinal() {
         RETURNING customer_name
       `, [mitra.id, mitra.mitra_name, trial.id]);
 
-      console.log(`✓ Assigned ${mitra.mitra_name} to ${trial.customer_name}`);
     }
 
     // Test a specific case
     if (trials.rows.length > 0 && mitras.rows.length > 0) {
-      console.log('\n=== Testing the assignment ===');
       const testTrial = trials.rows[0];
       
       const testResult = await pool.query(`
@@ -59,11 +54,7 @@ async function assignCleanerFinal() {
         LEFT JOIN mitra_db m ON c.assigned_mitra_id = m.id
         WHERE c.id = $1
       `, [testTrial.id]);
-      
-      console.log('✓ Test result:', testResult.rows[0]);
     }
-
-    console.log('Cleaner assignment completed!');
 
   } catch (error) {
     console.error('Assignment failed:', error);

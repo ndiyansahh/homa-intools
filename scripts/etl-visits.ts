@@ -49,12 +49,22 @@ const getDayName = (dateStr: string): string => {
   return DAY_NAMES[d.getDay()];
 };
 
-// Each entry: invoiceNumber → { customerName, mitraCode, visitDates[] }
+// Parse backup mitra from "Nama Mitra (MITRA-xxx)" format → extract mitra code
+const parseBackupMitraCode = (raw: string): string | null => {
+  if (!raw?.trim()) return null;
+  const match = raw.trim().match(/\(([^)]+)\)/);
+  return match ? match[1].trim() : null;
+};
+
+// Each entry: invoiceNumber → { customerName, mitraCode, visitDates[], backupMitras[] }
+// backupMitras index is 1-to-1 with visitDates. Empty string = use default mitraCode.
+// CSV columns: visit_1..visit_31, backup_mitra_1..backup_mitra_31
 const ATTENDANCE: Array<{
   invoiceNumber: string;
   customerName: string;
   mitraCode: string;
-  visitDates: string[]; // raw strings from sheet
+  visitDates: string[];
+  backupMitras?: string[]; // optional, same length as visitDates
 }> = [
   // INV/Cleaning/2025.12.31-01467 — Kun Ronnie via Altrix — Suminten
   { invoiceNumber: 'INV/Cleaning/2025.12.31-01467', customerName: 'Kun Ronnie via Altrix', mitraCode: 'MITRA-202304-000005', visitDates: ['Fri,2-Jan-2026','Tue,6-Jan-2026','Fri,9-Jan-2026','Tue,13-Jan-2026','Fri,16-Jan-2026','Tue,20-Jan-2026','Fri,23-Jan-2026','Tue,27-Jan-2026','Fri,30-Jan-2026'] },
@@ -201,16 +211,26 @@ async function main() {
     let visitNumber = 1;
     let inserted = 0;
 
-    for (const rawDate of entry.visitDates) {
+    for (let i = 0; i < entry.visitDates.length; i++) {
+      const rawDate = entry.visitDates[i];
       const parsed = parseEntry(rawDate);
       if (!parsed) continue;
+
+      // Resolve backup mitra for this visit index
+      const backupRaw = entry.backupMitras?.[i];
+      const backupCode = parseBackupMitraCode(backupRaw ?? '');
+      const effectiveMitraId = backupCode ? (mitraMap.get(backupCode) ?? mitraId) : mitraId;
+
+      if (backupCode && !mitraMap.get(backupCode)) {
+        console.log(`  WARN: backup mitra not found [${backupCode}] for ${entry.invoiceNumber} visit ${i + 1} — falling back to mitra_1`);
+      }
 
       await db.insert(visitDB).values({
         customerId,
         invoiceId,
-        mitraId,
+        mitraId: effectiveMitraId,
         originalMitraId: mitraId,
-        actualMitraId: mitraId,
+        actualMitraId: effectiveMitraId,
         visitNumber,
         scheduledDate: parsed.date,
         scheduledDay: getDayName(parsed.date),

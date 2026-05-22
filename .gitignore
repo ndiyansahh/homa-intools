@@ -31,3 +31,6 @@ Thumbs.db
 # Misc
 .cache/
 *.log
+
+# Production seed data (contains real customer/mitra data)
+sql/seed/
