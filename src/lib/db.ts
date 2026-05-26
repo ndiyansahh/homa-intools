@@ -8,7 +8,7 @@ const pool = new Pool({
   min: parseInt(process.env.DB_POOL_MIN || '2'),
   max: parseInt(process.env.DB_POOL_MAX || '10'),
   idleTimeoutMillis: parseInt(process.env.DB_POOL_IDLE_TIMEOUT || '30000'),
-  ssl: process.env.NODE_ENV === 'production' ? {
+  ssl: process.env.NODE_ENV === 'production' && process.env.DB_SSL !== 'false' ? {
     rejectUnauthorized: process.env.DB_SSL_MODE === 'require'
   } : false,
 });
