@@ -139,7 +139,6 @@ async function main() {
     await db.update(customerDB)
       .set({
         assignedMitraId: primaryMitraId,
-        backupMitraIds,
       })
       .where(eq(customerDB.id, customerId));
 
