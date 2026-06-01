@@ -1,5 +1,5 @@
 import { config } from 'dotenv';
-config({ path: '.env.local' });
+config({ path: '.env.local', override: false });
 
 import * as fs from 'fs';
 import * as path from 'path';

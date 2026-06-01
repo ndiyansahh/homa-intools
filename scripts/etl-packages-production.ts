@@ -1,5 +1,5 @@
 import { config } from 'dotenv';
-config({ path: '.env.local' });
+config({ path: '.env.local', override: false });
 
 import { db } from '../src/lib/db';
 import { subscriptionPackageDB } from '../src/lib/schema';
