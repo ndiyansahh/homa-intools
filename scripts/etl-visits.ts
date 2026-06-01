@@ -66,6 +66,26 @@ const ATTENDANCE: Array<{
   visitDates: string[];
   backupMitras?: string[]; // optional, same length as visitDates
 }> = [
+  // INV/Cleaning/2026.1.2-01469 — Raisya — Rohayani
+  { invoiceNumber: 'INV/Cleaning/2026.1.2-01469', customerName: 'Raisya', mitraCode: 'MITRA-2020506-000095', visitDates: ['Fri,9-Jan-2026','Fri,13-Feb-2026','Fri,27-Feb-2026','Fri,30-Jan-2026','Fri,6-Feb-2026'] },
+  // INV/Cleaning/2025.12.31-01470 — Jennifer S — Annarul Nurjanati
+  { invoiceNumber: 'INV/Cleaning/2025.12.31-01470', customerName: 'Jennifer S', mitraCode: 'MITRA-2020509-000106', visitDates: ['Tue,6-Jan-2026','Tue,13-Jan-2026','Tue,20-Jan-2026','Tue,27-Jan-2026'] },
+  // INV/Cleaning/2025.12.31-01471 — Leo — Windi Indriyanti
+  { invoiceNumber: 'INV/Cleaning/2025.12.31-01471', customerName: 'Leo', mitraCode: 'MITRA-202406-000045', visitDates: ['Sun,4-Jan-2026','Sat,10-Jan-2026','Sat,17-Jan-2026','Sat,24-Jan-2026','Sat,31-Jan-2026'] },
+  // INV/Cleaning/2025.12.31-01472 — Asri Larasati — Windi Indriyanti
+  { invoiceNumber: 'INV/Cleaning/2025.12.31-01472', customerName: 'Asri Larasati', mitraCode: 'MITRA-202406-000045', visitDates: ['Fri,2-Jan-2026','Sat,3-Jan-2026','Fri,9-Jan-2026','Sat,10-Jan-2026','Fri,16-Jan-2026','Fri,6-Feb-2026','Fri,23-Jan-2026','Sat,24-Jan-2026','Fri,30-Jan-2026','Sat,7-Feb-2026'] },
+  // INV/Cleaning/2026.1.1-01473 — Rizal — Ninuk Hendrini
+  { invoiceNumber: 'INV/Cleaning/2026.1.1-01473', customerName: 'Rizal', mitraCode: 'MITRA-2020503-000075', visitDates: ['Fri,2-Jan-2026','Tue,6-Jan-2026','Fri,9-Jan-2026','Tue,13-Jan-2026','Fri,16-Jan-2026','Tue,20-Jan-2026','Fri,23-Jan-2026','Tue,27-Jan-2026','Fri,30-Jan-2026'] },
+  // INV/Cleaning/2026.1.2-01474 — Shigeko Inaba via Altrix — Naini Rochmawati
+  { invoiceNumber: 'INV/Cleaning/2026.1.2-01474', customerName: 'Shigeko Inaba via Altrix', mitraCode: 'MITRA-2020501-000065', visitDates: ['Mon,5-Jan-2026','Wed,7-Jan-2026','Fri,9-Jan-2026','Mon,12-Jan-2026','Wed,14-Jan-2026','Fri,16-Jan-2026','Mon,19-Jan-2026','Wed,21-Jan-2026','Fri,23-Jan-2026','Mon,26-Jan-2026','Wed,28-Jan-2026','Fri,30-Jan-2026','Mon,2-Feb-2026'] },
+  // INV/Cleaning/2026.1.2-01476 — Mr. Suwit Mangkhala — Sifa Ayu Ramadani
+  { invoiceNumber: 'INV/Cleaning/2026.1.2-01476', customerName: 'Mr. Suwit Mangkhala', mitraCode: 'MITRA-202410-000055', visitDates: ['Mon,5-Jan-2026','Tue,13-Jan-2026','Mon,19-Jan-2026','Mon,26-Jan-2026','Thu,19-Feb-2026','Thu,26-Feb-2026'] },
+  // INV/Cleaning/2026.1.2-01477 — Kumasaka Ryota via Altrix — Suminten
+  { invoiceNumber: 'INV/Cleaning/2026.1.2-01477', customerName: 'Kumasaka Ryota via Altrix', mitraCode: 'MITRA-202304-000005', visitDates: ['Wed,7-Jan-2026','Wed,14-Jan-2026','Wed,21-Jan-2026','Wed,28-Jan-2026','Wed,4-Feb-2026'] },
+  // INV/Cleaning/2026.1.3-01478 — Anastasia — Atika Yunianti
+  { invoiceNumber: 'INV/Cleaning/2026.1.3-01478', customerName: 'Anastasia', mitraCode: 'MITRA-2020505-000086', visitDates: ['Wed,7-Jan-2026','Sat,10-Jan-2026','Wed,14-Jan-2026','Sat,17-Jan-2026','Wed,21-Jan-2026','Sat,24-Jan-2026','Wed,28-Jan-2026','Sat,31-Jan-2026'] },
+  // INV/Cleaning/2026.1.5-01479 — Ibu Rita Gunawan — Sunarsih
+  { invoiceNumber: 'INV/Cleaning/2026.1.5-01479', customerName: 'Ibu Rita Gunawan', mitraCode: 'MITRA-2020504-000085', visitDates: ['Tue,6-Jan-2026','Thu,8-Jan-2026','Mon,12-Jan-2026','Tue,13-Jan-2026','Thu,15-Jan-2026','Mon,19-Jan-2026','Tue,20-Jan-2026','Thu,22-Jan-2026','Mon,26-Jan-2026','Tue,27-Jan-2026','Thu,29-Jan-2026','Mon,2-Feb-2026','Tue,3-Feb-2026','Thu,5-Feb-2026'] },
   // INV/Cleaning/2025.12.31-01467 — Kun Ronnie via Altrix — Suminten
   { invoiceNumber: 'INV/Cleaning/2025.12.31-01467', customerName: 'Kun Ronnie via Altrix', mitraCode: 'MITRA-202304-000005', visitDates: ['Fri,2-Jan-2026','Tue,6-Jan-2026','Fri,9-Jan-2026','Tue,13-Jan-2026','Fri,16-Jan-2026','Tue,20-Jan-2026','Fri,23-Jan-2026','Tue,27-Jan-2026','Fri,30-Jan-2026'] },
   // INV/Cleaning/2026.1.2-01475 — Risa Matsuoka — Siti Asih
