@@ -172,9 +172,9 @@ async function main() {
     const enrich = enrichMap.get(name);
     const contact      = rawPhone || enrich?.['contact'] || '-';
     const address      = rawAddr  || enrich?.['address']  || '-';
-    const city         = enrich?.['city']             || null;
-    const village      = enrich?.['village']          || null;
-    const district     = enrich?.['district']         || null;
+    const city         = enrich?.['city']             || '-';
+    const village      = enrich?.['village']          || '-';
+    const district     = enrich?.['district']         || '-';
     const postalCode   = enrich?.['postal_code']      || null;
     const residentialType = enrich?.['residential_type'] || null;
     const acquisition  = getAcquisition(name);
