@@ -8,8 +8,7 @@ import { db } from '../src/lib/db';
 import { customerDB, mitraDB } from '../src/lib/schema';
 
 const ATTENDANCE_CSVS = [
-  'tools/test-data/production-seed/attendance-q1-2026.csv',
-  'tools/test-data/production-seed/prod-attend-q2-2026.csv',
+  'tools/test-data/production-seed/prod-attend-q1&q2-2026.csv',
 ];
 
 // ---------------------------------------------------------------------------
