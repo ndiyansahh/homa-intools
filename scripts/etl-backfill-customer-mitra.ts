@@ -7,7 +7,10 @@ import { eq } from 'drizzle-orm';
 import { db } from '../src/lib/db';
 import { customerDB, mitraDB } from '../src/lib/schema';
 
-const ATTENDANCE_CSV = 'tools/test-data/production-seed/prod-attend-q2-2026.csv';
+const ATTENDANCE_CSVS = [
+  'tools/test-data/production-seed/attendance-q1-2026.csv',
+  'tools/test-data/production-seed/prod-attend-q2-2026.csv',
+];
 
 // ---------------------------------------------------------------------------
 // CSV parser — handles multi-line quoted fields
@@ -64,11 +67,18 @@ const parseMitraCode = (raw: string): string | null => {
 // Main
 // ---------------------------------------------------------------------------
 async function main() {
-  console.log('=== ETL: Backfill Customer Mitra Assignment (from attendance CSV) ===\n');
+  console.log('=== ETL: Backfill Customer Mitra Assignment (from attendance CSVs) ===\n');
 
-  const csvContent = fs.readFileSync(path.join(__dirname, '..', ATTENDANCE_CSV), 'utf-8');
-  const rows = parseCSV(csvContent);
-  console.log(`Loaded ${rows.length} attendance rows\n`);
+  // Load all quarters — later rows (Q2+) override earlier rows for primary mitra
+  const allRows: Record<string, string>[] = [];
+  for (const csvFile of ATTENDANCE_CSVS) {
+    const csvContent = fs.readFileSync(path.join(__dirname, '..', csvFile), 'utf-8');
+    const rows = parseCSV(csvContent);
+    console.log(`Loaded ${rows.length} rows from ${csvFile}`);
+    allRows.push(...rows);
+  }
+  console.log(`Total attendance rows: ${allRows.length}\n`);
+  const rows = allRows;
 
   // Build per-customer mitra data:
   // primaryMitra = mitra_1 from the LATEST invoice (highest invoice_number)
