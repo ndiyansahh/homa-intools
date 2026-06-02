@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '../src/lib/db';
 import { customerDB, mitraDB } from '../src/lib/schema';
 
-const ATTENDANCE_CSV = 'tools/test-data/production-seed/attendance-q1-2026.csv';
+const ATTENDANCE_CSV = 'tools/test-data/production-seed/prod-attend-q2-2026.csv';
 
 // ---------------------------------------------------------------------------
 // CSV parser — handles multi-line quoted fields

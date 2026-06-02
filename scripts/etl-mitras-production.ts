@@ -6,7 +6,7 @@ import * as path from 'path';
 import { db } from '../src/lib/db';
 import { mitraDB, mitraRateConfigDB } from '../src/lib/schema';
 
-const ATTENDANCE_CSV = 'tools/test-data/production-seed/attendance-q1-2026.csv';
+const ATTENDANCE_CSV = 'tools/test-data/production-seed/prod-attend-q2-2026.csv';
 const MITRA_DB_CSV   = 'tools/test-data/production-seed/mitra_db.csv';
 
 // ---------------------------------------------------------------------------

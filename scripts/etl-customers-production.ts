@@ -6,7 +6,7 @@ import * as path from 'path';
 import { db } from '../src/lib/db';
 import { customerDB, subscriptionPackageDB } from '../src/lib/schema';
 
-const INVOICE_CSV     = 'tools/test-data/production-seed/invoice-q1-2026.csv';
+const INVOICE_CSV     = 'tools/test-data/production-seed/prod-invoice-q2-2026.csv';
 const CUSTOMER_DB_CSV = 'tools/test-data/production-seed/customer-db.csv';
 
 // ---------------------------------------------------------------------------
