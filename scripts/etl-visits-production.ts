@@ -115,7 +115,7 @@ const parseMitraCode = (raw: string): string | null => {
 async function main() {
   console.log('=== ETL: Visits Production (from CSV) ===\n');
 
-  const csvPath = path.join(__dirname, '..', 'tools', 'test-data', 'production-seed', 'prod-attend-q1&q2-2026.csv');
+  const csvPath = path.join(__dirname, '..', 'tools', 'test-data', 'production-seed', 'prod-attend-q2-2026.csv');
   const csvContent = fs.readFileSync(csvPath, 'utf-8');
   const records = parseCSV(csvContent);
   console.log(`Loaded ${records.length} rows from CSV\n`);

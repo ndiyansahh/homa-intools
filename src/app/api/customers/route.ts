@@ -297,7 +297,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         subscriptionPackage: body.subscriptionPackage || null,
         subscriptionPackageId: (body as any).subscriptionPackageId || null,
         assignedMitraId: assignedMitraId,
-        backupMitraIds: backupMitraIds,
+        ...(backupMitraIds.length > 0 ? { backupMitraIds } : {}),
         subscriptionStart: (body as any).subscriptionStart || null,
         subscriptionEnd: (body as any).subscriptionEnd || null,
         subscriptionStatus: (body as any).subscriptionStatus || 'Active',
