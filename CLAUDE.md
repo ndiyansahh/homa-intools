@@ -154,7 +154,7 @@ npx tsx scripts/seed-users.ts
 npm run dev
 
 # 6. Open http://localhost:3000
-# Login: admin@homa.com / admin123
+# Login: admin@homa.com / adminHoma2026!
 ```
 
 ---
@@ -215,8 +215,25 @@ bash scripts/deploy-production.sh  # Has safety checks & confirmations
 
 ---
 
-**Last Updated:** 2026-03-06
+**Last Updated:** 2026-06-11
 **Maintained by:** AI Assistant (Claude Code)
+
+## Pending Tasks
+
+### 🔴 Security: Pisahkan Bank Info Mitra ke Tabel Terpisah
+- **Status:** Belum dikerjakan — ditunda, butuh planning
+- **Problem:** `mitraBankAccount`, `mitraBankHolderName`, `mitraBankAccountNumber` ada di `mitraDB` yang sama dengan data publik. Query `SELECT *` akan expose data banking.
+- **Fix:** Buat tabel `mitra_bank_db` terpisah, migrate data, update semua query mitra.
+- **Impact:** Breaking change — butuh migration + update semua API yang query mitra.
+- **File:** `src/lib/schema.ts`
+
+### 🟡 Security: Standardisasi Error Response
+- **Status:** Belum dikerjakan
+- **Problem:** Banyak API routes pakai `process.env.NODE_ENV === 'development' ? String(error) : 'Internal server error'`. Kalau NODE_ENV misconfigured di production, error detail bisa bocor.
+- **Fix:** Hapus conditional, selalu return generic error message ke client. Log detail hanya ke server.
+- **Files:** `src/app/api/customers/route.ts`, `src/app/api/trials/route.ts`, dan banyak route lainnya.
+
+---
 
 ## Files NOT to Touch Without Discussion
 - src/lib/schema.ts      ← schema change = migration required
