@@ -8,27 +8,14 @@ import { validatePasswordStrength } from './password-validator';
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes (ADR 0002)
 const MAX_FAILED_ATTEMPTS = 5; // ADR 0002
 
-// Fallback demo users (used when database not migrated yet)
-const DEMO_USERS: Record<string, { id: string; email: string; password: string; role: UserRole }> = {
-  'admin@homa.com': { id: 'demo-admin', email: 'admin@homa.com', password: 'admin123', role: 'ADMIN' },
-  'owner@homa.com': { id: 'demo-owner', email: 'owner@homa.com', password: 'owner123', role: 'OWNER' },
-  'staff@homa.com': { id: 'demo-staff', email: 'staff@homa.com', password: 'staff123', role: 'STAFF' },
-};
-
 export interface ValidateUserResult {
   user: User | null;
   error?: 'INVALID_CREDENTIALS' | 'ACCOUNT_LOCKED';
   lockedUntil?: Date;
 }
 
-/**
- * Validates user credentials against database
- * Falls back to demo users if database not available
- * Implements lockout after 5 failed attempts (ADR 0002)
- */
 export async function validateUser(email: string, password: string): Promise<ValidateUserResult> {
   try {
-    // Try database first
     const users = await db
       .select()
       .from(userDB)
@@ -36,8 +23,7 @@ export async function validateUser(email: string, password: string): Promise<Val
       .limit(1);
 
     if (users.length === 0) {
-      // Fallback to demo users if no user in DB
-      return validateDemoUser(email, password);
+      return { user: null, error: 'INVALID_CREDENTIALS' };
     }
 
     const dbUser = users[0];
@@ -113,30 +99,9 @@ export async function validateUser(email: string, password: string): Promise<Val
     };
 
   } catch (error) {
-    console.error('Database error, falling back to demo users:', error);
-    // Fallback to demo users if database error (table doesn't exist)
-    return validateDemoUser(email, password);
-  }
-}
-
-/**
- * Fallback validation for demo users (before migration)
- */
-function validateDemoUser(email: string, password: string): ValidateUserResult {
-  const demoUser = DEMO_USERS[email];
-
-  if (!demoUser || demoUser.password !== password) {
+    console.error('Database error during login:', error);
     return { user: null, error: 'INVALID_CREDENTIALS' };
   }
-
-  return {
-    user: {
-      id: demoUser.id,
-      email: demoUser.email,
-      role: demoUser.role,
-      mustChangePassword: false, // Demo users don't need password change
-    }
-  };
 }
 
 /**

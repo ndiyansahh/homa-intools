@@ -6,12 +6,6 @@ import { CreateUserRequest, CreateUserResponse } from '@/types/auth';
 import { db } from '@/lib/db';
 import { userDB } from '@/lib/schema';
 
-// Demo users fallback (when database not migrated)
-const DEMO_USERS = [
-    { id: 'demo-admin', email: 'admin@homa.com', role: 'ADMIN', mustChangePassword: false, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    { id: 'demo-owner', email: 'owner@homa.com', role: 'OWNER', mustChangePassword: false, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    { id: 'demo-staff', email: 'staff@homa.com', role: 'STAFF', mustChangePassword: false, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-];
 
 // GET: List all users (Admin only)
 export async function GET(request: NextRequest) {
@@ -42,8 +36,8 @@ export async function GET(request: NextRequest) {
 
             return NextResponse.json({ users });
         } catch (dbError) {
-            console.error('Database error, returning demo users:', dbError);
-            return NextResponse.json({ users: DEMO_USERS });
+            console.error('Database error fetching users:', dbError);
+            return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
         }
     } catch (error) {
         console.error('Error fetching users:', error);
