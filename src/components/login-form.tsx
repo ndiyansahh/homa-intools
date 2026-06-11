@@ -97,11 +97,6 @@ export default function LoginForm() {
     }));
   };
 
-  const quickLogin = async (email: string, password: string) => {
-    setFormData({ email, password });
-    await performLogin(email, password);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       {/* Background Pattern */}
@@ -248,36 +243,6 @@ export default function LoginForm() {
                 </button>
               </form>
 
-              {/* Quick Login Options */}
-              <div className="mt-8 pt-6 border-t border-gray-200">
-                <p className="text-sm text-gray-600 text-center mb-4">Quick login (demo accounts):</p>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => quickLogin('admin@homa.com', 'admin123')}
-                    className="px-3 py-2 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-                    disabled={isLoading}
-                  >
-                    Admin
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => quickLogin('owner@homa.com', 'owner123')}
-                    className="px-3 py-2 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
-                    disabled={isLoading}
-                  >
-                    Owner
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => quickLogin('staff@homa.com', 'staff123')}
-                    className="px-3 py-2 text-xs font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors"
-                    disabled={isLoading}
-                  >
-                    Staff
-                  </button>
-                </div>
-              </div>
             </div>
 
             {/* Footer */}
