@@ -79,7 +79,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<Subscripti
     return NextResponse.json({
       success: false,
       message: 'Failed to fetch subscription packages from database',
-      error: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : 'Database error',
+      error: 'Database error',
     }, { status: 500 });
   }
 }

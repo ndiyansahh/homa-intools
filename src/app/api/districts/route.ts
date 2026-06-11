@@ -99,7 +99,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       {
         success: false,
         message: 'Failed to fetch districts',
-        error: process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error',
+        error: 'Internal server error',
       },
       { status: 500 }
     );

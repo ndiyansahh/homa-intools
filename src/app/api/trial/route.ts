@@ -342,12 +342,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         {
           success: false,
           message: 'Failed to create trial customer - database error',
-          error: process.env.NODE_ENV === 'development' ? dbError.message : undefined,
-          details: process.env.NODE_ENV === 'development' ? {
-            code: dbError.code,
-            detail: dbError.detail,
-            hint: dbError.hint
-          } : undefined
         },
         { status: 500 }
       );
@@ -359,7 +353,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       {
         success: false,
         message: 'Internal server error',
-        error: process.env.NODE_ENV === 'development' ? String(error) : undefined
       },
       { status: 500 }
     );
@@ -815,12 +808,6 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
         {
           success: false,
           message: 'Failed to update trial customer - database error',
-          error: process.env.NODE_ENV === 'development' ? dbError.message : undefined,
-          details: process.env.NODE_ENV === 'development' ? {
-            code: dbError.code,
-            detail: dbError.detail,
-            hint: dbError.hint
-          } : undefined
         },
         { status: 500 }
       );
@@ -832,7 +819,6 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       {
         success: false,
         message: 'Internal server error',
-        error: process.env.NODE_ENV === 'development' ? String(error) : undefined
       },
       { status: 500 }
     );

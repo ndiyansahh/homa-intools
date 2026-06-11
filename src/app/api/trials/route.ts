@@ -268,12 +268,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         {
           success: false,
           message: 'Failed to create trial - database error',
-          error: process.env.NODE_ENV === 'development' ? dbError.message : undefined,
-          details: process.env.NODE_ENV === 'development' ? {
-            code: dbError.code,
-            detail: dbError.detail,
-            hint: dbError.hint
-          } : undefined
+          error: 'Internal server error'
         },
         { status: 500 }
       );

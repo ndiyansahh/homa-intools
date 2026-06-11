@@ -221,7 +221,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
       {
         success: false,
         message: 'Failed to fetch customers',
-        error: process.env.NODE_ENV === 'development' ? String(error) : 'Internal server error',
+        error: 'Internal server error',
       } as any,
       { status: 500 }
     );

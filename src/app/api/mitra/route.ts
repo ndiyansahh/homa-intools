@@ -429,7 +429,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: false,
         error: 'Database error: Failed to create mitra',
-        details: process.env.NODE_ENV === 'development' ? String(dbError) : undefined
+        details: undefined
       }, { status: 500 });
     }
 

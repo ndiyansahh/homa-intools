@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         message: 'Database test failed',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: 'Internal server error',
       },
       { status: 500 }
     );

@@ -273,8 +273,7 @@ export async function POST(
       {
         success: false,
         message: 'Failed to change mitra',
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
+        error: 'Internal server error',
       },
       { status: 500 }
     );

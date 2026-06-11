@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
           { 
             success: false, 
             message: 'Database seeding failed',
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: 'Internal server error'
           },
           { status: 500 }
         );
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         message: 'Database migration failed',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: 'Internal server error',
       },
       { status: 500 }
     );
@@ -160,7 +160,7 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         message: 'Failed to check migration status',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: 'Internal server error',
       },
       { status: 500 }
     );

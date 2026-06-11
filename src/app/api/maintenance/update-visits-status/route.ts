@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         console.error('Migration error:', error);
         return NextResponse.json(
-            { success: false, message: 'Failed to run migration', error: String(error) },
+            { success: false, message: 'Failed to run migration', error: 'Internal server error' },
             { status: 500 }
         );
     }

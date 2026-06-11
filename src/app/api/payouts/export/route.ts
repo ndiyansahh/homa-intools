@@ -344,8 +344,7 @@ export async function GET(request: NextRequest) {
     console.error('Error stack:', error instanceof Error ? error.stack : '');
     return NextResponse.json(
       {
-        error: 'Failed to export payout data',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        error: 'Internal server error'
       },
       { status: 500 }
     );

@@ -190,7 +190,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           mitra: mitraUpdate.searchName,
           success: false,
           message: `Update error: ${(updateError as Error).message}`,
-          error: process.env.NODE_ENV === 'development' ? (updateError as Error).message : 'Database error'
+          error: 'Database error'
         });
       }
     }
@@ -257,7 +257,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       {
         success: false,
         message: 'Failed to update mitra schema',
-        error: process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error',
+        error: 'Internal server error',
       },
       { status: 500 }
     );
@@ -319,7 +319,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       {
         success: false,
         message: 'Failed to retrieve mitra records',
-        error: process.env.NODE_ENV === 'development' ? (error as Error).message : 'Internal server error',
+        error: 'Internal server error',
       },
       { status: 500 }
     );

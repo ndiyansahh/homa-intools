@@ -184,7 +184,7 @@ export async function GET(
       {
         success: false,
         message: 'Failed to fetch customer details',
-        error: process.env.NODE_ENV === 'development' ? String(error) : 'Internal server error',
+        error: 'Internal server error',
       },
       { status: 500 }
     );

@@ -249,7 +249,7 @@ export async function GET(
       {
         success: false,
         message: 'Failed to fetch available mitras',
-        error: error instanceof Error ? error.message : String(error)
+        error: 'Internal server error'
       },
       { status: 500 }
     );

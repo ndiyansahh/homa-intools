@@ -50,7 +50,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({
       success: false,
       message: 'Raw SQL test failed',
-      error: error instanceof Error ? error.message : String(error)
+      error: 'Internal server error'
     }, { status: 500 });
   }
 }

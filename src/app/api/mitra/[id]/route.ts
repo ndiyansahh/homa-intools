@@ -134,7 +134,7 @@ export async function GET(
       console.error('❌ CRITICAL: Database error while fetching mitra details:', dbError);
       return NextResponse.json({
         error: 'Database error: Failed to fetch mitra details',
-        details: process.env.NODE_ENV === 'development' ? String(dbError) : undefined
+        details: undefined
       }, { status: 500 });
     }
 
