@@ -81,7 +81,7 @@ export const customerDB = pgTable('customer_db', {
   district: varchar('district', { length: 100 }),
   village: varchar('village', { length: 100 }),
   postalCode: varchar('postal_code', { length: 10 }),
-  // residentialType: varchar('residential_type', { length: 50 }).default('House'), // TODO: Enable after database migration
+  residentialType: varchar('residential_type', { length: 50 }).default('House'),
   // Cleaner assignment fields
   assignedMitraId: uuid('assigned_mitra_id').references(() => mitraDB.id),
   backupMitraIds: uuidArray('backup_mitra_ids').default([]),
