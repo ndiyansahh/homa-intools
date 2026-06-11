@@ -13,19 +13,19 @@ async function seedUsers() {
     const users = [
         {
             email: 'admin@homa.com',
-            password: 'admin123',
+            password: 'adminHoma2026!',
             role: 'ADMIN' as const,
-            mustChangePassword: false, // Demo: no forced change
+            mustChangePassword: false,
         },
         {
             email: 'owner@homa.com',
-            password: 'owner123',
+            password: 'ownerHoma2026!',
             role: 'OWNER' as const,
             mustChangePassword: false,
         },
         {
             email: 'staff@homa.com',
-            password: 'staff123',
+            password: 'staffHoma2026!',
             role: 'STAFF' as const,
             mustChangePassword: false,
         },
@@ -67,9 +67,9 @@ async function seedUsers() {
 
     console.log('\n🎉 Demo users seeded successfully!');
     console.log('\nYou can now login with:');
-    console.log('  - admin@homa.com / admin123 (ADMIN)');
-    console.log('  - owner@homa.com / owner123 (OWNER)');
-    console.log('  - staff@homa.com / staff123 (STAFF)');
+    console.log('  - admin@homa.com / adminHoma2026! (ADMIN)');
+    console.log('  - owner@homa.com / ownerHoma2026! (OWNER)');
+    console.log('  - staff@homa.com / staffHoma2026! (STAFF)');
 
     process.exit(0);
 }

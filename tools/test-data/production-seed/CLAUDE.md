@@ -5,6 +5,36 @@ Dibuat berdasarkan pengalaman Q1 2026. Untuk quarter berikutnya, ikuti pola yang
 
 ---
 
+## Free Trial Seed
+
+Script khusus untuk seed data free trial dari `free-trial-db.csv`:
+
+```bash
+# Jalankan dari root project
+npx tsx scripts/etl-free-trials-production.ts
+```
+
+**Filter:** Hanya row yang memiliki `First Trial` atau `Second Trial` di tahun 2026.
+
+**Yang di-insert ke `customer_db`:**
+- `subscriptionPackage` = `'Trial'`
+- `subscriptionStart` = tanggal First Trial
+- `subscriptionEnd` = tanggal Second Trial (jika ada)
+- `subscriptionStatus` = mapped dari kolom `Status` CSV (Converted / Not Converted / Cancelled / Trial)
+- `assignedMitraId` = lookup by name dari `Mitra / Cleaner 1`
+- `backupMitraIds` = lookup by name dari `Mitra / Cleaner 2`
+
+**Idempotent:** Aman dijalankan ulang — skip jika customer dengan nama + contact yang sama sudah ada.
+
+**Tidak membuat:** invoice, visit records (trial = 1 kunjungan, tidak ada subscription period).
+
+**Source file:** `tools/test-data/production-seed/free-trial-db.csv`
+**Script:** `scripts/etl-free-trials-production.ts`
+
+**Scope yang di-seed (2026):** ~baris dengan First Trial Jan 2026 ke atas.
+
+---
+
 ## Konsep & Filosofi
 
 **Prinsip utama:** Seed hanya data yang **saling terhubung**. Customer tanpa invoice, mitra tanpa visit = orphan data yang merusak dashboard dan kalkulasi payout.

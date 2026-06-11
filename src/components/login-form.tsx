@@ -135,7 +135,7 @@ export default function LoginForm() {
               </h1>
 
               <p className="text-xl text-blue-100/80 font-light max-w-sm mx-auto leading-relaxed">
-                The smarter way to manage your cleaning service business
+                Internal Tools Homa
               </p>
 
               {/* Subtle divider */}
