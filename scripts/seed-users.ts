@@ -2,30 +2,36 @@ import 'dotenv/config';
 import { db } from '../src/lib/db';
 import { userDB } from '../src/lib/schema';
 import bcrypt from 'bcryptjs';
+import { inArray } from 'drizzle-orm';
 
 /**
  * Seed users for development/demo purposes
  * ADR 0002: Demo users have mustChangePassword = false for convenience
  */
 async function seedUsers() {
-    console.log('🌱 Seeding demo users...\n');
+    console.log('🌱 Seeding users...\n');
+
+    // Remove old placeholder accounts
+    const oldEmails = ['admin@homa.com', 'owner@homa.com', 'staff@homa.com'];
+    await db.delete(userDB).where(inArray(userDB.email, oldEmails));
+    console.log('🗑️  Removed old placeholder accounts\n');
 
     const users = [
         {
-            email: 'admin@homa.com',
-            password: 'adminHoma2026!',
+            email: 'handi.docss@gmail.com',
+            password: 'handiHoma2026!',
             role: 'ADMIN' as const,
             mustChangePassword: false,
         },
         {
-            email: 'owner@homa.com',
-            password: 'ownerHoma2026!',
+            email: 'christian@homa.co.id',
+            password: 'imsHoma2026!',
             role: 'OWNER' as const,
             mustChangePassword: false,
         },
         {
-            email: 'staff@homa.com',
-            password: 'staffHoma2026!',
+            email: 'dara@homa.co.id',
+            password: 'daraHoma2026!',
             role: 'STAFF' as const,
             mustChangePassword: false,
         },
@@ -65,11 +71,11 @@ async function seedUsers() {
         }
     }
 
-    console.log('\n🎉 Demo users seeded successfully!');
+    console.log('\n🎉 Users seeded successfully!');
     console.log('\nYou can now login with:');
-    console.log('  - admin@homa.com / adminHoma2026! (ADMIN)');
-    console.log('  - owner@homa.com / ownerHoma2026! (OWNER)');
-    console.log('  - staff@homa.com / staffHoma2026! (STAFF)');
+    console.log('  - handi.docss@gmail.com / handiHoma2026! (ADMIN)');
+    console.log('  - christian@homa.co.id / imsHoma2026! (OWNER)');
+    console.log('  - dara@homa.co.id / daraHoma2026! (STAFF)');
 
     process.exit(0);
 }
