@@ -7,14 +7,35 @@ Dibuat berdasarkan pengalaman Q1 2026. Untuk quarter berikutnya, ikuti pola yang
 
 ## Free Trial Seed
 
-Script khusus untuk seed data free trial dari `free-trial-db.csv`:
+### Phase 1 (2026 only)
+
+Script untuk seed trial dari `free-trial-db.csv`, filter hanya tahun 2026:
 
 ```bash
-# Jalankan dari root project
 npx tsx scripts/etl-free-trials-production.ts
 ```
 
-**Filter:** Hanya row yang memiliki `First Trial` atau `Second Trial` di tahun 2026.
+**Source file:** `tools/test-data/production-seed/free-trial-db.csv`
+**Filter:** Hanya row dengan First Trial atau Second Trial di tahun 2026.
+
+---
+
+### Phase 2 (Aug 2023 – sekarang)
+
+Script all-in-one untuk seed trial customers dari historical data, **tanpa filter tahun**:
+
+```bash
+export DATABASE_URL='postgresql://homa_user:HomaDB2025Secure@localhost:5432/homa_production'
+npx tsx scripts/etl-free-trials-phase2.ts
+```
+
+**Source files:**
+- `tools/test-data/production-seed/phase2/trial-phase-2.csv` — ~724 rows trial customers
+- `tools/test-data/production-seed/phase2/mitra-phase2.csv` — 137 mitras (master data terbaru)
+
+**Yang dilakukan script (2 step otomatis):**
+1. **Ensure mitras** — cek mitra mana yang belum ada di DB, insert dari `mitra-phase2.csv` beserta rate config-nya
+2. **Seed customers** — insert trial customers, skip yang sudah ada (match by nama + contact)
 
 **Yang di-insert ke `customer_db`:**
 - `subscriptionPackage` = `'Trial'`
@@ -26,12 +47,16 @@ npx tsx scripts/etl-free-trials-production.ts
 
 **Idempotent:** Aman dijalankan ulang — skip jika customer dengan nama + contact yang sama sudah ada.
 
-**Tidak membuat:** invoice, visit records (trial = 1 kunjungan, tidak ada subscription period).
+**Tidak membuat:** invoice, visit records.
 
-**Source file:** `tools/test-data/production-seed/free-trial-db.csv`
-**Script:** `scripts/etl-free-trials-production.ts`
+**Known quirks di CSV phase 2:**
+- Nama/contact multi-line (newline dalam quoted field) → script ambil baris pertama saja
+- Contact dengan format `08xxx / 08xxx` → script ambil nomor pertama saja
+- 3 mitra tidak ada di master CSV (`Murti Kurnia Sari`, `Siti`, `Sumarsih Anjani`) → customer tetap di-insert dengan `assignedMitraId = null`
 
-**Scope yang di-seed (2026):** ~baris dengan First Trial Jan 2026 ke atas.
+**Hasil seed phase 2 (Jun 2026):**
+- Inserted: 499 customers
+- Mitra baru di-insert otomatis dari `mitra-phase2.csv`
 
 ---
 
@@ -58,8 +83,9 @@ Taruh di: `tools/test-data/production-seed/`
 | `invoice-QX-YYYY.csv` | Lihat contoh Q1 | Primary source customers & invoices |
 | `attendance-QX-YYYY.csv` | Lihat contoh Q1 | Source visits + mitra assignments |
 | `customer-db.csv` | Static — tidak berubah tiap quarter | Enrichment data (phone, address detail) |
-| `mitra-db-production.csv` | **Active** — update jika ada mitra baru (133 mitras per Q2 2026) | Master data mitra lengkap untuk production |
-| `mitra_db.csv` | Legacy — jangan dipakai lagi | Digantikan oleh `mitra-db-production.csv` |
+| `mitra-db-production.csv` | Legacy — jangan dipakai lagi | Digantikan oleh `phase2/mitra-phase2.csv` |
+| `phase2/mitra-phase2.csv` | **Active** — update jika ada mitra baru (137 mitras per Jun 2026) | Master data mitra terbaru untuk production |
+| `mitra_db.csv` | Legacy — jangan dipakai lagi | Digantikan oleh `phase2/mitra-phase2.csv` |
 
 ### Format `invoice-QX-YYYY.csv`
 
