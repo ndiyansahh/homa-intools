@@ -50,7 +50,7 @@ Seed script already run on production VPS successfully.
 ```
 GOOGLE_CLIENT_ID=<your-google-client-id>
 GOOGLE_CLIENT_SECRET=<your-google-client-secret>
-AUTH_SECRET=homa-nextauth-secret-2026-secure-key-min32
+AUTH_SECRET=<min-32-char-random-secret>
 AUTH_URL=http://localhost:3000
 ```
 
