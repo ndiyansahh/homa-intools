@@ -218,6 +218,30 @@ bash scripts/deploy-production.sh  # Has safety checks & confirmations
 **Last Updated:** 2026-06-11
 **Maintained by:** AI Assistant (Claude Code)
 
+## Customer DB Source File (Phase 2)
+
+**File:** `tools/test-data/production-seed/phase2/customer-db-phase2.csv`
+
+This is the **updated customer master database** replacing the old `customer-db.csv`. Used as enrichment source for ETL scripts (phone, address, city, district, etc.).
+
+**Full data scope:** 479 customers, Nov 2022 – Jun 2026 (but ETL only seeds 2026 customers — the 2026 filter comes from which invoice CSV is used as primary source, not from this file)
+
+**Columns:**
+`customer_name, Acquisition, contact, address, city, village, district, postal_code, residential_type, subscription_package, qty_package, First Date Subscribe, monthly_fee, chosen_days, customer_notes, churn_tag, churn_reason`
+
+**Key notes:**
+- Acquisition values: `HOMA` or `Altrix`
+- residential_type: `Apartment`, `House`, `Office Space`
+- Some contacts are blank (Altrix customers)
+- Some customer names have NPWP info embedded (e.g. PT. Nusa Derma Medika)
+- `qty_package` can be decimal (e.g. `1.666666667` for Hiroki Takahashi)
+
+**ETL scripts that must be updated** to use this file instead of `customer-db.csv`:
+- `scripts/etl-customers-production.ts` — update `CUSTOMER_DB_CSV` path constant
+- `scripts/etl-free-trials-production.ts` — if it also reads customer-db for enrichment
+
+---
+
 ## Pending Tasks
 
 ### 🔴 Security: Pisahkan Bank Info Mitra ke Tabel Terpisah

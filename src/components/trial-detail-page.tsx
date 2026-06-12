@@ -172,36 +172,24 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
   const checkMitraAvailability = async () => {
     const selectedDaysArray = selectedDays.filter(Boolean);
 
-    console.log('=== Mitra Availability Check ===');
-    console.log('Start Date:', startDate);
-    console.log('Selected Days:', selectedDays);
-    console.log('Selected Days Array:', selectedDaysArray);
-    console.log('Quantity:', quantity);
-    console.log('Selected Package ID:', selectedPackageId);
-    console.log('Required Visits Per Week:', requiredVisitsPerWeek);
-
     // Don't check if package is not selected yet
     if (!selectedPackageId) {
-      console.log('❌ No package selected yet, skipping mitra check');
       setMitras([]);
       return;
     }
 
     // Only check if we have all required data
     if (!startDate || selectedDaysArray.length === 0 || !quantity) {
-      console.log('❌ Missing required data, skipping mitra check');
       setMitras([]);
       return;
     }
 
     // Check if all required days are selected
     if (selectedDaysArray.length !== requiredVisitsPerWeek) {
-      console.log(`❌ Not all days selected: ${selectedDaysArray.length}/${requiredVisitsPerWeek}`);
       setMitras([]);
       return;
     }
 
-    console.log('✅ All conditions met, checking mitra availability...');
 
     try {
       setLoadingMitras(true);
@@ -227,12 +215,9 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Mitra availability response:', data);
 
         if (data.success && data.data) {
           const availableMitras = data.data.availableMitras || [];
-          console.log('Available mitras count:', availableMitras.length);
-          console.log('Available mitras details:', availableMitras);
 
           setMitras(availableMitras.map((m: any) => ({
             id: m.mitraId,
@@ -242,7 +227,7 @@ export default function TrialDetailPage({ trialId, session }: TrialDetailPagePro
 
           // Also log unavailable mitras for debugging
           if (data.data.unavailableMitras && data.data.unavailableMitras.length > 0) {
-            console.log('Unavailable mitras:', data.data.unavailableMitras);
+         
           }
         } else {
           setMitras([]);

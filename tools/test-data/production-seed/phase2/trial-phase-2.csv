@@ -1,0 +1,731 @@
+Customer Name,Acquisition,Contact,Address,Village,District,City,Postal Code,Residential Type,First Trial,Second Trial,Mitra / Cleaner 1,Mitra / Cleaner 2,Status
+Putri Rizka Ramdhani ,HOMA,+62 812-6894-4982,"Kompleks Kompas, Blok A1
+Jl. Damai Raya",Petukangan Selatan,Pessanggrahan,Jakarta Selatan,12270,House,13-Aug-2023,16-Aug-2023,Siti Nuramalia,,Not Converted
+Mariani,HOMA,+62 815-1000-1896,Jl. Pluit Karang Jelita II No.41,Pluit,Penjaringan,Jakarta Utara,14450,House,9-Aug-2023,,Siti Sri Karmaeningsih,,Not Converted
+Srijanti,HOMA,+62 819-1578-3446,Apartemen Gading Mediterania RK28J,Kelapa Gading Barat,Kelapa Gading,Jakarta Utara,14240,Office Space,14-Aug-2023,18-Aug-2023,Sri Astuti,,Converted
+Nimas Kharismamurti,HOMA,+62 813-1632-5844,The Agathis Residence Blok C No.23,Rangkapan Jaya Baru,Pancoran Mas,Depok,16434,House,15-Aug-2023,18-Aug-2023,Silvia Handajani,,Converted
+Mellisa,HOMA,+62 856-8987-078,"Apartemen Graha Cempaka Mas, Tower C1 Lt 8 No. 3",Sumur Batu,Kemayoran,Jakarta Utara,10640,Apartment,18-Aug-2023,20-Aug-2023,Resti Febriana,,Not Converted
+Susan Ernawati,HOMA,+62 811-9101-919,Gading Asri V PD 4/1A,Pegangsaan Dua,Kelapa Gading,Jakarta Utara,14250,House,4-Sep-2023,8-Sep-2023,Sri Astuti,,Converted
+Alia Shareef,HOMA,+62 812-9606-4697,Jl. CIlandak VI No. 38,Cilandak Barat,Cilandak,Jakarta Selatan,12430,House,23-Aug-2023,30-Aug-2023,Siti Sri Karmaeningsih,,Converted
+Nesa Kusuma,HOMA,+62 812-7104-531,Puri Casablanca Tower A 19-08,Menteng Dalam,Tebet,Jakarta Selatan,12870,Apartment,10-Sep-2023,,Desi Ariyanti,,Not Converted
+Christine,HOMA,+62 821-2200-2557,Apartemen Sahid Sudirman Residence 19E,Karet Tengsin,Tanah Abang,Jakarta Pusat,12730,Apartment,28-Aug-2023,31-Aug-2023,Yuliani Diandari,,Converted
+Adela,HOMA,+62 817-4884-320,Victoria River Park A10/3,Lengkong Karya,Serpong Utara,Tangerang Selatan,15310,House,28-Aug-2023,31-Aug-2023,Siti Nuramalia,,Converted
+Ellen,HOMA,+62 817-0921-213,"Apartment Marigold Tower 3, No: 5B Nava Park BSD City",Lengkong Kulon,Pegedengan,Tangerang Selatan,15331,Apartment,5-Sep-2023,7-Sep-2023,Siti Nuramalia,,Converted
+Sukawati,HOMA,+62 813-8195-8188,Cluster Sutera Narada No. 11,Pakulonan,Serpong Utara,Tangerang Selatan,15325,House,8-Sep-2023,15-Sep-2023,Siti Nuramalia,,Converted
+Kesumawaty,HOMA,+62 813-1093-7766,Jl. Pascal Timur II No.17,Medang,Pegedengan,Tangerang Selatan,15334,House,13-Sep-2023,17-Sep-2023,Siti Nuramalia,,Converted
+Kartika,HOMA,+62 813-1683-6361,"Apartemen Skyhouse BSD, Claymore Tower, Unit C2 - 2C",Sampora,Cisauk,Tangerang Selatan,15345,Apartment,12-Sep-2023,13-Sep-2023,Siti Nuramalia,,Converted
+Sarah,HOMA,+62 811-1126-495,Apartemen Salemba Residence Tower B710,Paseban,Senen,Jakarta Pusat,10440,Apartment,11-Sep-2023,15-Sep-2023,Desi Ariyanti,,Converted
+Leony,HOMA,+62 819-3336-6600,Garden Nirwana Blok PF 20 F/5,Pegangsaan Dua,Kelapa Gading,Jakarta Utara,14250,House,13-Sep-2023,16-Sep-2023,Sri Astuti,,Not Converted
+Nova,HOMA,+62 813-1888-5138,"PIK 2 Cluster Hawaii, Hawai Cove VIII No. 18",Salembaran,Kosambi,Tangerang,15214,House,18-Sep-2023,,Siti Sri Karmaeningsih,,Not Converted
+Saki,HOMA,+62 812-8828-0562,"Anandamaya Residence, Tower 3, Unit 12C",Karet Tengsin,Tanah Abang,Jakarta Pusat,10220,Apartment,5-Oct-2023,9-Oct-2023,Sulastri,,Converted
+Fenni,HOMA,+62 811-9919-522,Jl. Johar Hijau III No.12,Kamal Muara,Penjaringan,Jakarta Utara,14470,House,9-Oct-2023,17-Oct-2023,Siti Sri Karmaeningsih,,Not Converted
+Rizza Tanzil,HOMA,+62 811-9208-219,Cluster Alicante - Jl. Alicante Timur 5 No. 20,Medang,Pagedengan,Tangerang Selatan,15334,House,10-Oct-2023,15-Oct-2023,Siti Nuramalia,,Not Converted
+Hilda,HOMA,+62 819-0505-7091,"Jl. Kelapa Puan Timur II, ND2/1",Pegangsaan Dua,Kelapa Gading,Jakarta Utara,14250,House,17-Oct-2023,19-Oct-2023,Sri Astuti,,Not Converted
+Viena,HOMA,+62 819-1000-8809,Jl. Pelangi Ungu 6 Blok C3T No. 36,Pegangsaan Dua,Kelapa Gading,Jakarta Utara,14250,House,18-Oct-2023,25-Oct-2023,Sri Astuti,,Not Converted
+Vera,HOMA,+62 818-0881-1125,"TB (Toko Bangunan) Jombang Jaya, Jl. Jombang Raya No.6",Kp. Gunung,Ciputat,Tangerang Selatan,15414,House,20-Oct-2023,23-Oct-2023,Ike Kurniawati,,Converted
+Esmeralda,HOMA,+62 812-8923-0151,Cluster Whitsand Blok C8 No. 6,Lengkong Kulon,Pegedengan,Tangerang Selatan,15331,House,24-Oct-2023,25-Oct-2023,Ike Kurniawati,,Converted
+Ella Rizdiani Wibowo,HOMA,+62 812-9394-6087,Perumahan Arcadia Blok D No. 14,Pegangsaan Dua,Kelapa Gading,Jakarta Utara,14250,House,24-Oct-2023,27-Oct-2023,Sri Astuti,,Not Converted
+Lim Hisa,HOMA,+62 817-077-3300,"Pakubuwono Spring Gate 3, Unit A19H",Grogol Selatan,Kebayoran Lama,Jakarta Selatan,12220,Apartment,14-Nov-2023,16-Nov-2023,Sunarti (Manda),Siti Muhasanah,Converted
+Sisca,HOMA,+62 811-153-314,The Avani Cluster Lavanya C2/21,Sampora,Cisauk,Tangerang Selatan,15345,House,10-Nov-2023,,Ike Kurniawati,,Not Converted
+Cornel,HOMA,+62 858-6036-3465,Newton Barat 1 No. 46,Medang,Pagedengan,Tangerang Selatan,15334,House,21-Nov-2023,24-Nov-2023,Ike Kurniawati,,Not Converted
+Sisca,HOMA,+62 878-8851-9360,Sutera Olivia IX No. 8,Pakualam,Serpong Utara,Tangerang Selatan,15320,House,21-Nov-2023,24-Nov-2023,Ema,,Converted
+Yusnianti,HOMA,+62 811-135-138,"The Smith SOHO & Residential Apartment, Unit 2718",Pakualam,Serpong Utara,Tangerang Selatan,15320,House,27-Nov-2023,30-Nov-2023,Sunarti (Diyah),,Converted
+Alice,HOMA,+62 811-1018-301,"Anandamaya Tower 3, Unit 53A",Karet Tengsin,Tanah Abang,Jakarta Pusat,10220,Apartment,29-Nov-2023,8-Dec-2023,Nining Istikomah,,Not Converted
+Akila,HOMA,+62 812-3232-3541,Jl. Rambutan No.7,Gandaria Utara,Kebayoran Baru,Jakarta Selatan,12140,House,5-Dec-2023,7-Dec-2023,Siti Muhasanah,,Converted
+Nita,HOMA,+62 819-0678-8444,Cavana Bintaro Blok B19,Rengas,Ciputat Timur,Tangerang Selatan,15412,House,7-Dec-2023,9-Dec-2023,Sunarti,,Not Converted
+Ibnu Prakoso,HOMA,+62 821-2222-6349,"Virginia Lagoon, Block C1 No. 6",Lengkong Gudang,Serpong,Tangerang Selatan,15310,House,16-Dec-2023,20-Dec-2023,Siti Nuramalia,Sunarti,Not Converted
+Robert,HOMA,+62 813-3041-6104,"East Terrace A6 No 17, Metland Puri",Petir,Karang Tengah,Tangerang,15147,House,18-Dec-2023,21-Dec-2023,Sunarti,,Converted
+Livi Renees,HOMA,+62 813-1409-1616,Discovery Aluvia Blok S 30,Pargi,Pd. Aren,Tangerang Selatan,15227,House,26-Dec-2023,29-Dec-2023,Sunarti,,Converted
+Martono Sutanto,HOMA,+62 811-105-131,Apartemen Pakubuwono Residence Tower Eaglewood 20E,Gunung,Kebayoran Baru,Jakarta Selatan,12120,Apartment,29-Dec-2023,5-Jan-2024,Siti Muhasanah,,Not Converted
+Okta,HOMA,+62 812-5471-9058,"Cluster Morizon GF 21, Summasecon Bekasi",Harapan Mulya,Medan Satria,Bekasi,17143,House,6-Jan-2024,9-Jan-2024,Estuning Agustin ,,Converted
+Luci,HOMA,+62 8577-7290-595,Perumahan Taman Gandaria Blok E 16,Kebayoran Lama Utara,Kebayoran Lama,Jakarta Selatan,12240,House,9-Jan-2024,13-Jan-2024,Sunarti (Manda),Siti Asih,Converted
+Yunita,HOMA,+62 818-0613-4613,"Pondok Hijau Golf Cluster Garnet
+Jl. Garnet Timur I No. 11",Cihuni,Pagedengan,Tangerang Selatan,15810,House,6-Jan-2024,11-Jan-2024,Siti Nuramalia,Rahayu ,Converted
+Audrey Cynthia,HOMA,+62 813-8555-1291,Foresta Naturale M 11 No.7,Pagedengan,Pagedengan,Tangerang Selatan,15339,House,25-Jan-2024,,Rahayu ,,Not Converted
+Yuanita,HOMA,+62 812-8982-3823,Jl. Puri Kencana Blok L7 No.14,Kembangan Selatan,Kembangan,Jakarta Barat,11610,House,26-Jan-2024,,Nur Hidayati,,Not Converted
+"Lily Anggrainy",HOMA,+62 878-8000-9729,"Apartemen Cempaka Mas Tower E1, Lt. 9 No. 8",Sumur Batu,Kemayoran,Jakarta Utara,10640,Apartment,30-Jan-2024,,Sri Astuti,,Not Converted
+William Wibien Djojo,HOMA,+62 878-8313-3122,Sunter STS 3 Blok B No 35,Sunter Agung,Tanjung Priok,Jakarta Utara,14350,House,6-Feb-2024,9-Feb-2024,,,Not Converted
+Maisie,HOMA,+62 818-0679-1122,Jl. Bendungan Walahar No. 38,Bendungan Hilir,Tanah Abang,Jakarta Pusat,10210,House,2-Feb-2024,,Siti Asih,,Not Converted
+Yanti,HOMA,+62 817-0888-875,Cluster Newton Timur II No. 12,Sangereng,Kelapa Dua,Tangerang Selatan,15810,House,2-Feb-2024,,Rahayu ,,Not Converted
+Maria,HOMA,+62 8960-7480-8133,Flora No. 199,Wijaya Kusuma,Grogol Petamburan,Jakarta Barat,11460,House,12-Feb-2024,15-Feb-2024,Nur Hidayati,,Converted
+Yenny,HOMA,+62 816-9909-09,Residence One BSD Jade III No.69,Jelupang,Serpong Utara,Tangerang Selatan,15323,House,17-Feb-2024,24-Feb-2024,Rahayu ,Siti Nuramalia,Converted
+Risa Matsuoka,HOMA,+62 819-4706-1009,"Anandamaya Residences, Tower 3, 35-B",Karet Tengsin,Tanah Abang,Jakarta Pusat,10220,Apartment,16-Feb-2024,20-Feb-2024,Siti Asih,,Converted
+Jimmy Kurniawan,HOMA,+62 812-8205-2886,Sudirman Park Apartment Unit Tower A 19BJ,Karet Tengsin,Tanah Abang,Jakarta Pusat,10250,Apartment,20-Feb-2024,23-Feb-2024,Nining Istikomah,,Not Converted
+Dewi,HOMA,+62 812-6929-8362,Jl. Kramat Jaya Baru VI No. 15,Johar Baru,Johar Baru,Jakarta Pusat,10560,House,13-Feb-2024,,Yuliani,,Not Converted
+Keke,HOMA,+62 819-9098-8889,Apartemen Grand Madison,Tanjung Duren Selatan,Grogol Petamburan,Jakarta Barat,11470,Apartment,20-Feb-2024,,Nur Hidayati,,Not Converted
+Putri,HOMA,+62 818-0856-0056,Springwood 7 No.1 Sedayu City,Cakung Barat,Cakung,Jakarta Timur,13910,House,20-Feb-2024,22-Feb-2024,Sri Astuti,,Converted
+Hendrik Panca,HOMA,+62 813-9422-5558,Cluster De Na'ara - De Park Blok F2 No.7,Lengkong Kulon,Pagedengan,Tangerang Selatan,15331,House,20-Feb-2024,24-Feb-2024,Rahayu ,,Converted
+Verma,HOMA,+62 821-1338-1902,"The Green, Cluster Bellagio Blok F1 No 3",Cilenggang,Serpong,Tangerang Selatan,15310,House,28-Feb-2024,7-Mar-2024,Siti Nuramalia,Rahayu ,Converted
+Herlin,HOMA,+62 816-1884-542,"Perumahan Taman Mutiara Blok C/10",Paninggilan Utara,Ciledug,Kota Tangerang,15153,House,28-Feb-2024,,Sunarti,Eka Rahmawati,Converted
+Pudjo St.Abednego,HOMA,+62 815-1310-2849,Permata Senayan Apartment Unit 2103,Gelora,Tanah Abang,Jakarta Pusat,10270,Apartment,9-Mar-2024,,Sulastri,,Converted
+Monica Susi Indriana,HOMA,+62 852-1949-3252,Apartemen SQ Residence,Cilandak Barat,Cilandak,Jakarta Selatan,12430,Apartment,7-Mar-2024,18-Mar-2024,Suminten Yulianingrum,,Converted
+Arya Brahma,HOMA,+62 877-7425-5251,"Jl. Cakra Kencana V Blok B5 No.3A, BSD",Rawa Mekar Jaya,Serpong,Tangerang Selatan,15310,House,3-Mar-2024,3-Mar-2024,Rahayu ,,Not Converted
+Edu Yuliardi,HOMA,+62 878-0867-6276,Kinaya Residence,Cirendeu,Ciputat Timur,Tangerang Selatan,15419,House,23-Mar-2024,,Siti Nuramalia,,Not Converted
+Laura Yuliantry,HOMA,,Jl. Kelapa Nias VII PA21 No 12A,Pengangsaan Dua,Kelapa Gading,Jakarta Utara,14250,House,18-Mar-2024,28-Mar-2024,Sri Astuti,,Not Converted
+Irene,HOMA,+62 811-9620-8319,Anandamaya Residence T2 59 Floor Unit 59E,Karet Tengsin,Tanah Abang,Jakarta Pusat,10220,Apartment,22-Apr-2024,25-Apr-2024,Siti Asih,,Converted
+Andi Wati,HOMA,+62 821-9100-0145,Discovery Conserva Bintaro D17,Parigi,Pondok Aren,Tangerang Selatan,15427,House,23-Apr-2024,26-Apr-2024,Sunarti,,Not Converted
+Jeannie,HOMA,+62 811-8899-897,Vermont Parkland Blok G7 No. 3 BSD,Lengkong Gudang,Serpong,Tangerang Selatan,15321,House,26-Apr-2024,30-Apr-2024,Rahayu ,Iklimatul Atiqoh,Converted
+Minarti Prahara,HOMA,+62 811-919-286,Jl. Alam Asri II SB 12,Pd. Pinang,Kebayoran Lama,Jakarta Selatan,12310,House,26-Apr-2024,30-Apr-2024,Ria Junaeni ,,Converted
+Tia,HOMA,+6281289186696,Jl. Kiara Payung Barat VII No.20,Larangan Utara,Larangan Kota,Tangerang,15154,House,29-Apr-2024,2-May-2024,Sunarti,,Not Converted
+Ibu Afa,HOMA,+62 811-829-194,"Jl. Cempaka Putih Tengah II No 8, RT 3/ RW 8",Cempaka Putih Timur,Cempaka Putih,Jakarta Pusat,10510,House,8-May-2024,,Yuliani,,Not Converted
+Ibu Manurung,HOMA,+62 818-117-599,"Jl Praja IV No. 58B, Arteri Pd Indah",Kebayoran Lama Selatan,Kebayoran Lama,Jakarta Selatan,12240,House,1-May-2024,24-Dec-2024,Ria Junaeni ,,Converted
+Natalia,HOMA,+62 816-4851-303,Cluster Edison Timur 3,Medang,Pagedengan,Tangerang Selatan,15334,House,11-May-2024,,Rahayu ,,Not Converted
+Erika Iijima,HOMA,+62 811-1069-4020,"Apartemen Anandamaya Residence Tower 2, Unit 59D",Karet Tengsin,Tanah Abang,Jakarta Pusat,10220,Apartment,10-May-2024,,Sulastri,,Not Converted
+Ibu Ernie,HOMA,+62 812-1308-0838,Perumahan Taman Gandaria Blok C 14-15,Kebayoran Lama Utara,Kebayoran Lama,Jakarta Selatan,12240,House,30-Apr-2024,3-May-2024,Ria Junaeni ,,Converted
+Hajar,Altrix,+49 1511 5675899,Jl. Sekolah Duta III No. 3,Pondok Pinang,Kebayoran Lama,Jakarta Selatan,12310,House,6-May-2024,8-May-2024,Ria Junaeni ,,Converted
+Grace,HOMA,+62 811-926-372,Discovery Fiore 6 Blok E 23,Parigi Baru,Pondok Aren,Tangerang Selatan,15227,House,10-May-2023,14-May-2024,Sunarti,,Converted
+Ibu Sunah,HOMA,+62 813-8206-2484,Jl. Buluh Perindu Raya blok W No. 6 /RT 17 Duren Sawit,Pondok Bambu,Duren Sawit,Jakarta Timur,13430,House,13-May-2024,,Siti Sri Karmaeningsih,,Converted
+Chinatsu,HOMA,+6281110010614,"The Pakubuwono Spring, Applewood Tower, Unit 28D",Grogol Selatan,Kebayoran Lama,Jakarta Selatan,12220,Apartment,15-May-2024,5-Sep-2024,Sulastri,Siti Asih,Not Converted
+Yolanda Clarista Sari,HOMA,+62 811-9618-886,Cluster Baroni Selatan 1/1A,Medang,Pagedengan,Tangerang Selatan,15334,House,22-May-2024,1-Jun-2024,Rahayu ,Iklimatul Atiqoh,Not Converted
+Elita Situmorang,HOMA,+62 812-6416-000,"Jl. Bendi IV No 8, Tanah Kusir Jak Sel.",Kebayoran Lama Utara,Kebayoran Lama,Jakarta Selatan,12240,House,22-May-2024,,Ria Junaeni ,,Not Converted
+Bapak Yusuf,HOMA,+62 857-1467-8341,"Sekolah Dasar Islam Terpadu Permata Gemilang, Rawa Mekar",Rawa Mekar Jaya,Serpong,Tangerang Selatan,15419,Office Space,21-May-2024,,Rahayu ,,Not Converted
+Liana,HOMA,+62 812-9646-103,"Alam Asri IX/15 - SF 3 , Pondok Indah",Pd. Pinang,Kebayoran Lama,Jakarta Selatan,12310,House,30-May-2024,,Yeni Setiani,,Converted
+Via,HOMA,+62 811-8770-255,Jl. Taman Alfa Indah No.F. 6,Joglo,Kembangan,Jakarta Barat,11640,House,31-May-2024,,Solia ,,Converted
+Lenny C,HOMA,+62 817-9995-755,Jl. Kweni No.8a,Grogol Selatan,Kebayoran Lama,Jakarta Selatan,12220,House,7-Jun-2024,,Yeni Setiani,,Converted
+Dina,HOMA,+628118893793,Nara Village Boulevard No 20,Cijantra,Pagedengan,Tangerang Selatan,15336,House,8-Jun-2024,,Iklimatul Atiqoh,,Not Converted
+Lysa G,HOMA,+62 811-9397-888,"Tower Ginza, Apartemen Tokyoriverside PIK 2",Lemo,Teluk Naga,Tangerang,15510,Apartment,7-Jun-2024,,Siti Sri Karmaeningsih,,Not Converted
+Dameria,HOMA,+628119876988,Kedoya Pesing No. 27 i,Kedoya Utara,Kebon Jeruk,Jakarta Barat,11520,House,11-Jun-2024,,Solia ,,Not Converted
+Juwita,HOMA,+62 815-1713-6819,Jl. Kepu Dalam 1 No 20 Kemayoran,Kemayoran,Kemayoran,Jakarta Utara,10620,House,15-Jun-2024,,Yuliani,,Not Converted
+Dita Okta Sesia,HOMA,+62 856-1395-021,"Masjid Al Falah, Brigif PR 17 / Kujang 1 Kostrad",Pasir Gunung Selatan,Cimanggis,Depok,16451,House,21-Jun-2024,11-Jul-2025,Fitriandari Mukminah W,Sulistiyowati,Converted
+Angela Chandra,HOMA,+6285716598098,Jl. Surya Bahagia 2 No.2A/40,Kedoya Utara,Kebon Jeruk,Jakarta Barat,11520,House,19-Jun-2024,22-Jun-2024,Dwi Lestari,,Converted
+Lesti M,HOMA,+628111919137,"Lavanya Hills Residence, Blok Aleza II No E-16",Gandul,Cinere,Depok,16514,House,26-Jun-2024,,Endah Fajariyah,,Converted
+Wina,HOMA,+62 852-8156-2826,Apartemen Paladian Park Tower G Unit 0202,Kelapa Gading Barat,Kelapa Gading,Jakarta Utara,14240,Apartment,24-Jun-2024,5-Jul-2024,Yuliani,Marciane,Converted
+Ihsan,HOMA,+62 811-9441-443,"Apartemen Senayan Residence Tower 1, Unit T121C2",Grogol Utara,Kebayoran Lama,Jakarta Selatan,12210,Apartment,25-Jun-2024,,Solia ,,Not Converted
+Angela Winata,HOMA,+62 812-8217-123,Taman Alfa Indah A18 No.32,Joglo,Kembangan,Jakarta Barat,11640,House,28-Jun-2024,4-Jul-2024,Solia ,Windi Indriyanti,Converted
+Danny Agus Santoso,HOMA,+62 816-871-831,Jl Hayam Wuruk 5 No 2A,Kebon Kelapa,Gambir,Jakarta Pusat,11180,House,27-Jun-2024,29-Jun-2024,Siti Asih,,Converted
+Linda,HOMA,+62 822-9996-8896,"Cleon Park Apartemen CN 2526
+",Cakung Timur,Cakung,Jakarta Timur,13910,Apartment,1-Jul-2024,,Siti Sri Karmaeningsih,,Not Converted
+Indrawati,HOMA,+62 811-182-704,Cluster De Royal No. 7. Bukit Golf Mediterania,Kamal Muara,Penjaringan,Jakarta Utara,14470,House,29-Jun-2024,26-Oct-2024,Siti Sri Karmaeningsih,Siti Sakdiah,Not Converted
+Anna Sembiring,HOMA,+6281230161983,Apartemen Taman Rasuna Tower 15,Menteng Atas,Setiabudi,Jakarta Selatan,12960,Apartment,28-Jun-2024,2-Jul-2024,Yuliani,Sulastri,Not Converted
+Lita,HOMA,+62 812-9414-810,Jl. Matraman Dalam II Gg. VII No.15,Pegangsaan,Menteng,Jakarta Pusat,10320,House,29-Jun-2024,,Yuliani,,Converted
+Nadya,HOMA,+62 813-3222-5269,Tabebuya BSD - Cluster Invensihaus B5/3,Lengkong Kulon,Pagedengan,Tangerang,15331,House,3-Jul-2024,,Iklimatul Atiqoh,,Not Converted
+Mahd,HOMA,+62 812-1238-3050,Casa Grande Residence - Tower Montreal ,Menteng Dalam,Tebet,Jakarta Selatan,12870,Apartment,29-Jun-2024,,Neneng Ruslia,,Not Converted
+Livia,HOMA,+62 811-9119-580,Mediterania Garden Residence Tower Dahlia Lt. 30,Tanjung Duren Selatan,Grogol Petamburan,Jakarta Barat,11470,Apartment,29-Jun-2024,12-Jul-2024,Solia ,Windi Indriyanti,Not Converted
+Wanna,HOMA,+62 812-9750-2878,Jl. Komp Perumahan Kimia Farma Blok E4 No. 9 Ciledug,Parung Serab,Ciledug,Tangerang,15153,House,10-Jul-2024,17-Jul-2024,Sunarti,Iklimatul Atiqoh,Converted
+Amie,HOMA,+33 6 68 17 71 41,Jl. Bakti I No.8,Rawa Barat,Kebayoran Baru,Jakarta Selatan,12180,House,3-Jul-2024,1-Jan-2025,Sulastri,Sifa Ayu Ramadani,Converted
+Patricia,HOMA,+62 819-3868-7000,"Taman Pesona Kebembem Town House blok 1i",Jagakarsa,Jagakarsa,Jakarta Selatan,12620,House,9-Jul-2024,,Fitriandari Mukminah W,,Not Converted
+Grecia Rachmaningrum,HOMA,+6281284848432,Komplek BBD Blok E No. 13,Ciganjur,Jagakarsa,Jakarta Selatan,12630,House,14-Jul-2024,,Endah Fajariyah,,Not Converted
+Nia,HOMA,+62 821-2371-9133,Jl. Komp. Tni (Auri) No.25,Kuningan Timur,Setiabudi,Jakarta Selatan,12950,House,8-Jul-2024,,Neneng Ruslia,,Not Converted
+Olin,HOMA,+62 812 2299 9580,Jl. Kedamaian No.2,Karet Semanggi,Setiabudi,Jakarta Selatan,12930,House,11-Jul-2024,14-Jul-2024,Neneng Ruslia,,Converted
+Ibu Martha,HOMA,+6285817415119,Jl. Mesjid Bendungan No.35,Cawang,Kramat Jati,Jakarta Timur,13630,House,15-Jul-2024,19-Jul-2024,Neneng Ruslia,,Converted
+Mimi,HOMA,"+62 815-8119-678","H Mansion at Pejaten, No. C2",Jati Padang,Pasar Minggu,Jakarta Selatan,12540,House,24-Jul-2024,27-Jul-2024,Neneng Ruslia,,Converted
+Herlina,HOMA,+62 815-7456-0410,"Cluster LINEA, Blok E No.19",Paku Jaya,Serpong Utara,Tangerang Selatan,15220,House,20-Jul-2024,,Iklimatul Atiqoh,,Not Converted
+Alfredo.S.Loupatty,HOMA,+62 857-1034-4987,Jl. Waringin 2 No.5,Kayu Putih,Pulo Gadung,Jakarta Timur,13210,House,24-Jul-2024,31-Jul-2024,Marciane,Yuliani,Converted
+Mirna Kurniawan,HOMA,+62 819-7505-850,Perumahan Cavana Javateakland Blok B No. 15,Cilandak,Lebak Bulus,Jakarta Selatan,12440,House,27-Jul-2024,,Endah Fajariyah,,Converted
+Yanuar,HOMA,+62 811-9992-979,Jl. Tanjung Duren Utara 2B No.11,Tanjung Durent Utara,Grogol Petamburan,Jakarta Barat,11470,House,23-Jul-2024,,Windi Indriyanti,Sunarsih,Converted
+Bayu Putra,HOMA,"+62 812-3316-0093","Jakarta Garden City, Clusther South Thames, Blok J9 No. 26",Cakung Timur,Cakung,Jakarta Timur,13910,House,29-Jul-2024,,Siti Sri Karmaeningsih,,Converted
+Martha T.,HOMA,‪+62 858‑8507‑6798‬,"Jalan Surya Bahagia 1 No 3, Sunrise Garden",Kedoya Utara,Kebon Jeruk,Jakarta Barat,11520,House,28-Jul-2024,10-Aug-2024,Solia ,,Converted
+Sri Murtiyani,HOMA,+62 813-2037-2400,Jl. Tuyu No.50,Halim Perdana Kusumah,Makasar,Jakarta Timur,13610,House,31-Jul-2024,,Marciane,,Converted
+Marie,HOMA,+62 813-1864-4467,Perumahan Taman Botanik C-14,Jagakarsa,Jagakarsa,Jakarta Selatan,12620,House,1-Aug-2024,,Fitriandari Mukminah W,,Converted
+Indrawati,HOMA,+62 811-182-704,Cluster De Royal No. 7. Bukit Golf Mediterania,Kamal Muara,Penjaringan,Jakarta Utara,14470,House,3-Aug-2024,,Siti Sri Karmaeningsih,,Not Converted
+Yanti,HOMA,+62 878-8691-0894,"Cirendeu Park, No. 7",Pisangan,Ciputat Timur,Tangerang Selatan,15419,House,2-Aug-2024,,Cahya Rani Purnamasari ,Yeni Setiani,Not Converted
+Arfina,HOMA,+62 821-6219-2656,Wangsa Serpong No. F7,Buaran,Serpong,Tangerang Selatan,15315,House,4-Aug-2024,11-Aug-2024,Laurah Shabrillah ,Anita Piih,Converted
+Reiko,HOMA,+6282123072837,"The Pakubuwono Spring, Unit Applewood 17H",Grogol Selatan,Kebayoran Lama,Jakarta Selatan,12220,Apartment,5-Aug-2024,9-Aug-2024,Cahya Rani Purnamasari ,Siti Asih,Converted
+Indriani,HOMA,+62 896-8989-3661,Puri Casablanca Tower C 1507,Menteng Dalam,Tebet,Jakarta Selatan,12870,Apartment,9-Aug-2024,13-Aug-2024,Neneng Ruslia,,Converted
+Elvinia Basri,HOMA,+62 813-8168-9011,"Myza BSD, Blok E10. No 5",Cicalengka,Pegedengan,Tangerang,15850,House,16-Aug-2024,,Ranuy Eutiska,,Not Converted
+Jessica Olivia,HOMA,+62 811-9297-116,Jl. Pantai Sanur VI No.49,Ancol,Pademangan,Jakarta Utara,14430,House,10-Aug-2024,,Marciane,,Not Converted
+Shelvy,HOMA,+62 856-1080-222,Jl. Supiori No.3,Cideng,Gambir,Jakarta Barat,10150,House,16-Aug-2024,,Windi Indriyanti,,Converted
+Helen Darmawan,HOMA,+62 811-8070-639,"Apartemen Wesling Kedoya, Tower B, Lt. 12 , Unit 1",Kedoya Selatan,Kebon Jeruk,Jakarta Barat,11520,Apartment,14-Aug-2024,,Windi Indriyanti,,Not Converted
+Ary,HOMA,+61 491 664 117,Jl. Kelapa Hybrida 9 RA 24 No 2,Pegangsaan Dua,Kelapa Gading,Jakarta Utara,14250,House,15-Aug-2024,,Marciane,,Converted
+David,HOMA,+62 812-1150-4125,"Jl. Sutera Flamboyan I No.35",Pondok Jagung,Serpong Utara,Tangerang Selatan,15326,House,14-Aug-2024,,Ranuy Eutiska,,Not Converted
+Rika,HOMA,+62 812-9676-5007,Jl. Taman Malaka Selatan,Pondok Kelapa,Duren Sawit,Jakarta Timur,13460,House,15-Aug-2024,,Marciane,,Not Converted
+Melda,HOMA,+62 811-158-166,Jl. Lili 2 Blok H3 No 39,Lengkong Gudang,Serpong,Tangerang Selatan,15310,House,21-Aug-2024,,Siti Nuramalia,,Not Converted
+Ekawati Agustina,HOMA,+62 887-7140-875,Jl. Johar Golf 1 No.17,Kamal Muara,Penjaringan,Jakarta Utara,14470,House,20-Aug-2024,,Solia ,,Converted
+Jili,HOMA,+62 882-1252-8145,Jl. Sutera Flamboyan I No.22,Pondok Jagung,Serpong Utara,Tangerang Selatan,15326,House,21-Aug-2024,,Ranuy Eutiska,,Not Converted
+Indah,HOMA,+62 853-1022-2233,Jl. Sabar 1 No.23,Petukangan Selatan,Pessanggrahan,Jakarta Selatan,12270,House,28-Aug-2024,,Yeni Setiani,,Not Converted
+Peggy Pratomo,HOMA,+628161842133,Jl. Tebet Timur 1b no 3,Tebet Timur,Tebet,Jakarta Selatan,12820,House,27-Aug-2024,,Neneng Ruslia,,Converted
+Ibu Lintang,HOMA,+62 878-7807-2197,Jl. Ubud I Blok F1 No.6,Pisangan,Ciputat Timur,Tangerang Selatan,15419,House,27-Aug-2024,31-Aug-2024,Cahya Rani Purnamasari ,,Converted
+Caroline,HOMA,+62 821-8723-2383,"Jl. Katamaran Indah 6 No.1A",Kapuk Muara,Penjaringan,Jakarta Utara,14460,House,29-Aug-2024,,Solia ,,Not Converted
+Tina,HOMA,+62 811-9399-989,"Cluster Victoria, Jl. Sutera Victoria III No.10",Panunggangan,Pinang,Tangerang,15143,House,27-Aug-2024,,Ema,,Not Converted
+Kartika,HOMA,+62 813-1683-6361,"Apartemen Skyhouse BSD, Claymore Tower, Unit C2 - 2C",Sampora,Cisauk,Tangerang Selatan,15345,Apartment,28-Aug-2024,,Ranuy Eutiska,,Converted
+Riri,HOMA,+62 819-1004-4503,"Arandra Residence P1218, Lobby Prosperity",Cempaka Putih Timur,Cempaka Putih,Jakarta Pusat,10510,Apartment,2-Sep-2024,,Marciane,,Not Converted
+Jesslyn,HOMA,+62 815-8999-608,"Apartemen Pacific Garden Tower B, TB3 Unit 33, Alam Sutea",Panunggangan Timur,Pinang,Tangerang,15143,Apartment,3-Sep-2024,,Ema,,Not Converted
+Inda Genoveva,HOMA,+62 823-1075-3667,Cluster Lightscape Blok L2/18,Babakan,Setu,Tangerang Selatan,15315,House,4-Sep-2024,,Siti Nuramalia,,Not Converted
+Dewi,HOMA,+62 817-789-535,Jl. Bangka VIII C No.2,Pela Mampang,Mampang Prapatan,Jakarta Selatan,12720,House,7-Sep-2024,,Neneng Ruslia,,Converted
+Inas Nasution,HOMA,+62 812-1431-534,"Cluster Sierra Azalea No.17, Pondok Cabe Ilir V",Pondok Cabe Ilir,Pamulan,Tangerang Selatan,15418,House,9-Sep-2024,,Endah Fajariyah,,Converted
+Adela,HOMA,+62 819-1848-9088,Stellar Passion of Living No. B1,Serua,Ciputat,Tangerang Selatan,15417,House,9-Sep-2024,,Anita Piih,,Converted
+Dita Roy,HOMA,+62 815-8600-6648,"The Pakubuwono View, Tower Lacewood 8 A",Kebayoran Lama Utara,Kebayoran Lama,Jakarta Selatan,12240,Apartment,28-Nov-2024,,Siti Asih,,Cancelled
+Cindy,HOMA,+62 811-1018-232,Jl Penerangan II No. B11,Petukangan Selatan,Pesanggrahan ,Jakarta Selatan,12320,House,16-Sep-2024,,Yeni Setiani,,Converted
+Nita,HOMA,+62 818-0707-4101,Jl. Masjid Al-Akbar No.7,Munjul,Cipayung,Jakarta Timur,13850,House,16-Sep-2024,,Rasmini,,Not Converted
+Novi,HOMA,+62 855-1110-090,Jl. Kembang Indah J2A/12,Kembangan Selatan,Kembangan,Jakarta Barat,11610,House,17-Sep-2024,,Siti Sakdiah,,Converted
+Tassa Alexandra,HOMA,+62 822-8500-0222,"Grand Trevista Rempoa D7",Rempoa,Ciputat Timur,Tangerang Selatan,15419,House,18-Sep-2024,,Siti Nuramalia,,Not Converted
+Mega,HOMA,+62 812-9019-331,"Lloyd Apartment, P017",Pakualam,Serpong Utara,Tangerang Selatan,15143,Apartment,19-Sep-2024,,Ranuy Eutiska,,Converted
+Feranika / Pak Indra,HOMA,+62 812-1083-3817,Green Diamond 1 No.8,Kedaung Kali Angke,Cengkarerrng,Jakarta Barrat,11710,House,19-Sep-2024,,Siti Sakdiah,,Not Converted
+Emma Maulani,HOMA,+62 812-8661-1782,Nusa Loka BSD Sektor XIV/5,Rw. Mekar Jaya,Serpong,Tangerang Selatan,15310,House,22-Sep-2024,,Siti Nuramalia,,Converted
+Ada Mata Indonesia,HOMA,+62 877-8712-9714,Jl. Tekno III No. 12,Setu,Setu,Tangerang Selatan,15314,Office Space,20-Sep-2024,,Siti Nuramalia,,Converted
+Meirinah,HOMA,+62 812-8237-115,Jl. Ratu Mawar Blok VF No.12D,Duri Kepa,Kebon Jeruk,Jakarta Barat,11510,House,2-Oct-2024,,Siti Sakdiah,,Not Converted
+Agustini,HOMA,+62 813-1000-4675,"Jl. Harapan II No.26, RT.5/RW.10",Cipinang Melayu,Makassar,Jakarta Timur,13620,House,5-Oct-2024,11-Dec-2024,Marciane,,Converted
+"Petrajaya Wiratama",HOMA,+62 812-1095-922,"Apartemen Atap Merah (Redtop) Unit 1102",Kebon Kelapa,Gambir,Jakarta Pusat,10120,Apartment,9-Oct-2024,16-Oct-2024,Yuliani,Dianis Putri Anaska,Converted
+Joel,HOMA,+62 816-960-535,"Mansion Jasmine Tower Capilano JC25J",Pademangan Timurr,Pademangan,Jakarta Utara,14410,Apartment,11-Oct-2024,,Marciane,,Converted
+Vita,HOMA,+62 813-1100-0566,Jl. Batu Tulis III No.64B,Batu Ampar,Kramat Jati,Jakarta Timur,13520,House,13-Oct-2024,,Rasmini,,Converted
+Nesa Kusuma,HOMA,+62 812-7104-531,Jl. Hang Tuah Raya No.14,Gunung,Kebayoran Lama,Jakarta Selatan,12120,House,15-Oct-2024,17-Oct-2024,Siti Asih,Mutiah,Converted
+Astri,HOMA,+62 813-1027-3873,"Jl. Ambulombo III No.2, RT.5/RW.006",Karang Tengah,Karang Tengah,Tangerang,15157,House,17-Oct-2024,,Sunarti,,Converted
+Rosalina,HOMA,+62 815-9992-821,Jl. Kedoya Alamanda VI Blok E6 No.32,Kedoya Selatan,Kebon Jeruk,Jakarta Barat,11520,House,17-Oct-2024,7-Apr-2025,Windi Indriyanti,Juhaenah ,Converted
+Erna,HOMA,+62 811-8067-778,Jl. Florence 7 No.10,Kapuk Muara,Penjaringan,Jakarta Utara,14460,House,17-Oct-2024,,Siti Sakdiah,,Converted
+Victoria Katrina,HOMA,+62 811-1220-2713,"Villa Pejaten Mas, Blok 11",Pejaten Mas,Pasar Minggu,Jakarta Selatan,12520,House,17-Oct-2024,19-Jul-2025,Sifa Ayu Ramadani,Siti Fatimah,Not Converted
+Stacia,HOMA,+62 811-179-916,Jl. Kembang Indah II Blok G. 3 No.57,Kembangan Selatan,Kembangan,Jakarta Barat,11610,House,18-Oct-2024,,Dwi Lestari,,Not Converted
+Bayu Tri Atmojo,HOMA,+62 813-8363-5426,Apartement Sudirman Park Tower A Unit 18 BE,Karet Tengsin,Tanah Abang,Jakarta Pusat,10220,Apartment,22-Oct-2024,,Siti Asih,,Converted
+A. Prasetyo Pamungkas,HOMA,+62 817-6768-176,Jl. Kecipir Raya No.6,Cibodas Sari,Cibodas,Tangerang,15138,House,28-Oct-2024,,Ranuy Eutiska,,Converted
+Mauretta,HOMA,+62 822-9999-1497,"Gading Mediterania Residences, Tower A - Unit CA/11A/M",Kelapa Gading Barat,Kelapa Gading,Jakarta Utara,14240,Apartment,28-Oct-2024,10-Nov-2024,Senny Husnul Chotimah,,Not Converted
+Titan,HOMA,+62 811-1301-5290,"Fortunia Residence (Tahap 2), Blok A6 No 8",Pondok Cabe,Pamulang,Tangerang Selatan,15418,House,2-Nov-2024,,Cahya Rani Purnamasari ,,Not Converted
+Elsa Pardede,HOMA,+62 822-3042-0983,"Perumahan Jatibening Estate, Jl. Kenari IV Blok D3 No. 8",Jatibening,Pondok Gede,Bekasi,17412,House,4-Nov-2024,,Nurhasanah,,Not Converted
+Lusi,HOMA,+62 811-8982-126,Cluster Lotus Serpong  Blok E7 No.15b,Kranggan,Setu,Tangerang Selatan,15312,House,10-Nov-2024,,Siti Nuramalia,,Converted
+Bintan,HOMA,+62 821-7357-7500,Jl. Soka Lestari II Blok F No.26,Lebak Bulus,Cilandak,Jakarta Selatan,12440,House,10-Nov-2024,,Citra Rini Pamularsih,,Not Converted
+Elly,HOMA,+62 821-5612-6648,Jl. Bawean  Blok C No.96,Jatibening,Pondok Gede,Bekasi,17412,House,9-Nov-2024,,Nurhasanah,,Converted
+May Kwan,HOMA,+62 813-8112-3292,"Cluster Piano - Jl. Piano VII No. 30, Jl. Pantai Indah Kapuk No.7",Kamal Muara,Penjaringan,Jakarta Utara,14460,House,11-Nov-2024,,Siti Sakdiah,,Converted
+Anya,HOMA,+62 821-1139-9181,"Beverly Tower Apartment, Unit 1094",Cilandak Barat,Cilandak,Jakarta Selatan,12430,Apartment,11-Nov-2024,,Citra Rini Pamularsih,,Converted
+Susanna,HOMA,+62 818-916-150,Jl. Kemanggisan Utama II No.20,Kemanggisan,Palmerah,Jakarta Barat,11480,House,12-Nov-2024,,Windi Indriyanti,,Converted
+Gary Suseno,HOMA,+62 811-9234-231,The Icon - Cluster Eternity 5 Blok L5/5,Sampora,Cisauk,Tangerang,15345,Office Space,13-Nov-2024,,Ranuy Eutiska,,Converted
+Wanty,HOMA,+62 811-860-010,"Pesona Costa Verde N7/11, Jl. Raya Kota Wisata No.2",Ciangsana,Gunung Putri,Bogor,16968,House,16-Nov-2024,,Masuffah Khaironi,,Converted
+Linfie,HOMA,+62 812-1061-6153,Jl. Rajawali X Blok HD2 No.5,Pondok Pucung,Pondok Aren,Tangerang Selatan,15229,House,18-Nov-2024,22-Nov-2024,Sunarti,Citra Rini Pamularsih,Converted
+Stella,HOMA,+62 819-0841-0862,Jl. Danau Agung 5 Blok E1 No.19,Sunter Agung,Tanjung Priok,Jakarta Utara,14350,House,19-Nov-2024,,Senny Husnul Chotimah,,Not Converted
+Monica,HOMA,+62 811-1692-889,Jl. Perumahan Citra 2 No.15 Blok C1,Pegadungan,Kalideres,Jakarta Barat,11830,House,26-Nov-2024,,Windi Indriyanti,,Converted
+Freda,HOMA,+62 813-1339-4769,"The Patio Residence, Blok A02",Serua,Ciputat,Tangerang Selatan,15414,House,3-Dec-2024,,Citra Rini Pamularsih,,Not Converted
+Ita,HOMA,+62 811-2171-478,Jl. Cemerlang No. 22A,Jatibening Baru,Pondok Gede,Bekasi,17412,House,6-Dec-2024,,Nurhasanah,,Converted
+Frans,HOMA,+62 852-8458-2899,"Green Town Cibubur, Rumah No.6 / 80F",Cibubur,Ciracas,Jakarta Timur,13720,House,7-Dec-2024,,Rasmini,,Not Converted
+Shinta,HOMA,+62 852-2227-0787,"DE ROYALDI VILLAGE No. A7",Muncul,Setu,Tangerang Selatan,15314,House,11-Dec-2024,,Ranuy Eutiska,,Converted
+Altrix Property,Altrix,+62 812-9404-5927,Jl. Kartika Alam III No. 49,Pondok Pinang,Kebayoran Lama,Jakarta Selatan,12310,Office Space,19-Dec-2024,,Ria Junaeni ,,Converted
+Stephanie,HOMA,+62 813-4499-7746,Jl. H. Brit Blok 64 No 8,Meruya Utara,Kembangan,Jakarta Barat,11620,House,20-Dec-2024,,Dwi Lestari,,Converted
+Bapak H. Suhaily,HOMA,+62 817-0711-675,"Jl. DDN II ,Blok C7",Pondok Labu,CIlandak,Jakarta Selatan,12450,House,24-Dec-2024,,Sifa Ayu Ramadani,,Converted
+Muhamad Prasetyo,HOMA,+62 811 1284 123,"Residence 8, No.4, Jl. Pelda Tarmizi No.7",Jakamulya,Bekasi Selatan,Bekasi,17146,House,26-Dec-2024,,Nurhasanah,,Converted
+Anton Suwandi,HOMA,+62 811-1927-038,Jl. Raya Mediterania Blok BA No.8,Kelapa Gading Barat,Kelapa Gading,Jakarta Utara,14240,House,28-Dec-2024,,Marciane,,Converted
+Suryani Lim,HOMA,+62 817-9888-688,Jl. San Lorenzo II No.11,Curug Sangereng,Kelapa Dua,Tangerang,15810,House,10-Jan-2025,,Ana Susana Astrilina,,Not Converted
+Zaza,HOMA,+62 881-6111-106,"Apartment Batavia Tower 1, Unit 31-04",Karet Tengsin,Tanah Abang,Jakarta Pusat,10220,Apartment,11-Jan-2025,,Siti Asih,,Not Converted
+Adelia Latief,HOMA,+62 857-7616-1158,Jl. Raya Venesia Blok EB No. 31,Kelapa Gading Barat,Kelapa Gading,Jakarta Utara,14240,House,13-Jan-2025,,Marciane,,Converted
+Ibu Paulus,HOMA,+62 855-8888-056,Jl. Taman Gandaria Blok E No.5,Kebayoran Lama Utara,Kebayoran Lama,Jakarta Selatan,12240,House,14-Jan-2025,,Darminingsih,,Converted
+Agnes,HOMA,+62 811-928-285,"Apartemen Grand Palace, C06-CA",Kb. Kosong,Kemayoran,Jakarta Pusat,10630,Apartment,18-Jan-2025,,Marciane,,Cancelled
+Conny,HOMA,+62 8562840400,"Apartment Kuningan Place (Unit UG A6) Jalan Kuningan Mulia No. 15, RT.7/RW.1, Menteng Atas, Setia Budi ), JAKARTA SELATAN - SETIA BUDI, DKI JAKARTA,  12980",Menteng Atas,Setiabudi,Jakarta Selatan,12980,Apartment,18-Jan-2025,,Sifa Ayu Ramadani,,Not Converted
+Monica Abigail,HOMA,+62 817-6528-962,"BSD Foresta, Cluster Fresco Aria Blok H5 No.19",Lengkong Kulon,Pagedangan,Tangerang Selatan,15331,House,20-Jan-2025,,Muridah,,Converted
+Devi,HOMA,+62 813-9998-9972,"Perumahan Prima Lingkar Asri, Jl. Kesehatan Raya No 26b",Jatibening,Pondok Gede,Bekasi ,17411,House,23-Jan-2025,,Nurhasanah,,Not Converted
+Omar,HOMA,+62 857-1555-2915,Bellagio Residence Tower B (10BF20),Kuningan,Kuningan Timur,Jakarta Selatan,15810,Apartment,23-Jan-2025,,Sifa Ayu Ramadani,,Not Converted
+Yulia,HOMA,+62 816-1392-265,Taman Royal 1 Jl. Mahoni 1 No. 76C,Tanah Tinggi,Tangerang,Tangerang,15119,House,23-Jan-2025,,Ana Susana Astrilina,,Converted
+Rio,HOMA,+62 812-1954-9125,Rukan Permata Senayan Blok D10,Grogol Utara,Kebayoran Lama,Jakarta Selatan,12210,Office Space,23-Jan-2025,,Yeni Setiani,,Converted
+Elisa Suteja,HOMA,+62 878-8808-7333,Bellezza Permata Hijau Tower Versailles Unit 9VS6,Grogol Utara,Kebayoran Lama,Jakarta Selatan,12210,Apartment,24-Jan-2025,,Yeni Setiani,,Converted
+Indry,HOMA,+62 877-8887-3911,Jl. Palem III No 1040,Duri Kepa,Kebon Jeruk,Jakarta Barat,11510,House,25-Jan-2025,,Windi Indriyanti,,Converted
+Vanda Sakina,HOMA,+62 818-998-844,"Komplek Inhutani I Blok G3, Jl.Ir H. Juanda",Cipayung,Ciputat,Tangerang Selatan,15411,House,25-Jan-2025,,Muridah,,Not Converted
+Ivana ,HOMA,+62 812-9495-496,Kelapa Molek V Blok Z2 No 14 ,Kelapa Gading Timur,Kelapa Gading,Jakarta Utara,14240,House,25-Jan-2025,,Marciane,,Converted
+Ria,HOMA,+62 81905013292,"Perumahan Sunrise Garden, Jl. Taman Surya blok P no.1. Jakarta barat",,Kedoya Utara,Jakarta Barat,11520,House,25-Jan-2025,,Naini Rochmawati,,Converted
+Jessica,HOMA,+62 857-2598-3788,Banjar Wijaya Cluster Lantana A6/10B. Cipondoh. Tangerang. Banten ,Poris Plawad ,Cipondoh,Tangerang,15141,House,26-Jan-2025,,Ana Susana Astrilina,,Converted
+Ferdinand,HOMA,+62 888-1045-274,"Banara Serpong, Cluster Ambara Blok A1 No 5",Setu,Setu,Tangerang Selatan,15314,House,26-Jan-2025,,Siti Nuramalia,,Converted
+Tiar Anindya,HOMA,+6281230090450,Jl. Cendrawasih I No.21,Kebayoran Lama Selatan,Kebayoran Lama,Jakarta Selatan,12240,House,26-Jan-2025,,Citra Rini Pamularsih,,Converted
+Fenny,HOMA,+62 822-1199-5229,Jl. Flamingo Barat VI No.27,Cihuni,Pagedengan,Tangerang,15332,House,27-Jun-2025,,Ayudia Krisnaningrum,,Cancelled
+Debby,HOMA,+62 812-1894-0672,Jl. Alam Elok VII UB9,Pd Pinang,Kebayoran Lama,Jakarta Selatan,12310,House,28-Jan-2025,,Citra Rini Pamularsih,,Not Converted
+Dina,HOMA,+62 812-6322-323,Jl. Veteran No.8,Duren Tiga,Pancoran,Jakarta Selatan,12760,House,4-Feb-2025,,Sifa Ayu Ramadani,,Converted
+Ivana ,HOMA,+62818941108,"Park Royale Executive Suites, Tower 2 Unit 562",Bendungan Hilir,Tanah Abang,Jakarta Pusat,10210,Apartment,5-Feb-2025,,Siti Asih,,Converted
+Rizal Budiadi,HOMA,+62 819-0500-0314,Jl. Tiner VI No.4,Kayu Putih,Pulo Gadung,Jakarta Timur,13210,House,5-Feb-2025,,Maria Corason Cory Aquino,,Converted
+Jefton,HOMA,+62 878-4086-6683,Taman Anggrek Residences Tower ESPIRITU STE 38E,Tanjung Duren Selatan,Grogol Petamburan,Jakarta Barat,11470,Apartment,8-Feb-2025,,Naini Rochmawati,,Converted
+Inka,HOMA,+6281930369806,"Apartemen Gading Nias, Tower Alamanda Unit 5DF",Pegangsaan Dua,Kelapa Gading,Jakarta Utara,14250,Apartment,8-Feb-2025,,Maria Corason Cory Aquino,,Converted
+Erni,HOMA,+62 818-991-280,"Cirendeu Park 2, No. D2",Cirendeu,Ciputat Timur,Tangerang Selatan,15419,House,11-Feb-2025,,Citra Rini Pamularsih,,Converted
+Eline,HOMA,+62 811-1688-997,Perumahan Puri Dewata Indah Blok AH No 61,Poris Plawad ,Cipondoh,Tangerang,15141,House,14-Feb-2025,,Dede Rihana,,Converted
+Tiffany,HOMA, +62 812-6166-5308,"Apartemen Kalibata City, Tower Eboni 20 BA, Jl. Raya Kalibata no. 1, ",Rawajati,Pancoran,Jakarta Selatan,12750,Apartment,15-Feb-2025,,Sifa Ayu Ramadani,,Not Converted
+Ria Ginting,HOMA,+62 821-1286-8650,"Taman Buaran Indah 2, Blok B No. 13",Klender,Duren Sawit,Jakarta Timur,13470,House,17-Feb-2025,,Ristifa Ade Mukti,,Converted
+Astrid,HOMA,+62 816-300-022,Jl. Naga Raya No.17,Duren Sawit,Duren Sawit,Jakarta Timur,13440,House,18-Feb-2025,,Maria Corason Cory Aquino,,Converted
+Sylviana,HOMA, +62 818-0702-0287,"Cluster Kanade at The Zora, Blok E2 No. 9, BSD City, Lengkong Kulon, Kec. Pagedangan, Kab. Tangerang, Banten, 15331",Lengkong Kulon,Pagedangan,Tangerang Selatan,15331,House,19-Feb-2025,,Ayudia Krisnaningrum,Ratna Angelina Santoso,Converted
+Narissa,HOMa,+62 811-188-243,Jl. Kayu Putih Selatan IB No. 31,Pulo Gadung,Pulo Gadung,Jakarta Timur,13210,House,23-Feb-2025,,Ristifa Ade Mukti,,Not Converted
+Yael,HOMA,+628 13-1462-2308,Cluster Faraday Utara 5 no. 51,Medang,Pagedangan,Tangerang Selatan,15331,House,24-Feb-2025,,Ayudia Krisnaningrum,,Not Converted
+Christine Arryani,HOMA,+62 831-1234-9911,"Cluster Magenta, South Magenta 1 No. 22 PIK 2",Salembaran Jati,Kosambi,Tangerang,15214,House,24-Feb-2025,,Nur Indah Sari,,Not Converted
+Irene Alvionita,HOMA,+62 821-2362-8684,Cluster Manhattan Blok 3 No. 26 PIK2,Kosambi Barat,Kosambi,Tangerang,15213,House,25-Feb-2025,,Nur Indah Sari,,Converted
+Erlita,HOMA, +62 821-3525-6522,M Town Residence Tower Avery  Jl. Gading Serpong Boulevard Blok M5 No.3,Pakulonan Barat,Kelapa Dua,Tangerang Selatan,15810,Apartment,27-Feb-2025,,Ranuy Eutiska,,Converted
+Regina,HOMA,+62 877-7482-4246,Premier Terrace Ciracas Blok I No 26,Ciracas,Ciracas,Jakarta Timur,13740,House,28-Feb-2025,,Ristifa Ade Mukti,,Converted
+Dewi,HOMA,+62 811-9894-676,Cluster Venice Blok L2 No.1,Paku Jaya,Serpong Utara,Tangerang Selatan,15220,House,1-Mar-2025,12-Mar-2025,Muridah,Ninuk Hendrini,Converted
+Juli H ,HOMA,+62 812-8960-0807,Jl. Madrasah III No. 16,Cipinang Cempedak,Jatinegara,Jakarta Timur,13340,House,1-Mar-2025,,Ristifa Ade Mukti,,Not Converted
+Ayu Rahmantini,HOMA,+62 856-9315-5488,Jl. Permata Timur V Blok M No.3,Jaticempaka,Pondok Gede,Bekasi,13620,House,3-Mar-2025,,Ristifa Ade Mukti,,Converted
+"Eci
+Bianca",HOMA,"+62 81381222053
++62 818-699-619",Jl. B.D.N. I No.39,Cilandak Barat,Cilandak,Jakarta Selatan,12430,House,4-Mar-2025,,Sifa Ayu Ramadani,,Converted
+Julia,HOMA,+62 821-2341-7977,The Icon - Cluster Eternity Blok K5 No 33,Sampora,Tangerang,Tangerang Selatan,15345,House,4-Mar-2025,,Muridah,,Cancelled
+Vero,HOMA,+62 812-3288-6569,Cluster Kazumi at The Zora Blok B5 No.8,Lengkong Kulon,Pagedangan,Tangerang,15331,House,7-Mar-2025,,Al Jamilah,,Not Converted
+Malinda Yusti,HOMA,+62 812-8799-9709,"Jl. Pisangan Baru Utara No 27 RT007/RW012
+(Masuk Gang Gapura sebelah Mushola Nurulakbar, Rumah pagar Hitam abu2 yang ada tirai putih)",Pisangan Baru,Matraman,Jakarta Timur,13110,House,8-Mar-2025,16-Mar-2025,Ristifa Ade Mukti,Maria Corason Cory Aquino,Converted
+Bapak Gunawan,HOMA,+62 812-1081-699,Jl. Pinang No.1031,Serua,Ciputat,Tangerang Selatan,15414,House,14-Mar-2025,,Ninuk Hendrini,,Converted
+Lisan,HOMA, +62 878-8248-4407,"Jl. Dokter Nurdin Gang III No. 34A, RT.5/RW.7",Grogol,Grogol Petamburan,Jakarta Barat,11450,House,16-Mar-2025,,Rosita,Naini Rochmawati,Not Converted
+Luciana,HOMA,+62 813-7764-7619,Apartemen Taman Rasuna Tower 7 Unit 21H,Menteng Atas,Setiabudi,Jakarta Selatan,12960,Apartment,18-Mar-2025,,Sifa Ayu Ramadani,,Not Converted
+Mega,HOMA,+62 812-1090-558,"APM Enggano Tower, Lt. 8/6, unit 11:8",Pluit,Penjaringan,Jakarta Utara,14450,Apartment,19-Mar-2025,,Juhaenah ,,Converted
+Winda Juwita,HOMA,+62 812-9725-0548,Jl. Sejahtera 2 No.26 (Pagar Hijau),Jatiwaringin,Pondok Gede,Jakarta Timur,17411,House,19-Mar-2025,,Ristifa Ade Mukti,,Cancelled
+Bonny,HOMA,+6281291629511,"Royal Spring Residence Blok T15, Jl Raya Ragunan, Ps Minggu Jaksel",Jati Padang,Pasar Minggu,Jakarta Selatan,12540,House,19-Mar-2025,,Neneng Ruslia,,Not Converted
+John,HOMA,+1 (246) 264-4663,SENAYAN 1 HH6 N18 BINTARO SEKTOR 9,Pondok Pucung,Pondok Aren,Tangerang Selatan,15229,House,21-Mar-2025,,Muridah,,Not Converted
+Anne,HOMA,+62 858-9270-4448,Apartemen Mediterania 1 - Tower Azalea,Tanjung Duren Selatan,Grogol Petamburan,Jakarta Barat,11470,Apartment,21-Mar-2025,,Naini Rochmawati,,Cancelled
+Marganda,HOMA,+62 817-114-213,Jl. Pinang No. 65,Pondok Labu,Cilandak,Jakarta Selatan,12450,House,,,Sifa Ayu Ramadani,,Cancelled
+Arief Kurniawan,HOMA,+62 815-2288-0000,"Jl. Pulo Sirih Timur 5 blok CB No. 113, Taman Galaxy, Pekayon Jaya, Kota Bekasi. ",Pekayon Jaya,Bekasi Selatan,Bekasi,17148,House,,,Iin Nur Indah Sari,,Cancelled
+Ibu Thio Vito,HOMA,+62 813-2455-4840,Jl. Dahlia VII Blok D4 No.4,Ciater,Serpong,Tangerang Selatan,15310,House,21-Mar-2025,,Ninuk Hendrini,,Not Converted
+Maharani,HOMA,+62 812-8004-9088,Jl. Olah Raga I No.10,Kemanggisan,Palmerah,Jakarta Barat,11480,House,23-Mar-2025,,Naini Rochmawati,,Converted
+Dessy,HOMA,+62 812-9460-028,"Jl. Cempaka Wangi 2 No.8 RT. 6 RW. 9, Kemayoran, jakpus (depan kluster sakura)",Harapan Mulya,Kemayoran,Jakarta Pusat,10640,House,23-Mar-2025,,Noviyanti,,Not Converted
+Dyah,HOMA,+62 819-3040-4090,"Apartemen Salemba Residence, Unit A 1609,  Jl. Salemba Tengah II No.10",Paseban,Senen,Jakarta Pusat,10440,Apartment,24-Mar-2025,,Anita Carolina,Noviyanti,Not Converted
+Melissa ,HOMA,+62 878-0888-1772,Jl. Pluit Mas IV blok C No 8B,Pejagalan,Penjaringan,Jakarta Utara,14450,House,2-Apr-2025,,Noviyanti,,Converted
+Sondang,HOMA,+62 812-9922-928,Jl. Kayu Putih Selatan VID No. 6,Pulogadung,Pulogadung,Jakarta Timur,13260,House,2-Apr-2025,,Anita Carolina,,Converted
+Suci,HOMA,+62 812-9933-946,Jl. Beruang Raya No. 8 Bintaro 3A,Pondok Pucung,Pondok Aren,Tangerang Selatan,15411,House,3-Apr-2025,,Ninuk Hendrini,,Not Converted
+Ibu Deetje,HOMA,+62 82-1170-38870,Jl Tebet Barat Dalam 1 No 25,Tebet Barat,Tebet,Jakarta Selatan,12810,House,3-Apr-2025,,Anita Carolina,,Cancelled
+Denna,HOMA,+62 812-2366-7468,Jl. Kirai No.28,Pangkalan Jati Baru,Cinere,Depok,16513,House,5-Apr-2025,,Citra Rini Pamularsih,,Converted
+Jessica,HOMA,+62 877-6830-8362,Griya Semanan Indah Blok J5/31,Semanan,Kalideres,Jakarta Barat,11850,House,6-Apr-2025,,Nur Indah Sari,,Converted
+Maritzka Tedja,HOMA,+62 812-8854-6152,Taman Anggrek Residence - Tower Fragrant Unit F2W,Tanjung Duren Selatan,Grogol Petamburan,Jakarta Barat,11470,Apartment,7-Apr-2025,,Naini Rochmawati,,Not Converted
+Desy K,HOMA,+62 811-8502-204,Jl. Komp. Kejaksaan Agung Blok H No.17 8,Pasar Minggu,Pasar Minggu,Jakarta Selatan,12520,House,7-Apr-2025,,Sifa Ayu Ramadani,,Converted
+Fanny,HOMA,+628999095359,Jl. Sadar III No 3,Petojo Utara,Gambir,Jakarta Pusat,10130,House,8-Apr-2025,,Juhaenah ,,Converted
+Sisca,HOMA,+628195555506,"Kebayoran Symphony, Jl. Kertanegara utama No.L09",Pondok Aren,Pondok Aren,Tangerang Selatan,15224,House,8-Apr-2025,,Muridah,,Converted
+Widya,HOMA,+62 856-4131-6136,Jl. Grand Trevista Rempoa Blok H2,Rempoa,Ciputat Timur,Tangerang Selatan,15412,House,9-Apr-2025,,Ninuk Hendrini,,Not Converted
+Liani,HOMA,+62 858-4631-3546,Jl. Kopi Selatan II Blok AA-5 No. 2,Pondok Kopi,Duren Sawit,Jakarta Timur,13460,House,9-Apr-2025,,Ristifa Ade Mukti,,Not Converted
+Talitha Hakim,HOMA,+62 821-1020-0293,"Palm Terrace, Kavling C6",Cipedak,Jagakarsa,Jakarta Selatan,12630,House,9-Apr-2025,15-Apr-2025,Citra Rini Pamularsih,Sifa Ayu Ramadani,Converted
+Felicia Raina,HOMA,+62 877-8000-0191,Jl. Kelapa Sawit IV Blok GG No 12A,Kelapa Gading Timur,Kelapa Gading,Jakarta Utara,14240,House,10-Apr-2025,,Noviyanti,,Not Converted
+Joey,HOMA,+62812 9298 788,"Rumah Cokro, Jl. Hos Cokroaminoto No 42A",Gondangdia,Menteng ,Jakarta Pusat,10350,Office Space,10-Apr-2025,,Naini Rochmawati,,Converted
+Riris Eristya,HOMA,+6281213719490,Martadinata Residence Blok A10 No.15,Pondok Cabe Udik,Pamulang,Tangerang Selatan,15418,House,11-Apr-2025,,Citra Rini Pamularsih,,Converted
+Putri Amelia Shabrina,HOMA,+6287883388316,Perumahan Bojong Menteng Residence Blok K11 ,Bojong Menteng,Rawa Lumbu,Bekasi,17117,House,12-Apr-2025,,Siti Muhanah,,Not Converted
+Yasmin,HOMA,+6282261182123,Jl. Mawar No.11 H,Cijantung,Pasar Rebo,Jakarta Timur,13770,House,12-Apr-2025,,Iis Susila Bakti,,Converted
+Daniel,HOMA,+62 858-8820-2266,"Cluster Serenade Lake, Jl. Papirus I Blok B3-20",West Pakulonan,Kelapa Dua,Tangerang,15810,House,12-Apr-2025,,Sri Juniyanti ,,Not Converted
+Felicia Raina,HOMA,+62 877-8000-0191,Jl. Gading Putih Utara Raya CB 2/8,Kelapa Gading,Kelapa Gading,Jakarta Utara,14240,Office Space,14-Apr-2025,23-Apr-2025,Murti Kurnia Sari,Heni Trisnawati ,Converted
+Nila Zahari,HOMA,+62 818-0818-7596,"Jl. Kenari 1 Blok L6 No.13, Sektor 2 Bintaro Jaya",Rengas,Ciputat Timur,Tangerang Selatan,15412,House,14-Apr-2025,,Ninuk Hendrini,,Not Converted
+Monica,HOMA,+62 811-1692-889,"Ruko Puri Gardena Blok B, No.12",Pegadungan,Kalideres,Jakarta Barat,11830,Office Space,14-Apr-2025,,Nur Indah Sari,,Converted
+Ana,HOMA,+6287887695758,Jl. Mujair 4 No 127,Depok Jaya,Pancoran Mas,Depok,16432,House,15-Apr-2025,,Iis Susila Bakti,,Not Converted
+Nurul,HOMA,+6281283158065,Jl. Gugus Depan I No. 217,Pengasinan,Rawa Lumbu,Bekasi,17115,House,15-Apr-2025,,Siti Muhanah,,Converted
+Asri Larasati,HOMA,+628111961119,Villa Mutiara Setu Blok D No 15,Cijengkol,Bekasi,Bekasi,17320,House,17-Apr-2025,,Windi Indriyanti,,Converted
+Dilla,HOMA,+62 813-8176-3242,Jl. Swadaya Dalam I No. 65E (Gg. Hj. Ucu) RT 009/ RW 009,Pejaten,Pasar Minggu,Jakarta Selatan,12510,House,18-Apr-2025,,Neneng Ruslia,,Converted
+Jessica S/Agus S,HOMA,+628128999177,"Jl. Bukit Cirendeu Permai II No.1, Cirendeu, Ciputat Timur, Tangsel 15419",Cirendeu,Ciputat Timur,Tangerang Selatan,15419,House,19-Apr-2025,,Cahya Rani Purnamasari ,,Not Converted
+Indri,HOMA,+6281365494970,Perumahan Essence Park Blok A3/9,Jati Cempaka,Pondok Gede,Bekasi,17412,House,19-Apr-2025,,Ristifa Ade Mukti,,Not Converted
+Destri,HOMA,+62 815-6995-959,"Jl. B No.14, RT.12/RW.1",Kebun Jeruk,Kebun Jeruk,Jakarta Barat,11530,House,20-Apr-2025,,Dwi Lestari,,Converted
+Ummi Al Puang,HOMA,+62 813-8034-8404,Jl. Damai Blok Duku No.66 RT 10 / RW 10 ,Cibubur,Ciracas,Jakarta Timur,13720,House,21-Apr-2025,,Iis Susila Bakti,,Cancelled
+Anna Juliastuti,HOMA,+62 818-864-256,Jl. Percetakan Negara IX No. 10B,Rawasari,Cempaka Putih,Jakarta Pusat,10570,House,21-Apr-2025,,Marciane,,Converted
+Sevril,HOMA,+62 878-5917-9172,"Ndalem Jagakarsan, Unit G, Jl. Moh. Kahfi 1 No.24",Ciganjur,Jagakarsa,Jakarta Selatan,12630,House,21-Apr-2025,,Citra Rini Pamularsih,,Cancelled
+Yani,HOMA,+6281703031972,Jl. Tebet Barat IV No.19,Tebet Barat,Tebet,Jakarta Selatan,12810,House,22-Apr-2025,,Ristifa Ade Mukti,,Cancelled
+Irmalia,HOMA,+6287738036252,Grand Tabebuya Blok A12,Curug,Cimanggis,Depok,16340,House,23-Apr-2025,,Iis Susila Bakti,,Not Converted
+Yani,HOMA,+628111405672,"Komp. Bukit Pabuaran Indah blok M2 No 9-10-11, Kostrad Divif 1, RT 16/RW 05",Pabuaran Mekar,Cibinong,Bogor,16916,House,25-Apr-2025,,Iis Susila Bakti,,Not Converted
+Marella,HOMA,+62 812-1955-8495,Montong Residence No. 41H,Ciganjur,Jagakarsa,Jakarta Selatan,12630,House,27-Apr-2025,,Citra Rini Pamularsih,,Cancelled
+Meilany,HOMA,+62 813-7686-0909,"Perumahan Taman Aries, Jl. Aries Indah 6 Blok D2 No. 11",Meruya Utara,Kembangan,Jakarta Barat,11620,House,29-Apr-2025,,Sunarsih,,Converted
+Ima Andrawina,HOMA,+628551600093,Jl. Deplu I No. 6B,Bintaro,Pesanggrahan ,Jakarta Selatan,12330,House,29-Apr-2025,,Citra Rini Pamularsih,,Converted
+Ari Sandra Dewi,HOMA,+62 811-9440-451,"Puri Mansion, Jl. Atlanta 1 No.37",Kembangan Selatan,Cengkareng,Jakarta Barat,11610,House,30-Apr-2025,,Dwi Lestari,,Converted
+Dythia,HOMA,+6285956467007,Jl. Perintis 1 No 70,Kelapa Gading Timur,Kelapa Gading,Jakarta Utara,14240,House,1-May-2025,,Noviyanti,,Converted
+Jesslyn,HOMA,+6281230979993,Zora BSD Cluster Kiyomi Blok D8 No 7,Lengkong Kulon,Pagedangan,Tangerang Selatan,15331,House,5-May-2025,,Muridah,,Converted
+PT. Zaerich Hosea Lodovico,HOMA,+62 812-8596-9696,"Ruko Red Top. E2, Kota Jakarta Pusat, Daerah Khusus Ibukota Jakarta 10210",Pecenongan,Gambir,Jakarta Pusat,10120,Office Space,6-May-2025,,Naini Rochmawati,,Converted
+Jessica,HOMA, +62 811-811-566,Marina Cove V Blok E no 10,Ancol Barat,Pademangan,Jakarta Utara,14430,House,6-May-2025,,Noviyanti,,Not Converted
+Ralin,HOMA,+62 812-8531-9773,Jl. Mangga No. 3E,Gandaria Selatan,Cilandak,Jakarta Selatan,12420,House,7-May-2025,,Ria Junaeni ,,Converted
+Fanny,HOMA,+628122221881,"Holland Village Apartment, Tower One",Cempaka Putih Timur,Cempaka Putih,Jakarta Pusat,10510,Apartment,7-May-2025,,Heni Trisnawati ,,Not Converted
+Herlina Lim,HOMA, +62 812-1995-0068,Matera Residence 2 No. 6 Paramount - Gading Serpong,Cihuni,Pagedangan,Tangerang Selatan,15345,House,8-May-2025,,Muridah,,Cancelled
+Arini Sastro,HOMA,+628161828930,"Jl. Kramat No. 48 RT 001/01 Pangkalan Jati, Cinere-Depok (Kost Pelangi)",Pangkalan Jati ,Cinere,Depok,16514,House,22-May-2025,,Citra Rini Pamularsih,,Converted
+Della,HOMA,+6281218881769,"Somerset Berlian Apartment, North Tower #2206 ",Grogol Utara,Kebayoran Lama,Jakarta Selatan,12210,Apartment,9-May-2025,,Sunarsih,,Not Converted
+Emie Yuliati,HOMA,+62 811-8603-902,"Jl. Sinai IV No. 76, Vila Ilhami",Kelapa Dua,Kelapa Dua,Tangerang,15810,House,10-May-2025,,Ranuy Eutiska,,Not Converted
+Marcel Aulia,HOMA,+62 813-9998-9880,Jl. Mandalika II Blok Q No.8,Bintaro,Pesanggrahan ,Jakarta Selatan,12330,House,12-May-2025,,Darminingsih,,Converted
+Christian,HOMA,+62 813-6111-4444,"Komplek Grogol Permai Blok E No. 6, Lantai 1, Jl. Prof. DR. Latumenten No 19",Jelambar,Grogol,Jakarta Barat,11460,House,13-May-2025,,Juhaenah ,,Converted
+Jully,HOMA,+62 811-179-118,Jl. Bumiputra IV No.1C,Cipinang,Kelapa Gading,Jakarta Timur,13240,House,15-May-2025,,Heni Trisnawati ,,Not Converted
+Cici,HOMA,+7 778 184 5686,Perumahan Kaisar Residence 2 blok K-7,Jagakarsa,Cilandak,Jakarta Selatan,12620,House,15-May-2025,,Citra Rini Pamularsih,,Cancelled
+Nike,HOMA,+628161836516,Bangun Reksa Indah 2 Blok C No.1,Karang Tengah,Karang Tengah,Tangerang,15157,House,15-May-2025,,Ninuk Hendrini,,Converted
+Raissa,HOMA,+62 878-8129-1819,The Mansion Jasmine Dorada Lobby,Pademangan Timur,Kemayoran,Jakarta Utara,14410,Apartment,16-May-2025,,Heni Trisnawati ,,Not Converted
+Ririna,HOMA,+62 819-3280-1616,The Mansion Jasmine Dorada Lobby,Pademangan Timur,Kemayoran,Jakarta Utara,14410,Apartment,16-May-2025,,Heni Trisnawati ,,Converted
+Ibu Techa,HOMA,+62 815-1367-0221,Jl. Amarillo 1 No. 8,Cijantra,Pagedangan,Tangerang,15336,House,16-May-2025,,Atika Yunianti,,Converted
+MeiMei,HOMA,+62 819-672-200,"Oak Tower Apartment, Tower B",Pulogadung,Pulogadung,Jakarta Timur,13260,Apartment,17-May-2025,,Heni Trisnawati ,,Not Converted
+Lisa,HOMA,+62 812-9069-5593,Perum. Villa Bekasi Indah 2 Blok B2 No. 23,Tambun,Bekasi,Bekasi,17510,House,17-May-2025,,Windi Indriyanti,,Converted
+Tika Mustika,HOMA,+62 811-148-655,Komplek Arya Graha Blok B9,Kedaung,Pamulang,Tangerang Selatan,15415,House,17-May-2025,,Ninuk Hendrini,,Cancelled
+Savira Ramadhanty,HOMA,+62 851-6100-8142,"Jl Pulomas Utara IA No. 8A, RT 002/RW 013, Kayu Putih, Pulogadung, Jakarta Timur ",Kayu Putih,pulogadung,Jakarta Timur,13210,House,19-May-2025,,Heni Trisnawati ,,Not Converted
+Putri/Nanda,HOMA,+62 851-2118-3212,"Seminyak Residence Jakarta, Jalan Minyak Raya No. 10, Duren Tiga, Pancoran (Unit B2), KOTA JAKARTA SELATAN, PANCORAN, DKI JAKARTA, ID, 12760 ",Duren Tiga,Pancoran,Jakarta Selatan,12760,House,19-May-2025,,Neneng Ruslia,,Converted
+Clarice,HOMA,+62 811-190-037,"PIK Golf Island, Cluster Serenade 5 No.5",Penjaringan,Kapuk Muara,Jakarta Utara,14470,House,19-May-2025,,Nur Indah Sari,,Converted
+Hesti,HOMA,+62 878-2238-2788,Trevista Residence Ciputat Blok B8/9,Ciputat,Cipayung,Tangerang Selatan,15411,House,20-May-2025,,Ninuk Hendrini,,Not Converted
+Fina,HOMA,+62 821-1792-7961,"Apartment The Mansion, Tower Dorada Unit JD06G",Pademangan Timur,Kemayoran,Jakarta Utara,14410,Apartment,20-May-2025,,Heni Trisnawati ,,Converted
+Melia,HOMA,62 812-8899-115,"Ultimo J7 No 7, Foresta BSD",Lengkong Kulon,Pagedangan,Tangerang Selatan,15331,House,21-May-2025,,Atika Yunianti,,Converted
+Winda,HOMA,+62 812-8811-1140,Permata Sakti 1 Blok E 2 No.37,Curug,Tangerang,Tangerang,15810,House,22-May-2025,,Ranuy Eutiska,,Converted
+Siska,HOMA,+62 816-723-222,Favoury House B5,Setu,Kademangan,Tangerang Selatan,15314,House,22-May-2025,,Muridah,,Converted
+Bowo,HOMA,+62 857-7800-1032,"Cluster Favoury House, Jl. Balai Desa Lama No.D10",Kademangan ,Setu,Tangerang Selatan,15314,House,23-May-2025,,Muridah,,Converted
+Fifi,HOMA, '+62 821-1453-1489,Green Serpong Bintaro Blok F 32,Rawa Buntu,Serpong,Tangerang Selatan,15318,House,23-May-2025,,Ninuk Hendrini,,Not Converted
+Martha Octavia,HOMA,+62 816-857-556,Apartemen Lloyd Unit S0603,Paku Alam,Serpong Utara,Tangerang Selatan,15143,Apartment,23-May-2025,,Ika Sapitri,,Converted
+Brian,HOMA,+62 856-9487-2240,"Cluster Andalas, Blok 1F No.19, Bima Groove Residence",Tambun Selatan,Bekasi,Bekasi,17513,House,24-May-2025,,Windi Indriyanti,,Converted
+Lolita,HOMA,+62 838-9219-5118,Jl. Maxwell Utama No.2,Medang,Pagedangan,Tangerang Selatan,15334,House,24-May-2025,,Atika Yunianti,,Not Converted
+Lauren,HOMA,+62 896-5375-2381,"Komplek DKI, Jl. Danau Elok 6 Sunter Jaya II Blok B10 No.28, Sunter Jaya, Tanjung Priok (RT.12 RW.11), KOTA JAKARTA UTARA, TANJUNG PRIOK, DKI JAKARTA, ID, 14360",Sunter,Tanjong Priok,Jakarta Utara,14360,House,24-May-2025,,Heni Trisnawati ,,Not Converted
+Aisyah,HOMA,+82 10-4676-9947,Kebayoran View Blok A-02,Pondok Aren,Bintaro,Tangerang Selatan,15224,House,24-May-2025,,Ninuk Hendrini,,Converted
+Eveline Suhandi,HOMA,+65 8694-7153,Apartemen Simprug Teras Tower A Unit 701,Grogol Selatan,Kebayoran Lama,Jakarta Selatan,12220,Apartment,26-May-2025,,Sulastri,,Converted
+Ambar,HOMA,+62 878-8758-7358,Jl. Tesla Utara 1 No. 6,Medang,Pagedangan,Tangerang Selatan,15810,House,26-May-2025,,Atika Yunianti,,Converted
+Tania,HOMA,+62 878-1196-0719,"Heritage Residence 3 No.36  (puri 11)  Jl. Pesantren No.58kel, RT.001/RW.001",Pondok Pucung,Karang Tengah,Tangerang,15158,House,26-May-2025,,Sunarsih,,Not Converted
+Yana,HOMA,+62 852-8888-5351,Jl. Karyawan 3 Blok D1 No.8,Karang Timur,Karang Tengah,Tangerang,15157,House,27-May-2025,,Sunarsih,,Converted
+Sandra,HOMA,+62 817-0066-134,"Cluster Melia Garden Blok MGE 22, Graha Raya Bintaro",Paku Jaya,Serpong Utara,Tangerang Selatan,15324,House,27-May-2025,,Ninuk Hendrini,,Converted
+Deany Lie,HOMA,+62 812-8087-375,"Alam Sutera, Cluster Tiara 8 No.18",Cihuni,Pagedangan,Tangerang,15332,House,29-May-2025,,Atika Yunianti,,Not Converted
+Cintya,HOMA,+62 812-2222-2962,"Holland Village - Tower Holland One, Unit 2106",Cempaka Putih Timur,Cempaka Putih,Jakarta Pusat,10510,Apartment,29-May-2025,,Heni Trisnawati ,,Converted
+Syari,HOMA,+62 812-3846-1818,Jl. Mujair II No.24A (Depan Arywangsa),Jati Padang,Pasar Minggu,Jakarta Selatan,12520,House,29-May-2025,,Sulistiyowati,,Converted
+Aditta Septiani ,HOMA,+62 816-5432-121,"Pondok Pekayon Indah, Jl. Kenari 3, Blok A5 No.1",Pekayon Jaya,Bekasi Selatan,Bekasi,17148,House,30-May-2025,,Siti Muhanah,,Cancelled
+Sherly,HOMA,+62 812-9888-5553,"Cluster Summerwood 2 No 26, Sedayu City @ Kelapa Gading",Cakung Barat,Cakung ,Jakarta Timur,13920,House,30-May-2025,,Heni Trisnawati ,,Not Converted
+Dilla,HOMA,+62 812-2438-1993,Taman Anggrek Residences Tower Espiritu No 27D,Tanjung Duren Selatan,Petamburan,Jakarta Barat,11470,Apartment,30-May-2025,,Naini Rochmawati,,Not Converted
+Poetrie Angela Yudoyono,HOMA,+62 851-6144-0109,Jl. Dwijaya IV No.7,Kebayoran Lama Selatan,Kebayoran Lama,Jakarta Selatan,12240,House,30-May-2025,,Ria Junaeni ,,Converted
+Rafika,HOMA,+62 811-935-707,"Bukit Nusa Indah, Jl. Lawu No.835A",Serua,Ciputat,Tangerang Selatan,15414,House,31-May-2025,,Atika Yunianti,,Cancelled
+Livia,HOMA,+62 877-8297-6565,Kelapa Puan Timur IV NC 4 No.8,Kelapa Gading,Pegangsaan Dua,Jakarta Utara,14250,House,1-Jun-2025,,Heni Trisnawati ,,Converted
+Laura Mariana,HOMA,+62 852-8273-1112,"Komp. DKI blok P3 No.13, Jl. H. Naman",Pondok Kelapa,Duren Sawit,Jakarta Timur,13450,House,2-Jun-2025,,Susanti ,,Converted
+Diana Arief,HOMA,+62 818 664524 ,"Jl. Ciloto I Blok A3 No.8, Puri Cinere",Cinere,Pangkalan Jati,Depok,16513,House,2-Jun-2025,,Citra Rini Pamularsih,,Cancelled
+Elis,HOMA,+62 878-0896-7808,"Jl. Medang Indah 2, blok CVI no. B22 medang lestari",Medang,Pagedangan,Tangerang Selatan,15334,House,2-Jun-2025,,Atika Yunianti,,Not Converted
+Citra,HOMA,+62 896-3833-1337,Komp. Nuansa Asri Cipadu Blok C4/10,Jurang Mangu Timur,Pondok Aren,Tangerang Selatan,15422,House,2-Jun-2025,,Ninuk Hendrini,,Converted
+Dhini,HOMA,+62 812-6711-9522,"Jl. Kuris No. 77, RT. 002 / RW. 020",Mustika Jaya,Mustika Jaya,Bekasi,17158,House,2-Jun-2025,,Windi Indriyanti,,Converted
+Ika,HOMA,+62 812-8427-2066,Jl. Puspa Gading II blok H1 No. 11 RT.10/RW.16,Pegangsaan Dua,Kelapa Gading,Jakarta Utara,14250,House,2-Jun-2025,,Heni Trisnawati ,,Not Converted
+Vega Mirta,HOMA,+62 812-8399-9587,"Apartemen Pancoran Riverside, Lobby A Bariang",Pengadegan,Pancoran,Jakarta Selatan,12770,Apartment,3-Jun-2025,,Sifa Ayu Ramadani,,Not Converted
+Rosyi,HOMA,+62 813-1490-7844,Jl. Pondok Labu IB No.25,Pondok Labu,Cilandak,Jakarta Selatan,12450,House,4-Jun-2025,,Sifa Ayu Ramadani,,Converted
+Syasqia,HOMA,+62 851-6310-0169,Jl. Kebon Sirih Barat I No 56,Kebon Sirih,Menteng ,Jakarta Pusat,10340,House,5-Jun-2025,,Naini Rochmawati,,Not Converted
+Palupi,HOMA,+62 818-481-911,Jl. Intan Baiduri No 21 RT 008/RW 003,Sumur Batu,Kemayoran,Jakarta Pusat,10640,House,5-Jun-2025,,Heni Trisnawati ,,Converted
+Natasha Meutia,HOMA,081334057868 / 085104624493,"Jl. Bangka 2, Gang V, No.45",Pela Mampang,Mampang Prapatan,Jakarta Selatan,12720,House,5-Jun-2025,,Sifa Ayu Ramadani,,Not Converted
+Ribka,HOMA,+62 882-2802-1202,"Southgate Apartment, Tower Altuera, Unit 23 U",Tanjung Barat,Jagakarsa,Jakarta Selatan,12530,Apartment,7-Jun-2025,,Sulistiyowati,,Converted
+Cecilia,HOMA,+62 856-6423-8678,Thomson Utara 2 No 69,Medang,Pagedagangan,Tangerang Selatan,15334,House,7-Jun-2025,,Atika Yunianti,,Not Converted
+Ratih,HOMA,+62 812-8811-1644,Jl. Gunung Indah  VI B No 7,Cirendeu,Ciputat Timur,Tangerang Selatan,15419,House,7-Jun-2025,,Cahya Rani Purnamasari ,,Converted
+Renny,HOMA,+62 812-8988-9887,Jl. Pluit Mas Selatan VI Blok L No 12,Pejagalan,Penjaringan,Jakarta Utara,14450,House,9-Jun-2025,,Egidayu Permadani,,Cancelled
+Karin,HOMA,+62 813-8117-1337,Jl. Pascal Barat VI No.1,Medang,Penjaringan,Tangerang,15334,House,11-Jun-2025,,Atika Yunianti,,Not Converted
+Hamidah Syahrir,HOMA,+62 851-5955-6494,"Komplek Permata Pamulang, Jl. Bukit Permata 1 Blok G18 No.9-10",Bakti Jaya,Setu,Tangerang Selatan,15315,House,12-Jun-2025,,Ninuk Hendrini,,Converted
+Wulan,HOMA,+62 812-9062-0602,Jl. Wadassari 3 Gang Seroja 2 No 124,Pondok Betung,Pondok Aren,Tangerang Selatan,15221,Apartment,12-Jun-2025,,Atika Yunianti,,Not Converted
+Winda Kenley,HOMA,+62 812-2659-2126,Apartement Permata Hijau Tower 3 2D,Grogol Utara,Kebayoran Lama,Jakarta Selatan,12210,Apartment,12-Jun-2025,,Sunarsih,,Not Converted
+Anita Shera,HOMA,+62 858-9117-6193,Apartemen Kalibata City Tower Viola,Rawajati,Pancoran,Jakarta Selatan,12740,Apartment,13-Jun-2025,,Sifa Ayu Ramadani,,Not Converted
+Talia,HOMA,+62 813-8611-1688,"Perumahan Puri Mansion, Jl. Hawaii 1A No 5",Duri Kosambi,Cengkareng,Jakarta Barat,11610,House,13-Jun-2025,,Siti,,Cancelled
+Rita Gunawan,HOMA,+62 816-1480-397,"Perumahan Kosambi Baru, Jl. Kosambi Timur Raya Blok E9/24",Duri Kosambi,Cengkareng,Jakarta Barat,11750,House,14-Jun-2025,,Sunarsih,,Converted
+Fakhran Rifqi,HOMA,+62 877-0702-2296,Jl. Foresta Raya Cluster Albera D8 No.23,Sampora,Pagedangan,Tangerang,15339,House,14-Jun-2025,,Atika Yunianti,,Not Converted
+Ghea,HOMA,+62 822-9743-6073,"Ruma Rempoa, Jl. Sailin I No.1, Unit I, RT 001/RW 007",Bintaro,Pesanggrahan ,Jakarta Selatan,12330,House,14-Jun-2025,,Ninuk Hendrini,,Converted
+Kelly,HOMA,+62 858-8289-9999,"Taman Permata Sunter 2, Blok D No. 8",Sunter Agung,Tanjung Priok,Jakarta Utara,14350,House,16-Jun-2025,,Egidayu Permadani,,Not Converted
+Feli,HOMA,+62 813-8555-1221,Jl. Makasar Barat 527,Cinere,Cinere,Depok,16514,House,20-Jun-2025,,Citra Rini Pamularsih,,Not Converted
+Anna,HOMA,+62 811-1383-385,Apartemen Pangeran Jayakarta,Mangga Dua Selatan,Sawah Besar,Jakarta Pusat,10730,Apartment,17-Jun-2025,,Naini Rochmawati,,Not Converted
+Indra Manafe,HOMA,+62 852-3915-5316,Apartemen Pavilion Tower 2 Unit 1005,Karet Tengsin,Tanah Abang,Jakarta Pusat,10220,Apartment,17-Jun-2025,,Siti Asih,,Converted
+Lendha Marlene,HOMA,+62 812-8737-0448,"Jl. Sedap Malam No. G12, KPAD Cijantung 2",Gedong,Ps. Rebo,Jakarta Timur,13760,House,18-Jun-2025,,Sulistiyowati,,Not Converted
+Elsa Erika,HOMA,+62 812-4602-420,Apartment Sahid Sudirman Residences Lantai 18 Unit 18 W,Karet Tengsin,Tanah Abang,Jakarta Pusat,10220,Apartment,18-Jun-2025,,Naini Rochmawati,,Converted
+Ibu Nina,HOMA,+62 816-815-334,Jl. Bintaro Akasia No.HD 5A,Pesanggrahan,Pesanggrahan ,Jakarta Selatan,12320,House,19-Jun-2025,26-Jul-2025,Atika Yunianti,Yenita Elismayanti,Converted
+Kenzie,HOMA,+62 878-8452-0045,Jl. Gelong Baru Dalam No.19,Tomang,Grogol Petamburan,Jakarta Barat,11440,House,19-Jun-2025,,Sunarsih,,Converted
+Maya,HOMA,+62 856-1057-307,Jl. Cempaka Putih Barat XVIII No.18,Cempaka Putih Barat,Cempaka Putih,Jakarta Pusat,10520,House,20-Jun-2025,,Egidayu Permadani,,Converted
+Elva,HOMA,+62 818-890-035,Jl. Cempaka No.15-17,Rawa Badak,Koja,Jakarta Utara,14230,House,23-Jun-2025,,Heni Trisnawati ,,Converted
+Rini,HOMA,+62 856-9040-500,"Jl. Alam Segar No.73, RT 003/RW 005",Bambu Apus,Pamulang,Tangerang Selatan,15415,House,24-Jun-2025,,Siti Nuramalia,,Converted
+Yola,HOMA,+62 813-1705-5551,"Seeds Pilates @ Rumah Cokro, Jl. HOS Cokroaminoto No 42A",Gondangdia,Menteng ,Jakarta Pusat,10340,Office Space,24-Jun-2025,,Naini Rochmawati,,Converted
+Hendri,HOMA,+62 812-2715-130,Cluster Imajihaus Blok E1/2,Lengkong Kulon,Pagedangan,Tangerang Selatan,15331,House,26-Jun-2025,,Atika Yunianti,,Converted
+Lina,HOMA,+62 877-7551-6997,Jl. Gaga I No.2A,Gaga,Larangan,Tangerang,15154,House,26-Jun-2025,,Rohayani,,Converted
+Nia,HOMA,+62 813-1137-1127,Villa Delima Blok M/7,Lebak Bulus,Cilandak,Jakarta Selatan,12440,House,27-Jun-2025,,Mayunita,,Converted
+Shila,HOMA,+62 815-1417-2842,"Jl. Cibubur 2 No.85, RT 003/RW 002",Cibubur,Ciracas,Jakarta Timur,13720,House,27-Jun-2025,,Citra Putri Virgiani,,Converted
+Meily Yovita,HOMA,+62 898-6951-354,Jl. Bisma IV Blok B10 No.8 (Pagar Kayu),Papanggo,Tanjong Priok,Jakarta Utara,14430,House,27-Jun-2025,,Egidayu Permadani,,Not Converted
+Emma,HOMA,+62 815-9544-442,Cluster Serenade Lagoon AH 2 No.29,Lambangsari,Tambun Selatan,Bekasi,17510,House,28-Jun-2025,,Windi Indriyanti,,Cancelled
+Tamara,HOMA,+62 877-7770-0934,"Perumahan Bumi Biru Terrace, Blok D1",Ciater,Serpong,Tangerang,15310,House,28-Jun-2025,,Ninuk Hendrini,,Converted
+Tri Poernamasari,HOMA,+62 812-8904-8508,Jl. Madrasah Al Husna No.25,Lebak Bulus,Cilandak,Jakarta Selatan,12440,House,28-Jun-2025,,Mayunita,,Converted
+Hafni Damayanti,HOMA,+62 813-1928-0386,Puri Bintaro PB3-35,Sawah Baru,Ciputat,Tangerang Selatan,15413,House,30-Jun-2025,,Pipit Sri Suarsih,,Not Converted
+Marchelina,HOMA,+62 878-7252-7221,"Marigold Navapark Apartment Tower 3, Unit 9A",Cijantra,Pagedangan,Tangerang,15336,Apartment,1-Jul-2025,,Atika Yunianti,,Converted
+Sherley Indradjaja,HOMA,+62 822-0822-0560,Jl. Purwa V Blok T No.17 Kav. DKI RT. 04/RW. 06,Cipedak,Jagakarsa,Jakarta Selatan,12630,House,1-Jul-2025,,Citra Rini Pamularsih,,Converted
+Devy,HOMA,+62 822-2171-8898,Jl. Kesehatan VI Dalam No.48,Bintaro,Pesanggrahan,Jakarta Selatan,12330,House,1-Jul-2025,,Rohayani,,Not Converted
+Adilla,HOMA,+62 812-9292-8750,Villa Jatiwaringin No.B5-6,Cipinang Melayu,Makasar,Jakarta Timur,13620,House,1-Jul-2025,,Susanti,,Converted
+Wulansari Suharto,HOMA,+62 817-835-373,Jl. Faraday Utara 3 No.15,Medang,Pagedangan,Tangerang,15334,House,2-Jul-2025,,Atika Yunianti,,Not Converted
+Adisya,HOMA,+62 812-8119-8995,"The Mozia Cluster Amarine, Jl. Amarine Blk. A18 No.9",,Pagedangan,Tangerang,15339,House,3-Jul-2025,,Atika Yunianti,,Cancelled
+Lily Mariana,HOMA,+62 816-1101-454,Jl. G No.1,Slipi,Palmerah,Jakarta Barat,11410,House,4-Jul-2025,,Yenita Elismayanti,,Cancelled
+Lina,HOMA,+6 2899-5185-685,Mediterania Palace Residence Tower C,Kb. Kosong,Kemayoran,Jakarta Pusat,10630,Apartment,5-Jul-2025,,Egidayu Permadani,,Converted
+Karin Mahya,HOMA,+62 877-2207-4537,Jl. Kampus Jaya No.4,Grogol Selatan,Kebayoran Lama,Jakarta Selatan,12220,House,5-Jul-2025,,Yenita Elismayanti,,Converted
+Nanda,HOMA,+62 812-3450-8390,Seika Residence (Sarpa) No.72,Ciganjur,Jagakarsa,Jakarta Selatan,12630,House,7-Jul-2025,,Siti Fatimah,,Converted
+Annisa,HOMA,+62 878-2257-2444,Jl. H.Salim III No.14,Gandaria Utara,Kebayoran Baru,Jakarta Selatan,12140,House,8-Jul-2025,,Ria Junaeni ,,Converted
+Ely,HOMA,+628129417963,Cluster Darwin Jl. Darwin Timur 5 No.20 ,Medang,Pagedangan,Tangerang,15334,House,9-Jul-2025,,Atika Yunianti,,Converted
+Nirmala,HOMA,+62 816-1959-323,Mega Kebon Jeruk Blok B 3/9,Joglo,Kembangaan,Jakarta Barat,11640,House,9-Jul-2025,,Yenita Elismayanti,,Cancelled
+Angel,HOMA,+62 813-6450-3777,Jl. Lingkar Luar Barat No.8,Cengkareng Barat,Cengkareng,Jakarta Barat,11730,House,10-Jul-2025,,Sunarsih,,Not Converted
+Ibu Vera,HOMA,+62 812-9601-5773,"Kemang Pratama 3, Jl. Akalipa 2 Blok E2 No.25",Sepanjang Jaya,Rawa Lumbu,Bekasi,17114,House,12-Jul-2025,,,,Cancelled
+Reni,HOMA,+62 831-9808-4964,Tanakayu Jiva D8 no 1,Cijantra,Pagedangan,Tangerang,15336,House,12-Jul-2025,,Ranuy Eutiska,,Cancelled
+Restika Gustiani,HOMA,+62 856-8711-433,Jl. Moch. Kahfi II No. 38-B (Gang Nusih Nidan) ,Cipedak,Jagakarsa,Jakarta Selatan,12630,House,12-Jul-2025,,Sulistiyowati,,Converted
+Selly,HOMA,+62 877-7700-8780,Cluster iL Rosa Blok D No.8,Kelapa Dua,Kelapa Dua,Tangerang,15811,House,14-Jul-2025,,Sriyatun,,Converted
+Aulia,HOMA,+62 899-1692-502,Griya Damai Ciater No.2,Ciater,Serpong,Tangerang Selatan,15311,House,15-Jul-2025,10-Nov-2025,Ninuk Hendrini,Munih,Converted
+Iin,HOMA,+62 821-2409-8914,Jl. Janur Indah II Blok LA10 No.12,Kelapa Gading Timur,Kelapa Gading,Jakarta Utara,14240,House,16-Jul-2025,19-Jul-2025,Heni Trisnawati ,Marciane,Converted
+Ayu B. Moerdani,HOMA,+62 812-8780-2472,Jl. Anggrek No. 60,Benda Baru,Pamulang,Tangerang Selatan,15415,House,17-Jul-2025,,Ninuk Hendrini,,Converted
+Kiki Amaliyah,HOMA,+62 878-8903-3064,"Jl. Lembah Aren 3 K12 No 29, RT.10/RW09",Pondok Kelapa,Duren Sawit,Jakarta Timur,14450,House,17-Jul-2025,,Susanti,,Not Converted
+Renny,HOMA,+62 812-8988-9887,Pluit Mas Selatan VI Blok L No. 12 (Sebelah Lapangan Badminton Pagar Coklat) ,Pejagalan,Penjaringan,Jakarta Utara,,House,17-Jul-2025,,Egidayu Permadani,,Not Converted
+Susan,HOMA,+62 811-9892-740,Jl. Tanjung 19 No.55A (Diantara No. 51 dan 55) Komplek Rancho Indah,Tanjung Barat,Jagakarsa,Jakarta Selatan,12530,House,17-Jul-2025,,Sifa Ayu Ramadani,,Not Converted
+Ade Marlin,HOMA,+62 877-8069-0313,Perumahan Green Purwa Residence Blok C No.2 ,Cipedak,Jagakarsa,Jakarta Selatan,12630,House,18-Jul-2025,,Siti Fatimah,,Converted
+Ina,HOMA,+62 815-1072-6668,"Jl. Jambul Lama Perumahan Warga No. 29 Dewi Sartika, RT 001/RW 012 ",Cililitan,Kramat Jati,Jakarta Timur,13640,House,18-Jul-2025,,Sifa Ayu Ramadani,,Converted
+Felix,HOMA,+62 818-1888-8535,"Springhill Terrace Residences Tower Oakwood, Unit 31J",Pademangan Timur,Kemayoran,Jakarta Pusat,14410,Apartment,18-Jul-2025,,Heni Trisnawati ,,Converted
+Yudhistira L,HOMA,+62 817-0774-303,BSD The Icon Verdant Ville H7/3,Sampora,Cisauk,Tangerang,15345,House,19-Jul-2025,,Atika Yunianti,,Converted
+Victoria,HOMA,+62 819-7292-774,Villa Pejaten Mas Blok H11,Pasar Minggu,Pasar Minggu,Jakarta Selatan,12520,House,19-Jul-2025,,Siti Fatimah,,Not Converted
+Yustiwi,HOMA,+62 811-9637-789,"1 Park Residences, Tower B, Unit 8A",Kramat Pela,Kebayoran Baru,Jakarta Selatan,12130,Apartment,19-Jul-2025,,Mayunita,,Not Converted
+Naya,HOMA,+62 813-8167-7484,"Rumah Dinas Kanwil No. C2 (Jl. Lengkong Gudang Timur IV RT.1/RW.3, Lengkong Gudang Tim., Kec. Serpong, Kota Tangerang Selatan, Banten 15310)",Lengkong Gudang Timur,Serpong,Tangerang Selatan,15310,House,21-Jul-2025,,Muridah,,Not Converted
+Budi Widjaja,HOMA,+62 813-1844-6689,Jl. Elang Laut No.29,Kamal Muara,Penjaringan,Jakarta Utara,14470,House,21-Jul-2025,,Kiki Rismawati,,Converted
+Dewi,HOMA,+62 851-6155-3122,Cluster Quadra Bintaro Residence Blok Q3,Pondok Betung,Pondok Aren,Tangerang Selatan,15221,House,23-Jul-2025,,Rohayani,,Converted
+Siti Marina / Emmy,HOMA,+41 79 696 24 28,"Jl. Rajawali V HD10 No.8, Bintaro Sektor 9",Pondok Pucung,Pondok Aren,Tangerang Selatan,15229,House,23-Jul-2025,,Rohayani,,Not Converted
+Inike,HOMA,+62 877-3398-6000,"Pakubuwono House, Unit 31D Jl. Pakubuwono VI No.70",Gunung,Kebayoran Baru,Jakarta selatan,12120,House,24-Jul-2025,,Mayunita,,Converted
+Lela,HOMA,+62 878-8377-2300,"Jl. Pulo III No.3/9, RT.003/RW.009",Jatikarya,Jatisampurna,Bekasi,17435,House,26-Jul-2025,,Citra Putri Virgiani,,Not Converted
+Henni,HOMA,+62 815-1119-2254,Graha Raya Fortune Spring Jl. Fortune Spring I Blok D2/G20,Tajur,Ciledug,Tangerang,15152,House,26-Jul-2025,,Rohayani,,Not Converted
+Agnes,HOMA,+62 812-8686-3404,"Jl. Cempaka 1, Kavling DKI Blok 94, No.8",Meruya Utara,Kembangan,Jakarta Barat,11620,House,30-Jul-2025,,Yenita Elismayanti,,Not Converted
+Yulianto,HOMA,+62 812-039-3776,"Skyhouse Alam Sutera, Castilla Tower 1 C1 55K",Kunciran,Pinang,Tangerang,15143,Apartment,30-Jul-2025,,Ranuy Eutiska,,Cancelled
+Sharen,HOMA,+62 819-1637-0504,Citra Garden Bintaro Cluster Bischofia Blok B8/18 Jl. Merpati Raya,Sawah Lama,Ciputat,Tangerang Selatan,15413,House,30-Jul-2025,,Asmanah,,Converted
+Riva,HOMA,+62 812-8398-015,Jl. B No.23,Kebon Jeruk,Kebon Jeruk,Jakarta Barat,11530,House,1-Aug-2025,,Yenita Elismayanti,,Converted
+Noni,HOMA,+62 852-1141-5244,Jl. Persatuan 2 No. 2A,Klp. Dua Wetan,Ciracas,Jakarta Timur,13730,House,2-Aug-2025,,Sulistiyowati,,Not Converted
+Reni,HOMA,+62 815-1333-3326,"Central Park Residence, Tower Amandine Unit 4603",Tanjung Duren Selatan,Grogol Pertamburan,Jakarta Barat,11470,Apartment,2-Aug-2025,,Anik Rochmatun,,Converted
+Nino,HOMA,+62 811-1018-343,Jl. Jambu No.7A,Cakung Timur,Cakung ,Jakarta Timur,13910,House,2-Aug-2025,,Susanti,,Converted
+Marlin,HOMA,+62 822-6028-7896,"Apartemen Kelapa Gading Mediterania Residence, Kelapa Gading Tower C Selatan",Kelapa Gading Barat,Kelapa Gading,Jakarta Utara,14240,Apartment,4-Aug-2025,,Heni Trisnawati ,,Converted
+Nia,HOMA,+62 812-9705-0080,Jl. Tosiga Mulia Blok H No.20,Kebon Jeruk,Kebon Jeruk,Jakarta Barat,11530,House,4-Aug-2025,,Yenita Elismayanti,,Converted
+Margareta,HOMA,+62 813-1434-5349,BSD Giriloka 1 Blok I No. 6,Lengkong Wetan,Serpong,Tangerang Selatan,15310,House,5-Aug-2025,,Atika Yunianti,,Converted
+Adisty Boediman,HOMA,+62 816-1106-120,Jl. Danau Towuti No.38,Bendungan Hilir,Tanah Abang,Jakarta Pusat,10210,House,5-Aug-2025,15-Dec-2025,Siti Asih,Yeni Setiani,Converted
+Aziza Komas,HOMA,+62 811-1333-665,Jl. Bukit Menoreh III Blok D20 No.3. Komplek Bukit Indah,Serua,Ciputat,Tangerang Selatan,15414,House,6-Aug-2025,,Ninuk Hendrini,,Not Converted
+Ajeng Desva,HOMA,+62 857-8212-7239,Wisteria Basilia 1 No.6,Ujung Menteng,Cakung,Jakarta Timur,13910,House,6-Aug-2025,,Susanti,,Converted
+Rani,HOMA,+62 815-1011-2330,Pamulang Permai 2. Jl. Benda Timur XI Blok F 14 No.7,Benda Baru,Pamulang,Tangerang Selatan,15416,House,7-Aug-2025,,Siti Nuramalia,,Converted
+Marlyne,HOMA,+62 856-1569-935,Taman Palem Lestari Blok C15 No 27,Pegadungan ,Kalideres,Jakarta Barat,11830,House,8-Aug-2025,,Anik Rochmatun,Rika Yuliana ,Not Converted
+Andita Sartika,HOMA,+62 811‑1366‑311,Jalan Purwa Utama Blok H No.37 A. Komplek Kavling DKI,Cipedak,Jagakarsa,Jakarta Selatan,12630,House,9-Aug-2025,,Siti Fatimah,,Converted
+Triswilianna,HOMA,+62 852-8278-8973,"Jl. Kelapa Hybrida Utara 15, Blok GC9 No.14",Curug Sangereng,Kelapa Dua,Tangerang,15810,House,16-Aug-2025,,Ranuy Eutiska,,Cancelled
+Pratjna S,HOMA,+62 818-0600-5432,"Essence Apartemen Darmawangsa, Tower 1, Unit 2703",Cipete Utara,Kebayoran Baru,Jakarta Selatan,12150,Apartment,11-Aug-2025,,Sifa Ayu Ramadani,,Not Converted
+Silvy,HOMA,+62 812-9567-8873,Pluit Karang Cantik III Blok V3 Selatan No. 2,Pluit,Penjaringan,Jakarta Utara,14450,House,11-Aug-2025,,Kiki Rismawati,,Converted
+Aldilla Shannaz Tiara,HOMA,+62 856-7992-741,Casa de Verona Blok V18 No.18,Jelupang,Serpong Utara,Tangerang Selatan,15323,House,13-Aug-2025,,Ninuk Hendrini,,Converted
+Triana Rahmawati,HOMA,+62 878-7723-6057,Jl. Bulak Tinggi Raya No.19,Jatiwarna,Pondok Melati,Bekasi,17415,House,13-Aug-2025,,Puji Eka Priana,,Converted
+Alfina,HOMA,+62 857-0265-6011,"Jl. Elang D7 No.7, Perumahan Villa Jatirasa, RT.004/RW.012",Jatirasa,Jatiasih,Bekasi,17424,House,16-Aug-2025,,Puji Eka Priana,,Not Converted
+Chrisna,HOMA,+62 898-5725-599,Duta Indah Jl. Kenanga Raya Blok i-1 No. 18,Jatimakmur,Pondok Gede,Bekasi,17421,House,20-Aug-2025,,Puji Eka Priana,,Converted
+Herliens,HOMA,+62 812-1888-1487,"Apartemen Ciputra International, Tower San Francisco Unit 23-07.  Jl. LKR. Luar Barat No.101, RT.14/RW.04",Rawa Buaya,Cengkareng,Jakarta Barat,11740,Apartment,22-Aug-2025,,Anik Rochmatun,,Converted
+Melody,HOMA,+61 405 404 197,Apartement Mediterania Palace Tower A Unit A 01 BG ,Kb. Kosong,Kemayoran,Jakarta Pusat,10630,Apartment,25-Aug-2025,,Egidayu Permadani,,Converted
+Anastasia ,HOMA,+62 812-1843-3280,"Rainbow Springs CondoVillas Summarecon Serpong, Jl. Gading Gold Boulevard, Cihuni Kec Pagedangan, Kabupaten Tangerang. Unit B06 P001",Cihuni,Pagedangan ,Tangerang ,15332,Apartment,25-Aug-2025,,Ratna Angelina Santoso,,Converted
+Kezia Loupatty,HOMA,+62 812-1064-009,"Cluster Kencana Vida Bekasi, Jl. Surya Kencana No.RT.001, RW7",Bantargebang,Bantar Gebang,Bekasi,17151,House,25-Aug-2025,,Puji Eka Priana,,Converted
+Arum,HOMA,+62 858-8000-2011,"Komplek 9, Jl. Batu I Gg. Arab No. 9C",Pejaten Timur,Pasar Minggu,Jakarta Selatan,12510,House,26-Aug-2025,,Sifa Ayu Ramadani,,Not Converted
+Rachmat Hidayat,HOMA,+62 822-2188-8221,Cluster Barcelona bc.16 No.25 RT.12/RW.21,Karang Satria,Tambun Utara,Bekasi,17510,House,26-Aug-2025,,Windi Indriyanti,,Cancelled
+Riatna Sari ,HOMA,+62 855-1134-999,"Tanakayu BSD - Cluster Svadhi, Jl. BSD Raya Pusat Blok G9 No.1",Cijantra,Pagedangan ,Tangerang ,15336,House,30-Aug-2025,,Ratna Angelina Santoso,,Converted
+Meli ,HOMA,+62 819-0813-8665,"Apartemen Sky House BSD, tower Bristol, unit B2-3B. Jl. BSD CBD II",Sampora,Cisauk,Tangerang,15345,Apartment,30-Aug-2025,,Atika Yunianti,,Converted
+Artha,HOMA,+62 812-3105-9388,"Jl. Bina Yasa 1 No.1, RT.004/RW.011",Jati Cempaka,Pondok Gede,Bekasi,17411,House,30-Aug-2025,,Puji Eka Priana,,Converted
+Angelica 18S2G,HOMA,+62 813-1769-8596,"The 18th Residence, Jl. Taman Rasuna Tim. Jl. H. R. Rasuna Said No.RT.16 16, RT.16/RW.1",Menteng Atas,Setiabudi,Jakarta Selatan,12960,Apartment,30-Aug-2025,,Siti Asih,,Not Converted
+Laila,HOMA ,+62 821-1108-4300,"Apartemen Puri Orchard, Tower Magnolia Spring A",Rawa Buaya,Cengkareng ,Jakarta Barat,11740,Apartment,31-Aug-2025,,Anik Rochmatun,,Cancelled
+Anistya,HOMA,+62 852-1125-9360,Jl. Taman Buaran IV Blok W 437 RT.8/RW.14,Klender,Duren Sawit,Jakarta Timur ,13470,House,1-Sep-2025,,Sri Rahayu,,Cancelled
+Qadriana Pidriansy,HOMA,+62 821-1703-8870,Jl. Tebet Barat Dalam  1 No 25,Tebet Barat,Tebet,Jakarta Selatan,12810,House,2-Sep-2025,,Sifa Ayu Ramadani,,Cancelled
+Wijaya,HOMA,+62 858-9089-7961,"Jl. Pluit Karang Asri 1, No. 42 RW.13",Pluit,Penjaringan,Jakarta Utara,14450,House,2-Sep-2025,,Kiki Rismawati,,Converted
+Novi,HOMA,,Jl. Graha Wijaya No.26A,Jatikramat,Jatiasih,Bekasi,17421,House,4-Sep-2025,,Puji Eka Priana,,Not Converted
+Nurul,HOMA,+62 822-5840-0870,"203, Pos 3, Pangsapuri Kedutaan Besar Malaysia, Jl. H. R. Rasuna Said No.1 Kav.X/6, RT.1/RW.3",Kuningan,Setiabudi,Jakarta Selatan,12950,Apartment,4-Sep-2025,,Sulastri,,Not Converted
+Riana,HOMA,+62 812-9610-464,"Kemang Village Apartment, The Empire Tower unit#2106 Jl Pangeran Antasari No.36 Kelurahan Bangka, Kecamatan Mampang Prapatan, Jakarta Selatan 12150",Bangka,Mampang Prapatan,Jakarta Selatan,12150,Apartment,4-Sep-2025,,Siti Fatimah,,Converted
+Wina,HOMA,+62 813-8252-4284,Jl. Pagelarang 1 Gg. Gomen 1 No.88,Lubang Buaya,Cipayung,Jakarta Timur,13810,House,7-Sep-2025,,Puji Eka Priana,,Converted
+Vyestin,HOMA,‪+62 811‑837‑824‬,Apartement Poins Square Tower A Unit 803 Jl. RA. Kartini No. 1 Lebak Bulus - Jakarta Selatan 12440,Lebak Bulus,Cilandak,Jakarta Selatan,12440,Apartment,8-Sep-2025,,Mayunita,,Converted
+Dewi,HOMA,+62 812-1803-0900,"Dago View Town House Blok D28, Jl. Anggrek No.100",Benda Baru,Pamulang,Tangerang Selatan,15415,House,9-Sep-2025,,Ninuk Hendrini,,Not Converted
+Emil,HOMA,+62 811-157-158,"Petojo Enclek III, No.2, No.4, No.6",Petojo Selatan,Gambir,Jakarta Pusat,10160,House,9-Sep-2025,,Kiki Rismawati,,Converted
+Felicia Tania,HOMA,+62 813-3656-4166,Jl. Kenari Hijau I No.31 RT.6/RW.2,Kamal Muara,Penjaringan,Jakarta Utara,14470,House,10-Sep-2025,,Kiki Rismawati,,Converted
+Anik,HOMA,+62 812-1316-7842,"Jl. Bintaro Melati Raya Blok JJ No.6, Komplek Bumi Bintaro Permai RT.8/RW.8,",Pondok Betung,Pondok Aren,Tangerang Selatan,15221,House,11-Sep-2025,23-Oct-2025,Asmanah,Rina Triana,Converted
+Fitri,HOMA,+62 877-7107-7703,Griya Jakarta Jl. Plumeria Blok N1/6 ,Bambu Apus,Pamulang,Tangerang Selatan,15415,House,12-Sep-2025,,Ninuk Hendrini,,Not Converted
+Dian Novia Muro,HOMA,+62 812-8768-1085,"Cluster O8, CE 09/26, Grand Wisata Bekasi",Lambangjaya,Tambun Selatan,Bekasi,17510,House,15-Sep-2025,,Windi Indriyanti,,Not Converted
+Ivon,HOMA,+62 878-7778-7081,Komplek Puri Mansion. Jl. Buckingham Raya No.35 RT.2/RW.1,Kembangan Selatan,Kembangan,Jakarta Barat,11610,House,20-Sep-2025,,Yenita Elismayanti,,Converted
+Kania Ayu,HOMA,+62 813-8080-9305,Perum Jl. Kompas Indah Raya No. 8 C3,Mekarsari,Tambun Selatan,Bekasi ,17510,House,23-Sep-2025,,Windi Indriyanti,,Converted
+Rony Chandra,HOMA,+62 812-2662-2877,"Kompleks Ruko Red Top, Blok C No. 3 RT.2/RW.4",Kebon Kelapa,Gambir,Jakarta Pusat,10120,House,24-Sep-2025,,Naini Rochmawati,,Not Converted
+Rina,HOMA,+62 817-9099-990,Perumahan Karawaci Residence Blok C7 No.11,Bojong Nangka ,Kelapa Dua,Tangerang ,15810,House,25-Sep-2025,,Ratna Angelina Santoso,,Converted
+Kathy,HOMA,+62 815-9966-269,"Apartemen Atap Merah, Jl. Pancenongan Raya No.72 RT.2/RW.4",Kebon Kelapa,Gambir,Jakarta Pusat,10120,Apartment,26-Sep-2025,,Kiki Rismawati,,Converted
+Stella ,HOMA,+62 811-3950-951,Perumahan Cluster Welton Hiera BSD Blok B7 No.3,Jatake,Pagedangan,Tangerang,15330,House,27-Sep-2025,,Ratna Angelina Santoso,,Converted
+Elisabet,HOMA,+62 812-6037-732,Apartemen Pantai Mutiara Pluit Tower Enggano,Pluit,Penjaringan ,Jakarta Utara ,14450,Apartment,28-Sep-2025,,Egidayu Permadani,,Not Converted
+Gadia,HOMA,+62 811-881-708,Jl. Cikini Raya Blok FG6 No.4 RT.1/RW.2,Jurang Mangu Barat,Pd. Aren,Tangerang Selatan,15222,House,29-Sep-2025,,Asmanah,,Converted
+Fenny Hakim,HOMA,+62 811-933-669,"Discovery Serenity Blok F 05, Jl. Discovery Park",Parigi,Pd. Aren,Tangerang Selatan,15227,House,30-Sep-2025,,Rina Triana,,Converted
+Lathifah,HOMA,+62 816-973-791,Jl. Cempaka Putih Barat XXI No.F-12 RT.6/RW.12,Cemp. Putih Bar,Cemp. Barat,Jakarta Pusat,10520,House,30-Sep-2025,,Sri Rahayu,,Converted
+Anindita Satya,HOMA,+62 8111-2510-940,Cinere Resort Apartment Tower Senggigi 12/25,Gandul,Cinere,Depok,16512,Apartment,30-Sep-2025,,Siti Fatimah,,Converted
+Naida Rasyid,HOMA,+62 821-9713-1237,"Discovery Eola, Jl. Eola II Blok DE-B10 Bintaro Jaya",Parigi,Pd. Aren,Tangerang Selatan,15227,House,1-Oct-2025,,Rina Triana,,Not Converted
+Fitrina,HOMA,+62 813-8065-9656,"Perum Kopti Setu Cipayung, Blok C6 no 9C, Jl. Sketsa No.B4 No.4, RT.2/RW.2,",Setu,Cipayung,Jakarta Timur,13880,House,3-Oct-2025,,Puji Eka Priana,,Not Converted
+Haruka Aoki,Altrix,+62 822-4907-6340,"12H Eternity District 8 Apartment Jalan Senopati Dalam no.8B LOT 28, RT.5/RW/3",Senayan,Kebayoran Baru,Jakarta Selatan,12190,Apartment,4-Oct-2025,,Siti Asih,,Converted
+Vivi Liem,HOMA,+62 822-3240-0027,"Apartemen Puri Mansion, Tower Amethys Unit 17 T1",Duri Kosambi,Cengkareng ,Jakarta Barat ,11750,Apartment,4-Oct-2025,,Yenita Elismayanti,,Converted
+Celly,HOMA,+62 821-1080-5385,Fairview House Apartemen Unit 2910 Millennium Village Lippo Karawaci (Ranch Market),Bencongan,Kelapa Dua,Tangerang,15810,Apartment,8-Oct-2025,,Annarul Nurjanati ,,Converted
+Ade Siregar,HOMA,+62 856-9531-3274,Cluster Cendana Cove Jl. Cendana Cove 19 No. 62 Lippo Village Karawaci,Binong,Curug,Tangerang,15810,House,9-Oct-2025,,Annarul Nurjanati ,,Not Converted
+Liana,HOMA,+62 815-1416-1482,Jl. Komp. Perindustrian No. 148-149 RT.2/RW.16,Duren Sawit,Duren Sawit,Jakarta Timur,13440,House,9-Oct-2025,,Sri Rahayu,,Converted
+Henny,HOMA,+62 878-7730-0007,"Jl. Letjen S. Parman Blok K No.4, RT.4/RW.2",Kemanggisan,Palmerah,Jakarta Barat,11480,House,11-Oct-2025,,Sunarsih,,Converted
+Vithry Laksvita,HOMA,+62 818-703-985,"Jl. Mega No.29, Komp. BMKG",Pondok Betung,Pondok Aren,Tangerang Selatan,15221,House,11-Oct-2025,,Asmanah,,Not Converted
+Shinta,HOMA,+62 813-8498-3025,Taman Wisma Asri Blok A5 No. 18. Jl. Salak 2 RT.002/RW.013,Teluk Pucung,Bekasi Utara,Bekasi,17121,House,16-Oct-2025,,Windi Indriyanti,,Cancelled
+Faras,HOMA,+62 812-8482-1476,"Summarecon Bekasi, Cluster Burgundy RAJ 62",Harapan Baru,Bekasi Utara,Bekasi,17123,House,16-Oct-2025,,Windi Indriyanti,,Not Converted
+Peggy Noviatri,HOMA,+62 858-1471-9075,"Elista Vilage, Jl. Likino No. 10, Paramount Gading Serpong",Medang,Pagedangan,Tangerang,15334,House,18-Oct-2025,,Ratna Angelina Santoso,,Not Converted
+Raisya,HOMA,+62 812-8868-2219,Jl. Peninggaran Timur 3 No.1 RT.10/RW.09,Kebayoran Lama Utara,Kebayoran Lama,Jakarta Selatan ,12240,House,18-Oct-2025,,Rohayani,,Converted
+Intan,HOMA,+62 813-7421-7084,"Jl. Dr. Mawardi II C Blok 2C No.8, RT.10/RW.3",Grogol,Grogol Pertamburan,Jakarta Barat,11450,House,20-Oct-2025,,Sunarsih,,Not Converted
+Yusi,HOMA,+62 813-8118-1760,"Greenwich Park, Cluster Luxmore Blok GB2 No.1",Pagedangan,Lengkong Kulon,Banten,15331,House,21-Oct-2025,12-Nov-2025,Ratna Angelina Santoso,Atika Yunianti,Converted
+Christina Chandra,HOMA,+62 821-8001-6666,"Ruko Permata Ancol Blok B No.10, Jl. Re Marthadinata RT.05/RW.016",Pademangan,Pademangan Barat,Jakarta Utara,14430,House,21-Oct-2025,,Egidayu Permadani,,Converted
+Siska,HOMA,+62 821-7452-8182,Apartemen Green Pramuka City Tower Pino RT.13/RW.9,Rawasari,Cemp. Putih,Jakarta Pusat,10570,Apartment,22-Oct-2025,,Sri Rahayu,,Not Converted
+Angel/Kevin,HOMA,+62 811-3559-680,"West Vista Apartment Unit 1502. Jl. Lkr. Luar Barat No.8, RT.7/RW.8",Duri Kosambi,Cengkareng,Jakarta Barat,11750,Apartment,22-Oct-2025,,Tia Ari Dasanti,,Converted
+Dyah Widyastuti,HOMA,+62 819-3040-4090,"Apartemen Salemba Residence, Tower A 1609 Jl. Salemba Tengah II No.10, RT10/RW08,",Paseban,Senin,Jakarta Pusat,10440,Apartment,22-Oct-2025,30-Oct-2025,Naini Rochmawati,Elis Najiah,Not Converted
+Widya,HOMA,+62 897-3718-149,"Apartemen Belmont Residence Tower Athena Unit 1029, Belmont Residence Tower Everest Blok. K2",Srengseng,Kembangan,Jakarta Barat,11630,Apartment,24-Oct-2025,,Yenita Elismayanti,,Converted
+Linda,HOMA,+62 813-8779-9699,Apartemen Ambasador 1/8A. Jl. Dr. Satrio RT.11/RW.4 ,Kuningan,Setiabudi,Jakarta Selatan ,12940,Apartment,24-Oct-2025,,Naini Rochmawati,,Converted
+Vila,HOMA,+62 812-4341-3505,"Cluster Symphony, Crown Golf Boulevard No.25, Kamal Muara, Penjaringan, North Jakarta City, Jakarta 14460",Kamal Muara,Penjaringan,Jakarta Utara,14460,House,25-Oct-2025,,Tia Ari Dasanti,,Not Converted
+Ginna Finalis,HOMA,+62 812-8617-8317,"Wellspring House, Unit C09. Jl. Kodiklat TNI Ampera No.70-58",Buaran,Serpong,Tangerang Selatan,15310,House,28-Oct-2025,4-Nov-2025,Atika Yunianti,Munih,Converted
+Ria Subrata,HOMA,+62 813-1513-1774,"Pabuaran Residence Cluster Dahlia Blok D 6 No.18, Jl. Soebandi Raya RT.001/RW.005",Margasari,Karawaci,Tangerang,15114,House,28-Oct-2025,,Annarul Nurjanati ,,Cancelled
+Melva,HOMA,+62 821-7737-1606,"Apartement Taman Pasadenia, Tower B G05 Jl. Pacuan Kuda Raya",Klender,Duren Sawit,Jakarta Timur,13470,Apartment,28-Oct-2025,,Sri Rahayu,,Converted
+Denny,HOMA,‪+62 818‑0850‑4222‬,Jl. Ciliwung No.124 RT.11/RW.06,Cililitan,Kramat Jati,Jakarta Timur,13640,House,28-Oct-2025,,Sifa Ayu Ramadani,,Converted
+Deborah,HOMA,‪+62 812‑9887‑3359‬,Residence 99 No.99A. Jl. Sadar Raya RT.07/RW.03 ,Ciganjur,Jagakarsa,Jakarta Selatan,12630,House,28-Oct-2025,,Siti Fatimah,,Not Converted
+Eva,HOMA,+62 818-909-362,"Taman Aries G2/4 , Jl. Aries Utara Blok G2 RT.12/RW.3",Meruya Utara,Kembangan,Jakarta Barat,11620,House,28-Oct-2025,,Yenita Elismayanti,,Converted
+Anggrayni ,HOMA,+62 813‑9181‑0987,"Royal Residence, Jl. Bignonia II B6/31",Ujung Menteng,Cakung,Jakarta Timur,13960,House,30-Oct-2025,,Ernita Josvine,,Converted
+Yuni,HOMA,+‪62 813‑1632‑8855‬,Taman Palem Lestari Blok D3 No.11 ,Cengkareng Barat,Cengkareng,Jakarta Barat,11730,House,31-Oct-2025,,Sunarsih,,Converted
+Mya,HOMA,+62 815‑7535‑1175,Jalan Wadassari II No.6D (Rumah Ketiga Belakang Indomaret Sektor 4),Pondok Betung,Pondok Aren,Tangerang Selatan,15221,House,31-Oct-2025,,Rohayani,,Converted
+Stephanie Theresia,HOMA,+62 813-1005-4781,Gading Resort Residence D3/25 Tower 11 Jl. Boulevard Bar. Raya No.8,Kelapa Gading Barat,Kelapa Gading,Jakarta Utara,14240,Apartment,31-Oct-2025,,Ernita Josvine,,Converted
+Nurul Ramadhani,HOMA,‪+62 851‑7998‑3958‬,Perumahan Bukit Nusa Indah. Jl. Bougenville No.12 ,Serua,Ciputat,Tangerang Selatan,15414,House,1-Nov-2025,,Rina Triana,,Converted
+Windy / Ronny Chandra,HOMA,+62 812-2662-2877,"Kompleks Ruko Red Top, Blok C No. 3",Kebon Kelapa,Gambir,Jakarta Pusat,10120,Office Space,3-Nov-2025,,Kiki Rismawati,,Not Converted
+Amy Adwin,HOMA,+62 813-8217-3706,"Garry Village No.4, Jl. H. Gari Gg. Gotong Royong No.51",Pesanggrahan,Pesanggrahan,Jakarta Selatan,12320,House,4-Nov-2025,,Rohayani,,Converted
+Ilma,HOMA,+62 857-4109-0824,"Townhouse Kala House, Jl. Poncol Indah No.49",Cirendeu,Ciputat Timur,Tangerang Selatan,15419,House,4-Nov-2025,,Citra Rini Pamularsih,,Converted
+Aline Wiratmaja,HOMA,+62 813-1234-8328,U House Bintaro Jaya Blok D 06 Jalan Boulevard Universitas Pembangunan Jaya,Sawah Lama,Ciputat,Tangerang Selatan,15413,House,5-Nov-2025,,Siti Nuramalia,,Converted
+Savira Ramadhanty,HOMA,+62 851-6100-8142,Jl. Pulo Mas Utara I A No.8A,Kelapa Gading Timur,Kelapa Gading,Jakarta Utara,14240,House,6-Nov-2025,,Ernita Josvine,,Cancelled
+Yunisa,HOMA,+62 811-1599-116,"Citra Garden Bintaro. Cluster Bischofia, Jl. Merpati Blok B23 No.10",Sawah Lama,Ciputat,Tangerang Selatan ,15413,House,11-Nov-2025,,Siti Nuramalia,,Converted
+Hanifah,HOMA,+62 815-1366-7718,"Perumahan Simprug Diporis Blok D1 No.8, Jl. Cempedak Raya RT.001/RW.006",Poris Jaya,Batu Ceper,Tangerang,15122,House,11-Nov-2025,,Annarul Nurjanati ,,Cancelled
+Susi,HOMA,+62 812-9518-575,Jl. Kucica 7 Blok JH 7 No.13 Bintaro Jaya Sektor 9,Pondok Pucung,Pondok Aren,Tangerang Selatan,15229,House,12-Nov-2025,,Ninuk Hendrini,,Not Converted
+Felicia,HOMA,+62 812-9055-0550,Jl. Kelapa Kopyor Timur IV Blok BI 1 No. 5-6 ,Kelapa Gading Timur ,Kelapa Gading,Jakarta Utara ,14240,House,13-Nov-2025,,Ernita Josvine,,Converted
+Stevi,HOMA,+62 812-8241-8232,"Apartemen Gading Resort Residence, Blok E Tower 15 Unit E0301",Kelapa Gading Barat,Kelapa Gading ,Jakarta Utara ,14240,Apartment,14-Nov-2025,,Marciane,,Converted
+Tika,HOMA,+62 851-6123-1907,(Kost Ketika) Jl. Benda Barat X A Blok D21 No.17 ,Pondok Benda,Pamulang,Tangerag Selatan,15416,House,14-Nov-2025,,Atika Yunianti,,Converted
+Henny,HOMA,+62 811-6381-120,Apartement Fatmawati City Center - Tower Victoria No. 23A,Cilandak Barat,Cilandak,Jakarta Selatan,12430,Apartment,15-Nov-2025,,Siti Fatimah,,Not Converted
+Martono,HOMA,+62 899-9125-251,Cluster Taman New Britania Jalan Cendana Arbory 1 No.18,Panunggangan Barat,Cibodas,Tangerang ,15138,House,16-Nov-2025,,Annarul Nurjanati ,,Converted
+Ayu Dyah,HOMA,+62 812-2955-6046,Althia Park Blok A5/18. Jl. Althia III No. 23,Parigi Baru,Pondok Aren,Tangerang Selatan,15228,House,19-Nov-2025,,Ninuk Hendrini,,Converted
+Nunung Husmidar,HOMA,+62 896-5247-8759,Pesona Anggrek Blok E4.1 RT.001/RW.027,Harapan Jaya ,Bekasi Utara ,Bekasi,17124,House,19-Nov-2025,,Windi Indriyanti,,Not Converted
+Tika 2,HOMA,+62 851-6123-1907,Jl. Ciputat Raya No.2,Pondok Pinang,Kebayoran Lama,Jakarta Selatan,12310,House,20-Nov-2025,,Asmanah,,Converted
+Jennifer S,HOMA,+62 812-1600-8718,Rainbow Springs Condovillas B10-3/001 Jl. Gading Golf Boulevard,Cihuni,Pagedangan,Tangerang ,15332,Apartment,25-Nov-2025,,Annarul Nurjanati ,,Converted
+Felicia,HOMA,+62 851-1717-3352,Jakarta Garden City - Cluster La Siene Blok F16 No.2,Cakung Timur,Cakung,Jakarta Timur,13910,House,25-Nov-2025,,Ernita Josvine,,Converted
+Ruly Faisal,HOMA,+62 811-8801-471,"Jl. Nuri No.7, Komplek Pajak RT.004/RW.003",Cipadu Jaya,Larangan,Tangerang,15155,House,26-Nov-2025,,Rohayani,,Converted
+Zelie,HOMA,+62 898-9328-977,Jl. Kedele Raya No.22 RT.5/RW.7,Rawa Buaya,Cengkareng ,Jakarta Barat,11740,House,27-Nov-2025,,Sunarsih,,Cancelled
+Rizal,HOMA,+62 811-1710-202,Discovery Aluvia 16 Blok Q-20,Parigi,Pondok Aren,Tangerang Selatan,15227,House,28-Nov-2025,,Ninuk Hendrini,,Converted
+Febiyola,HOMA,+62 859-7288-8890,Apartemen Ayodhya Tower Indigo - Unit 28-20,Cikokol,Tangerang ,Tangerang ,15117,Apartment,28-Nov-2025,,Annarul Nurjanati ,,Not Converted
+Desy,HOMA,+62 878-0999-1010,"Real Estate Cluster Ambasador 2, Jl. Perumahan Bukit Dago No.14 Blok D18",Rawakalong,Gunung Sindur,Bogor,16340,House,29-Nov-2025,,Munih,,Converted
+Maria,HOMA,+62 812-8866-6962,Pulo Mas Barat V A No.20,Kayu Putih,Pulogadung,Jakarta Timur,13210,House,29-Nov-2025,,Elis Najiah,,Converted
+Diana,HOMA,+62 811-9892-559,Jl. Alam Elok V No.21,Pondok Pinang,Kebayoran Lama,Jakarta Selatan,12310,House,1-Dec-2025,,Ai Sumarni,,Converted
+Nysa Banitha,HOMA,+62 813-6065-5956,"Cluster Fortune Height, Blok D7/E19",Tajur,Ciledug,Tangerang,15152,House,4-Dec-2025,15-Jan-2026,Ninuk Hendrini,Ninuk Hendrini,Converted
+Jeasline,HOMA,+62 812-1314-3989,Jl. Kramat Lontar No. J3A RT.1/RW.1,Paseban,Senen,Jakarta Pusat,10440,House,4-Dec-2025,,Kiki Rismawati,,Converted
+Diana,HOMA,+62 812-1207-9063,"Ozone Residence No.K11. Ozon Residence, 16, Jl. YRS III No.RT.15, RT.10/RW.6",Bintaro ,Pesanggrahan ,Jakarta Selatan ,12330,House,4-Dec-2025,,Yeni Setiani,,Converted
+Yulia,HOMA,+62 815-1131-9292,JNE Jl. Bandengan Utara I No.14-15C RT.14/RW.9,Pekojan,Tabora,Jakarta Barat,11240,House,5-Dec-2025,,Kiki Rismawati,,Converted
+Indira,HOMA,+62 813-8147-4446,Jl. Delman Asri 1 No.6,Tanah Kusir,Kebayoran Lama,Jakarta Selatan,12240,House,6-Dec-2025,,Asmanah,,Converted
+Mei,HOMA,+62 819-3250-3107,Jl. Kembang Permai I Blok I6/4,Kembangan Selatan,Kembangan,Jakarta Barat,11610,House,9-Dec-2025,,Yenita Elismayanti,,Converted
+Mey,HOMA,+62 813-9856-2005,Jl. Walang Permai Gg. Hj. Syariyah No.20,Tugu Utara,Koja,Jakarta Utara,14260,House,10-Dec-2025,,Sodinia Gulo,,Converted
+Nia,HOMA,+62 821-1010-2248,"De Park, Cluster De Frangipani B6 - No.11",Lengkong Kulon,Pagedangan,Tangerang,15331,House,10-Dec-2025,,Munih,,Converted
+Meli ,HOMA,+62 819-0813-8665,"Apartemen Sky House BSD, Tower Bristol, Unit B2-3B",Sampora,Cisauk,Tangerang,15345,Apartment,11-Dec-2025,,Munih,,Converted
+Vinny,HOMA,+62 856-1306-999,Casamora Jagakarsa D7,Ciganjur,Jagakarsa,Jakarta Selatan,12630,House,11-Dec-2025,,Siti Fatimah,,Not Converted
+Irene,HOMA,+62 811-9001-196,Jl. Kano Indah 2 No.32,Kapuk Muara,Penjaringan,Jakarta Utara,14460,House,11-Dec-2025,,Septianah,,Converted
+Vela,HOMA,+62 812-4086-0411,Foresta Cluster Collinare C11/9 BSD City,Pagedangan ,Pagedangan ,Tangerang Selatan ,15859,House,12-Dec-2025,,Munih,,Converted
+Veronica ,HOMA,+62 821-2508-7878,Verde Two Apartment Tertaverde Unit 3607,Karet Kuningan ,Setiabudi ,Jakarta Selatan ,12920,Apartment,12-Dec-2025,,Sifa Ayu Ramadani,,Not Converted
+Lina,HOMA,+62 818-157-379,"Sutera Cemara V No.21, Alam Sutera",Pondok Jagung Timur,Serpong Utara,Tangerang Selatan,15326,House,16-Dec-2025,7-Jan-2026,Annarul Nurjanati ,Ema,Converted
+Ambar,HOMA,+62 852-1544-9844,Komplek Depsos XIII No.9,Bintaro,Pesanggrahan ,Jakarta Selatan ,12330,House,17-Dec-2025,,Ai Sumarni,,Converted
+Ami Rachmiani,HOMA,+62 818-557-929,Bukit Cirendeu. Jl. Bukit VIII Blok A3 No.4 ,Pisangan,Ciputat Timur,Tangerang Selatan ,15419,House,17-Dec-2025,,Asmanah,,Converted
+Helen,HOMA,+62 811-8070-639,"Taman Alfa Indah Blok C2 No.31. Jl. Joglo Raya No. 85, RT.9/RW.3",Joglo,Kembangan,Jakarta Barat ,11640,House,18-Dec-2025,,Sunarsih,,Converted
+Maria,HOMA,+62 813-8065-9656,Perum Kopti Setu Cipayung Blok C6 No. 9C. Jl. Sketsa No.B4 No.4,Setu,Cipayung,Jakarta Timur,13880,House,18-Dec-2025,,Puji Eka Priana,,Cancelled
+Mei Mei,HOMA,+62 859-1065-25896,"Perumahan Golf Island, Symphony Golf 3 No.100",Kapuk Muara,Penjaringan,Jakarta Utara,14460,House,21-Dec-2025,,Septianah,,Converted
+Adinda ,HOMA,+62 811-9311-158,"Apartemen Sky Garden, Tower Sky No.2807. Jl. Setiabudi Selatan Raya No.2 18",Karet Kuningan ,Setiabudi ,Setiabudi Jakarta Selatan ,12920,House,24-Dec-2025,,Naini Rochmawati,,Not Converted
+Qorry,HOMA,+62 878-8410-5223,Jl. Taman Asri Lama No. 145,Cipadu,Larangan,Tangerang,24650,House,25-Dec-2025,,Rohayani,,Not Converted
+Felyncia,HOMA,+62 811-8401-900,Cluster Dammara Blok A/9. Jl. Boulevard Silk Town ,Pondok Jagung Timur,Serpong Utara,Tangerang Selatan,15326,House,25-Dec-2025,,Ema,,Converted
+Rahmi,HOMA,+62 881-2379-309,Jatikramat Indah 1. Jl. Cempaka 2 No.70,Jatikramat,Jatiasih,Bekasi,17421,House,26-Dec-2025,,Puji Eka Priana,,Converted
+Leo,HOMA,+62 822-8002-2343,Grand Wisata Monte Farella Blok EB9 No.19 La Monte Grand Wisata,Mustikajaya ,Mustika Jaya ,Bekasi,17158,House,27-Dec-2025,,Windi Indriyanti,,Converted
+Rika,HOMA,+62 811-1540-063,Jalan Azalea 2 Blok G.5 No.12A RT.002/RW.013 ,Sepanjang Jaya ,Rawalumbu ,Bekasi ,17114,House,1-Jan-2026,,Puji Eka Priana,,Not Converted
+Franita,HOMA,+62 858-1132-3133,Jl. Kayu Putih Utara I A No.10 RT.11/RW.8,Pulo Gadung ,Pulo Gadung ,Jakarta Timur,13260,House,2-Jan-2026,,Alsa Ramadani ,,Not Converted
+Lisna,HOMA,+62 813-5985-3448,"Sutra Palmyra V No.16, Alam Sutera, Cluster Sutera Palmyra RT.002/RW.014",Kunciran ,Pinang,Tangerang ,15143,House,5-Jan-2026,,Ema,,Converted
+Ria Vanessa,HOMA,+62 813-1313-6519,Cluster Concerto Beach2 No.01C Golf Island (COB2/01C),Kamal Muara,Penjaringan ,Jakarta Utara ,14470,House,5-Jan-2026,,Septianah,,Converted
+Christine,HOMA,+62 821-2200-2557,Apartemen Sahid Sudirman Residence 19E,Karet Tengsin,Tanah Abang,Jakarta Pusat,12730,Apartment,5-Jan-2026,,Naini Rochmawati,,Not Converted
+Shabrina,HOMA,+62 812-9256-2716,"CTB 33 B,  Tower Beech, Taman Anggrek. Jl. Aranda 12. Jl. Tj. Duren Timur 2 No.12, RT.12/RW.1",Tanjung Duren Selatan,Grogol Pertamburan,Jakarta Barat,11470,Apartment,6-Jan-2026,,Sunarsih,,Cancelled
+Ai,HOMA,+62 889-9909-1972,One Cirendeu Residence. Jl. Cirendeu indah I,PIsangan,Ciputat Timur,Tangerang Selatan,15419,House,8-Jan-2026,,Citra Rini Pamularsih,,Cancelled
+Cindy,HOMA,+62 817-6777-7488,The Zora Cluster Kiyomi D2 No.25,Lengkong Kulon,Pagedangan,Tangerang,15331,House,10-Jan-2026,,Kristiana,,Not Converted
+Davina,HOMA,+62 811-8958-935,Perumahan Grandwisata Cluster De Oranje Blok HB9 No.31,Lambangjaya,Tambun Selatan,Bekasi,17510,House,11-Jan-2026,,Windi Indriyanti,,Converted
+Herlina,HOMA,+62 816-404-580,Jl. Villa Melati Mas Blok I 10 No.22,Jelupang,Serpong Utara,Tangerang Selatan,15326,House,12-Jan-2026,,Sanimah,,Not Converted
+Elisabet,HOMA,+62 812-6037-732,Apartemen Pantai Mutiara Pluit Tower Enggano,Pluit,Penjaringan ,Jakarta Utara ,14450,Apartment,13-Jan-2026,,Septianah,,Not Converted
+Kurnia,HOMA,+62 877-8088-7183,"Mediterania Marina Residences Ancol Tower C. Jl. Karang Bolong Raya No.1, RT.1/RW.11",Ancol,Pademangan,Jakarta Utara,14430,Apartment,13-Jan-2026,,Sudarti ,,Converted
+Vinsa,HOMA,+62 821-2220-3358,Jl. Bojong Nangka II No.6 RT.7/RW.08,Jatirahayu,Pondok Melati,Bekasi,17414,House,14-Jan-2026,,Puji Eka Priana,,Not Converted
+Desiana,HOMA,+62 812-1308-2051,Jl. Dalton Selatan II No.3,Medang,Pagedangan,Tangerang,15334,House,14-Jan-2026,,Kristiana,,Converted
+Budiharsana,HOMA,+62 811-1494-953,Jl. Tulodong Bawah IV Lama No.12A RT.5/RW.4,Selong,Kebayoran Baru,Jakarta Selatan,12110,House,15-Jan-2026,,Sifa Ayu Ramadani,,Converted
+Nia,HOMA,+62 811-906-789,"Villa Bintaro Regency, Jl. Riau Blok K2 No.8",Pondok Kacang Timur,Pondok Aren,Tangerang Selatan,15226,House,15-Jan-2026,,Ninuk Hendrini,,Converted
+Vidya,HOMA,+62 819-2011-987,Jl. Tenggiri No. 7C,Tanjung Priok,Tanjung Priok,Jakarta Utara,14310,House,15-Jan-2026,,Sudarti ,,Converted
+Ati,HOMA,+62 855-8641-604,Jl. Condet Raya Gg. H.M.Izi RT.009/RW.005 No.40,Cililitan,Kramat Jati,Jakarta Timur,13640,House,16-Jan-2026,,Puji Eka Priana,,Converted
+Doni Darwin,HOMA,+62 822-2118-3113,"Apartemen Menteng Park, Tower Diamond UNit 29/HH, Jl. CIkini Raya No.79",Cikini,Menteng,Jakarta Pusat,10330,Apartment,17-Jan-2026,,Elis Najiah,,Converted
+Norriel,HOMA,+62 812-9023-0755,"Taman Permata Cikunir, Jl. Koala IX Blok A7 No.51",Jakamulya,Bekasi Selatan,Bekasi,17146,House,17-Jan-2026,,Puji Eka Priana,,Converted
+Eviana,HOMA,+62 812-8200-385,Jl. Angkatan Laut No.8,Jatimakmur,Pondok Gede,Bekasi,17413,House,18-Jan-2026,,Puji Eka Priana,,Not Converted
+Mitzi,HOMA,+62 812-1867-7639,Griya Seroja Pesanggrahan No C1. Jl. Seroja No.35,Bintaro,Pesanggrahan,Jakarta Selatan,12320,House,19-Jan-2026,,Yeni Setiani,,Converted
+Dian,HOMA,+62 812-8810-6090,Jl. Kembang Agung I Blok F No.33,Kembangan Selatan,Kembangan,Jakarta Barat,11610,House,19-Jan-2026,,Sunarsih,,Not Converted
+Tara Tanalisan,HOMA,+62 811-8848-255,"Jl. Kayumanis 8, Gang Sengon 5 No.12 RT.011/RW.007",Kayu Manis,Matraman,Jakarta Timur,13130,House,19-Jan-2026,,Elis Najiah,,Converted
+Lia,HOMA,+62 811-997-368,The Zora BSD Kazumi B7 No.5,Lengkong Kulon,Pagedangan,Tangerang,15331,House,19-Jan-2026,,Kristiana,,Converted
+Janice (Jane),HOMA,+62 822-9991-1992,"Apartemen The Mansion Jasmine Tower Aurora unit JA 31E, Pademangan ",Pademangan Timur,Kemayoran,Jakarta Utara,14410,Apartment,19-Jan-2026,,Sudarti ,,Converted
+Hasya Syarifuddin,HOMA,+62 811-2558-006,Jl. Pulo Asem VI No.11,Jati,Pulo Gadung,Jakarta Timur,13220,House,20-Jan-2026,,Alsa Ramadani ,,Converted
+Ina Burhan,HOMA,+62 856-4103-8696,Jl. Griya Pratama I BLok VI No.11,Pegangsaan Dua,Kelapa Gading,Jakarta Utara,14250,House,20-Jan-2026,,Sodinia Gulo,,Converted
+Itha,HOMA,+62 815-1920-3044,KingsPoint Residence. Jl. Avenue 3 No.19,Teluk Pucung,Bekasi Utara,Bekasi,17121,House,20-Jan-2026,,Windi Indriyanti,,Converted
+Ega,HOMA,+62 818-219-707,Jl. Sayuti Raya No.39 RT.08/RW.6,Rawasari,Cempaka Putih,Jakarta Pusat,10570,House,21-Jan-2026,,Alsa Ramadani ,,Not Converted
+Dini,HOMA,+62 821-1428-6188,Jl. Cempaka Putih Tengah IV No 7B RT2/RW5,Cempaka Putih Timur,Cempaka Putih,Jakarta Pusat,10510,House,21-Jan-2026,,Sudarti ,,Converted
+Widia,HOMA,+62 852-7901-9868,Jl. Kemajuan 2 No.55 RT.3/RW.4,Petukangan Selatan,Pesanggrahan,Jakarta Selatan,12270,House,21-Jan-2026,2-Apr-2026,Rohayani,Yeni Setiani,Converted
+Meisy Damanik,HOMA,+62 812-8681-989,Jl. Ikhlas No.95,Tanah Baru,Beji,Depok,16426,House,22-Jan-2026,,Nur Jamilah,,Converted
+Dinda Kusuma,HOMA,+62 857-7213-4724,"Dukuh Bima, Bima Duta 5 No. 6",Lambangsari,Tambun Selatan,Bekasi,17510,House,22-Jan-2026,,Windi Indriyanti,,Converted
+Gretha,HOMA,+62 812-1028-5553,"Jalan Cempaka Putih Tengah IV No. 12B, RT.2/ RW.5",Cempaka Putih Timur,Cempaka Putih,Jakarta Pusat,10510,House,24-Jan-2026,,Sudarti ,,Converted
+Fernita Leo,HOMA,+62 812-2049-8782,"Kawasan Symphonia, Summarecon Serpong, Cluster Rossini Jl. Rossini Utara 1 No 29.",Medang,Pagedangan,Tangerang,15334,House,24-Jan-2026,,Kristiana,,Converted
+Ruby,HOMA,+62 811-1225-998,"Omaha Village Gading Serpong, Jl. Harney No. 25",Curug Sangereng,Kelapa Dua,Tangerang,15810,House,24-Jan-2026,,Kristiana,,Converted
+Eva,HOMA,+62 815-1070-4421,"Jl. Kemuning 3 No.8, RT.10/RW.4",Utan Kayu Utara,Matraman,Jakarta Timur,13120,House,24-Jan-2026,,Alsa Ramadani ,,Converted
+Mona,HOMA,+62 857-8888-1866,Jl. Permata Biru 1 Blok H2 No 3,Kelapa Gading Timur,Kelapa Gading,Jakarta Utara,14240,House,24-Jan-2026,,Sodinia Gulo,,Not Converted
+Ana / Ibu Rosa,HOMA,+62 878-8769-5758,"Jl. Mujair 4 No.127, RT.3/RW.9",Depok Jaya,Pancoran Mas,Depok,16432,House,24-Jan-2026,,Nur Jamilah,,Converted
+Yanti,HOMA,+62 816-1161-225,"Jl. Daan Mogot, Komplek Pesing Jaya C 21 (Komplek di bawah Fly Over Pesing/Dekat Stasiun Pesing)",Wijaya Kusuma,Grogol Petamburan,Jakarta Barat,11460,House,25-Jan-2026,,Septianah,,Not Converted
+Thia,HOMA,+62 817-0011-109,Oleaster Raya No.A18,Pakulonan Barat,Kelapa Dua,Tangerang,15810,House,27-Jan-2026,,Kristiana,,Not Converted
+Andika,HOMA,+62 817-898-151,"Komplek Green Garden Blok B15 No.8 Jl. Kebun Hijau No.11, RT.3/RW.1",Rorotan,Cilincing,Jakarta Utara,14140,House,27-Jan-2026,,Ernita Josvine,,Converted
+Diah,HOMA,+62 812-2157-376,Jl. Polka No. H 7 RT.5/RW.7,Kelapa Gading Timur,Kelapa Gading,Jakarta Utara,14240,House,28-Jan-2026,,Sodinia Gulo,,Not Converted
+Dwiyana,HOMA,+62 811-8866-816,Dasana Indah Blok SF 3 No.17,Bojong Nangka,Kelapa Dua,Tangerang,15810,House,28-Jan-2026,,Annarul Nurjanati ,,Converted
+Karin,HOMA,+62 818-778-623,"Jl. Karang Asem Utara No.17, RT.7/RW.2",Kuningan Timur,Kuningan Timur,Jakarta Selatan,12950,House,28-Jan-2026,,Elis Najiah,,Converted
+Sarah Labibab,HOMA,+62 812-1245-1303,"Jl. Timbul No.71, RT.7/RW.4",Cipedak,Jagakarsa,Jakarta Selatan,12630,House,29-Jan-2026,,Yuni Ramadinah,,Converted
+Rizki,HOMA,+62 818‑756‑770,"Jl. Raya Pd. Gede Blok A2 No.8, RT.1/RW.8",Lubang Buaya,Cipayung,Jakarta Timur,13810,House,29-Jan-2026,,Puji Eka Priana,,Converted
+Kaushik Guha,HOMA,0851-2122-1809,"Summarecon Mal Kelapa Gading 2, Jl. Boulevard Raya No.1 Lt.G Tower Clifford 23-001 ",Kelapa Gading Timur,Kelapa Gading,Jakarta Utara,14240,Apartment,30-Jan-2026,,Ochtavia Ingrid Lapya,,Converted
+Audi,HOMA,+62 811-8819-423,"Kampung Cilegong, RT.003/RW.001 (gang Pulo),Kecamatan Cisauk,Tangerang,Banten,15340",Mekarwangi,Cisauk,Tangerang,15340,House,30-Jan-2026,,Munih,,Not Converted
+Ferra,HOMA,+62 823‑3005‑7776,"Jl. Vista IV Blok V4 No.15, RT.45/RW.8",Jelupang,Serpong Utara,Tangerang Selatan,15323,House,31-Jan-2026,,Sanimah,,Converted
+Lula,HOMA,+62 831-9732-0846,Jl. Pd. Aren II Gg. Sate No.2,Pondok Betung,Pondok Aren,Tangerang Selatan,15221,House,2-Feb-2026,,Yeni Setiani,,Not Converted
+Anita,HOMA,+62 812-8424-1421,"Jl. Cendani Raya I Blok D1 No.123, RT.6/RW.8",Pondok Bambu,Duren Sawit,Jakarta Timur,13430,House,2-Feb-2026,,Susanti,,Converted
+Ulfa,HOMA,+447831150517,Jl. Royal Sawangan Residence Blok A No.7 ,Serua,Bojongsari,Depok,16516,House,3-Feb-2026,,Nur Jamilah,,Converted
+Aryo Suryo,HOMA,+62 813‑1580‑545,"Trevista Ciputat Blok B7 No.11, Jl. Cipunegara No.99 RT.003/RW.007",Cipayung,Ciputat,Tangerang Selatan,15411,House,3-Feb-2026,,Siti Nuramalia,,Converted
+Annisa Indah,HOMA,+62 851-5638-5533,Perumahan Graha Puri Jejalen Blok F No.9,Jejalenjaya,Tambun Selatan,Bekasi,17511,House,4-Feb-2026,,Windi Indriyanti,,Not Converted
+Agita,HOMA,+62 813-9909-9925,Jl. Taman Paris 1 No.37,Panunggangan Barat,Cibodas,Tangerang,15138,House,5-Feb-2026,,Annarul Nurjanati ,,Converted
+Eva Herlina,HOMA,+62 812-8841-3738,Jl. Utama No. 54A RT.003/RW.015,Srengseng Sawah,Jagakarsa,Jakarta Selatan,12630,House,6-Feb-2026,,Yuni Ramadinah,,Converted
+Tika,HOMA,+62 838-9838-7399,"Mahakam Residence IV, Jl. Sadar Raya No.50 Kav A3",Ciganjur,Jagakarsa,Jakarta Selatan,12630,House,7-Feb-2026,,Yuni Ramadinah,,Converted
+Shirren Lim,HOMA,+62 812-1000-3919,Jl. Alam Segar VIII No.12,Pondok Pinang,Kebayoran Lama,Jakarta Selatan,12310,House,9-Feb-2026,,Ai Sumarni,,Converted
+Rani,HOMA,+62 851-2114-8501,"GLADIOLA RESIDENCE, Jl. Taman Asri Blok B9",Cipadu,Ciledug,Tangerang,15154,House,10-Feb-2026,,Rohayani,,Converted
+Jane,HOMA,+62 851-6356-1806,Apartemen Callia. Jl. Perintis Kemerdekaan No.23,Kayu Putih,Pulo Gadung,Jakarta Timur,13210,Apartment,10-Feb-2026,,Naini Rochmawati,,Converted
+Siti,HOMA,+62 882-1266-0954,"Jl. Musa No.14, RT.10/RW.10",Kebayoran Lama Selatan,Kebayoran Lama,Jakarta Selatan,12240,House,11-Feb-2026,,Ria Junaeni ,,Cancelled
+Susan,HOMA,+62 812-1267-2488,"Jl. Pelangi Nila II Blok A1 No.15, RT.4/RW.2",Pegangsaan Dua,Kelapa Gading,Jakarta Utara,14250,House,14-Feb-2026,,Ochtavia Ingrid Lapya,,Converted
+Diyan Novrida,HOMA,+62 811-5995-118,Jl. Trijaya No 56A,Ciganjur,Jagakarsa,Jakarta Selatan,12630,House,14-Feb-2026,,Yuni Ramadinah,,Converted
+Adji Widyawan,HOMA,+62 856-9752-2022,"Jl. Selatan 7 No.111, RT.005/RW.003",Jatimekar,Jatiasih,Bekasi,17422,House,15-Feb-2026,,Puji Eka Priana,,Converted
+Azaria,HOMA,+62 877-8174-1126,"Jl. Murni Dalam Blok F No.48, RT.16/RW.2",Joglo ,Kembangan,Jakarta Barat,11640,House,16-Feb-2026,,Sunarsih,,Converted
+Lina Zidan,HOMA,+62 877-0171-9687,Pavilion Residence Blok A6 No.5,Rawa Buntu,Serpong,Tangerang Selatan,15318,House,18-Feb-2026,,Sanimah,,Not Converted
+Ika Fitri Wulan Dhari,HOMA,+62 877-2228-2234,"Cemara 5 Townhouse Jl. TPU Parakan No.91, RT.3/RW.8",Pondok Benda,Pamulang,Tangerang Selatan,15416,House,20-Feb-2026,,Sanimah,,Converted
+Ibu Wong,HOMA,+62 811-8882-7731,"Jl. Pluit Karang Asri I No.31, RT.4/RW.13",Pluit,Penjaringan,Jakarta Utara,14450,House,24-Feb-2026,,Septianah,,Converted
+Nisa,HOMA,+62 813-6771-6932,"Jl. Maleo A5 No.58, RT.005/RW.012",Jaticempaka,Pondok Gede,Bekasi,17411,House,24-Feb-2026,,Puji Eka Priana,,Not Converted
+Alden,HOMA,+62 822-5554-5945,Jl. Perumahan Taman Jatinegara No.22 blok B.2,Penggilingan,Cakung,Jakarta Timur,13940,House,25-Feb-2026,,Ochtavia Ingrid Lapya,,Converted
+Erricha Insan Pragiai,HOMA,+62 819-1907-0793,"Cluster Mozaik 7 No. 01, RT.008/RW.002",Jatiluhur,Jatiasih,Bekasi,17425,House,25-Feb-2026,,Puji Eka Priana,,Not Converted
+Fika Yitnawati,HOMA,+62 812-1122-1995,Jalan Pondok Karya II. Blok F.15,Pela Mampang,Mampang Prapatan,Jakarta Selatan,12720,House,26-Feb-2026,,Ai Sumarni,,Converted
+Marissa,HOMA,+62 817-9971-989,Cluster Cendana MarQ East 1 No.58 ,Binong,Curug,Tangerang,15810,House,26-Feb-2026,,Annarul Nurjanati ,,Converted
+Sally,HOMA,+62 817-771-901,Matera Residence 2 No.3 ,Cihuni,Pagedangan,Tangerang,15345,House,26-Feb-2026,,Kristiana,,Converted
+Umbu Tedy,HOMA,+62 818-888-895,"Jalan Kalimantan IX, Blok F3 no 11. perumahan Nusaloka BSD - Serpong",Rawa Mekar Jaya,Serpong,Tangerang Selatan,15310,House,26-Feb-2026,,Sanimah,,Converted
+Zahro,HOMA,+62 813-8571-0040,"Serpong Lagoon, Cluster Flamingo B5-17",Kranggan,Setu,Tangerang Selatan,15312,House,28-Feb-2026,,Munih,,Converted
+Rina Sipayung,HOMA,+62 821-6528-5990,"Serpong Lagoon, Flamingo B9-16",Kranggan,Setu,Tangerang Selatan,15312,House,2-Mar-2026,,Munih,,Converted
+Shervie,HOMA,+62 813-8981-9819,"Mozart Utara 2 No.63, Jl. Mozart Raya Maxwell Utara 2",Medang,Pagedangan,Tangerang,15334,House,2-Mar-2026,,Kristiana,,Converted
+Luluk Prihastuti,HOMA,+62 813-1744-3152,Jl. AMD 20 No.32A RT.05/RW.01,Balekambang,Cililitan,Kramat jati,13530,House,3-Mar-2026,,Puji Eka Priana,,Converted
+Laurel,HOMA,+62 813-2457-8123,"Bithour HQ, Ruko Campton D8-D9",Sampora,Cisauk,Tangerang,15345,Office Space,4-Mar-2026,,Munih,,Not Converted
+Gabrielle Andhita,HOMA,+62 857-1723-9963,"Gading Resort Residence. Blok E, tower 31, unit 6.31",Kelapa Gading Barat,Kelapa Gading,Jakarta Utara,14240,Apartment,17-Mar-2026,,Sudarti ,,Converted
+Remina Putri,HOMA,+62 819-7938-200,Jalan Belimbing No.4B (Belakang Agen Telur Alvaro),Jagakarsa,Jagakarsa,Jakarta Selatan,12620,House,27-Mar-2026,,Yuni Ramadinah,,Not Converted
+Novie,HOMA,+62 859-7406-2326,Jl. Janur Kuning I Blok BA7 No.16,Pakulonan Barat,Kelapa Dua,Tangerang,15810,House,27-Mar-2026,,Kristiana,,Not Converted
+Afi,HOMA,+62 818-0741-1716,"Townhouse Rawasari. Jl. Kabel Atas, RT.6/RW.9",Rawasari,Cempaka Putih,Jakarta Pusat,10570,House,28-Mar-2026,,Sudarti ,,Cancelled
+Ben,HOMA,+62 813-9222-8183,Cluster Freja - Freja Chic A9/6 BSD. Jl. BSD Raya Utama,Situ Gadung,Pagedangan,Tangerang,15338,House,28-Mar-2026,,Sanimah,,Converted
+Azaria,HOMA,+62 877-8174-1126,Jl. Murni Dalam Blok F No.48,Joglo,Kembangan,Jakarta Barat,11640,House,30-Mar-2026,,Mega Arum Liliana ,,Converted
+Grace Olivia,HOMA,⁠+62 812-2264-6814,De Latinos Cluster Mexicano C18 No.8,Setu,Setu,Tangerang,15314,House,30-Mar-2026,,Sanimah,,Converted
+Denil,HOMA,⁠+62 823-8891-6363,Apartemen Sky House Alam Sutera,Kunciran,Pinang,Tangerang,15320,Apartment,1-Apr-2026,,Zaidah,,Cancelled
+Elizabeth ,HOMA,+62 821-2287-5382,Bumi Puspitek Asri Blok 4H No.1,Situ Gadung,Pagedangan,Tangerang,15338,House,1-Apr-2026,,Munih,,Converted
+Ibu Deti,HOMA,+62 817-0019-911,"Komplek MPR. Jl. Melati No. A44, RT.2/RW.3",Cilandak Barat,Cilandak,Jakarta Selatan,12430,House,2-Apr-2026,,Siti Fatimah,,Not Converted
+Amanda Viviera,HOMA,+62 813-2002-0036,Izzara Apartement Unit - S32E. Jl. TB Simatupang No.Kav.16,Cilandak Timur,Cilandak,Jakarta Selatan,12430,Apartment,3-Apr-2026,,Ai Sumarni,,Converted
+Jessica,HOMA,+62 811-9297-116,"Jl. Pantai Sanur VI No.49, RT.10/RW.10",Ancol,Pademangan,Jakarta Utara,14430,House,3-Apr-2026,,Sudarti ,,Cancelled
+Pohsiu,HOMA,+62 819-0834-0959,Jl. Raya Klp. Gading Permai Blok E2/14,Kelapa Gading Timur,Kelapa Gading,Jakarta Utara,14240,House,6-Apr-2026,,Ochtavia Ingrid Lapya,,Converted
+Susi,HOMA,+62 877-8909-5922,Jl. Sutera Onyx V No.7,Pakualam,Serpong Utara,Tangerang Selatan,15320,House,6-Apr-2026,,Zaidah,,Not Converted
+Resti,HOMA,+62 823-9827-1998,"BSD Ruko Boulevard, Jalan Raya Taman Tekno Serpong Blok AA No.7",Ciater ,Serpong,Tangerang Selatan,15323,Office Space,6-Apr-2026,,Sanimah,,Not Converted
+Dea,HOMA,+62 817-6399-604,Cipinang Elok 1 Blok I No.7 RT.1/RW.10,Cipinang Muara,Jatinegara,Jakarta Timur,13420,House,7-Apr-2026,,Puji Eka Priana,,Converted
+Arshya,HOMA,+62 813-1981-2310,"Jl. Bangka IIG No.8, RT.1/RW.3",Pela Mampang,Mampang Prapatan,Jakarta Selatan,12720,House,9-Apr-2026,,Yeni Setiani,,Converted
+Yenni,HOMA,+62 812-9610-464,Tower Bloomington. Kemang Village,Mampang,Mampang Prapatan,Jakarta Selatan,12730,Apartment,8-Apr-2026,,Ai Sumarni,,Converted
+Merry,HOMA,+62 811-8880-1328,"Grand Orchard, Clover Raya BL/3",Sukapura,Cilincing,Jakarta Timur,14140,House,9-Apr-2026,,Ochtavia Ingrid Lapya,,Converted
+Cindi,HOMA,+62 817-771-000,"PT. Bionatura Jl. Kb. Jeruk Baru No.1, RT.8/RW.8, Kb. Jeruk, Kec. Kb. Jeruk, Kota Jakarta Barat, Daerah Khusus Ibukota Jakarta 11530",Kebon Jeruk,Kebon Jeruk,Jakarta Barat,11530,Office Space,9-Apr-2026,,Fitria,,Converted
+Erla,HOMA,+62 821-1173-0687,Jl. Menteng Purnama 1 Blok E3 No.32,Ujung Menteng,Cakung,Jakarta Timur,13960,House,9-Apr-2026,,Nurfadillah,,Converted
+Anny,HOMA,+62 821-1330-0522,Cluster Welton Hiera Blok A2 No.20. Jl. Raya Kadusirung,Kadu Sirung,Pagedangan,Tangerang,15336,House,9-Apr-2026,,Sanimah,,Converted
+Fika,HOMA,+62 857-1187-2410,"Orchid Slipi SOHO Unit C. Jl. Anggrek Garuda Raya Blok I. 3-4 Slipi, RT.9/RW.2",Kemanggisan,Palmerah,Jakarta Barat,11480,House,10-Apr-2026,,Naini Rochmawati,,Converted
+Hartini,HOMA,+62 856-1082-823,"Jl. Sunter Indah II Blok HC 1 No. 26, RT.4/RW.12",Sunter Jaya,Tanjung Priok,Jakarta Utara,14350,House,10-Apr-2026,,Sumarsih Anjani,,Cancelled
+Marseille Octavia,HOMA,+62 851-1735-5114,"Jalan Jelambar Baru Raya B, no. 31",Jelambar,Grogol Pertamburan,Jakarta Barat,11460,House,13-Apr-2026,,Kiki Rismawati,,Converted
+Irene,HOMA,+62 816-1922-074,Permata Boulevard Raya D2 No.26,Srengseng,Kembangan,Jakarta Barat,11630,House,13-Apr-2026,,Fitria,,Not Converted
+Denny Yusuf,HOMA,+62 812-2903-2003,"Jl. Nusa Indah I No.3A, RT.3/RW.2",Jagakarsa,Jagakarsa,Jakarta Selatan,12620,House,15-Apr-2026,,Yuni Ramadinah,,Cancelled
+Juliana,HOMA,+62 818-735-737,Apartemen St Moritz Presidential Tower (Lippo Mall Puri),Kembangan Selatan,Kembangan,Jakarta Barat,11610,Apartment,15-Apr-2026,,Yenita Elismayanti,,Cancelled
+Nanda,HOMA,+62 811-1465-656,Serpong Park Cluster Diamond Blok D7 No. 25/23,Jelupang,Serpong Utara,Tangerang Selatan,15323,House,16-Apr-2026,,Munih,,Converted
+Sri Budiman,HOMA,+62 812-1070-350,Apartemen Veranda Residence Puri Unit 1007,Kembangan Selatan,Kembangan,Jakarta Barat,11610,Apartment,17-Apr-2026,,Fitria,,Not Converted
+Sen Sen,HOMA,+62 815-1155-9292,Cluster Verdi Symphonia. Jl. Verdi Timur II No.30,Medang,Pagedangan,Tangerang,15334,House,18-Apr-2026,,Kristiana,,Converted
+Livia,HOMA,+62 877-8297-6565,Jl. Kelapa Puan Timur IV Blok NC 4 No.8,Pegangsaan Dua,Kelapa Gading,Jakarta Utara,14250,House,,18-Apr-2026,,Ochtavia Ingrid Lapya,Converted
+Livia,HOMA,+62 877-8297-6565,Jl. Kelapa Puan Timur IV Blok NC 4 No.8,Pegangsaan Dua,Kelapa Gading,Jakarta Utara,14250,House,,18-Apr-2026,,Ochtavia Ingrid Lapya,Converted
+Ranti Prasasti,HOMA,+62 811-102-748,Jl. Adora Permata 2 Blok B2 No.8 Bintaro Sektor 9,Jombang,Ciputat,Tangerang Selatan,15414,House,18-Apr-2026,,Iklimatul Atiqoh,,Converted
+Ansahriah,HOMA,+62 811-3030-024,"Masjid DEEN ASSALAM Jl. Halim Perdana Kusuma, RT.001/RW.005",Jurumudi Baru,Benda,Tangerang,15124,Office Space,20-Apr-2026,,Rosyidah,,Converted
+Evita,HOMA,+62 812-9442-8100,"Cluster Baroni, Symphonia Gading Serpong Jl. Baroni Utara 1 No.58",Medang,Pagedangan,Tangerang,15334,House,22-Apr-2026,,Kristiana,,Converted
+Arman Setiawan,HOMA,+62 811-8878-802,"Ekspedisi Sampangan, Gedung Sentra Bisnis Jatibaru. Jl. Jatibaru Timur No.56 Blok A7",Cideng,Gambir,Jakarta Pusat,10150,Office Space,23-Apr-2026,,Naini Rochmawati,,Converted
+Sylviana,HOMA,+62 818-0702-0287,"Cluster Kanade at The Zora, Blok E2 No. 9, BSD City, ",Lengkong Kulon,Pagedangan,Tangerang,15331,House,,27-Apr-2026,,Kristiana,Converted
+Ria Tri Wahyuni,HOMA,+62 856-8086-469,Jl. Harapan II No. 26 RT.5/RW.10,Cipinang Melayu,Makasar,Jakarta Timur,13620,House,23-Apr-2026,,Puji Eka Priana,,Converted
+Sylviana,HOMA,+62 818-0702-0287,"Cluster Kanade at The Zora, Blok E2 No. 9, BSD City, ",Lengkong Kulon,Pagedangan,Tangerang,15331,House,,27-Apr-2026,,Kristiana,Converted
+Widhia,HOMA,+62 812-1213-7708,"Apartment The Mansion, Tower Aurora, JA29G, Jl. Trembesi",Pademangan Timur,Kemayoran,Jakarta Utara,14410,Apartment,28-Apr-2026,,Alsa Ramadani ,,Cancelled
+Julianty,HOMA,+62 812-9156-3593,"Grand Duta City, Cluster East Manhattan AE16/32",Bahagia,Babelan,Bekasi,17610,House,29-Apr-2026,,Nurfadillah,,Converted
+Olla,HOMA,+62 822-4334-1699,Jl. Titihan 1 No.21 Blok HG12,Parigi,Pondok Aren,Tangerang Selatan,15227,House,30-Apr-2026,,Iklimatul Atiqoh,,Converted
+Iriantini,HOMA,+62 811-1961-119,"Jl. Prapanca 1 Blok A8 No.15, Setiamekar",Setiamekar,Tambun Selatan,Bekasi,17510,House,30-Apr-2026,,Windi Indriyanti,,Converted
+Yudha Adi Putra,HOMA,+62 897-9833-113,Cluster Kayumanis Somerset No.3. Jl. Garuda Raya,Jurang Mangu Timur,Pondok Aren,Tangerang Selatan,15222,House,2-May-2026,,Ninuk Hendrini,,Not Converted
+Sunny Human,HOMA,+62 811-9100-519,"Jl. Bendungan Walahar No.38, RT.5/RW.2, Bend. Hilir, Kecamatan Tanah Abang, Kota Jakarta Pusat, Daerah Khusus Ibukota Jakarta 10210",Bendungan Hilir,Tanah Abang,Jakarta Pusat,10210,House,4-May-2026,,Sri Wahyuningsih,,Converted
+Susan,HOMA,+62 817-173-767,Jalan Ratu Dahlia IV BLok D6 No.26,Duri Kepa,Kebon Jeruk,Jakarta Barat,11510,House,5-May-2026,,Mega Arum Liliana ,,Cancelled
+Pipin,HOMA,+62 813-8239-6732,"Edelweiss Residence No.2 Jl. Perintis IV Komplek Dasana Indah Blok SC Unit 8,",Bojong Nangka,Kelapa Dua,Tangerang,15810,House,7-May-2026,,Kristiana,,Cancelled
+Tabhita,HOMA,+62 812-9693-2779,"Jl. Boulevard Hijau Raya Cluster Bugenvil Blok B5, No. 3, RT.007/RW.009",Pejuang,Medan Satria,Bekasi,17131,House,7-May-2026,,Nurfadillah,,Converted
+Dion Kingsley,HOMA,+62 851-5938-1193,"Cluster Asera Nishi, Blok AN 3 No.25",Pusaka Rakyat,Tarumajaya,Bekasi,17215,House,8-May-2026,,Nurfadillah,,Converted
+Gita Regina,HOMA,+62 817-177-735,"Jl. Tj. VII No.1 Blok AR/V/1, RT.9/RW.2",Kramat jati,Kramat jati,Jakarta Timur,13510,House,9-May-2026,,Sulistiyowati,,Converted
+Nindita,HOMA,+62 816-993-817,"Habitat Exclusive Residence, Jl. Pipit Jl. Menjangan Raya No.90, RT.005/RW.001",Sawah Lama,Ciputat,Tangerang Selatan,15413,House,12-May-2026,,Ninuk Hendrini,,Converted
+Florence,HOMA,+62 812-1300-8487,Golden Park 2 Blok E No.23,Suradita,Cisauk,Tangerang,15343,House,12-May-2026,,Munih,,Not Converted
+Libri,HOMA,+62 815-1361-6168,Jl. Pembangunan I No.50,Petojo Utara,Gambir,Jakarta Pusat,10130,House,13-May-2026,,Kiki Rismawati,,Converted
+Widhia,HOMA,+62 812-1213-7708,"Apartment The Mansion, Tower Aurora, JA29G, Jl. Trembesi",Pademangan Timur,Kemayoran,Jakarta Utara,14410,Apartment,15-May-2026,,Kiki Rismawati,,Converted
+Riannie,HOMA,+62 819-5711-8899,"Green Palm Residence Unit 17A E1B. Jl. Kresek Raya No. 11, RT. 11/RW.13",Duri Kosambi,Cengkareng,Jakarta Barat,11750,House,15-May-2026,,Mega Arum Liliana ,,Converted
+Amel,HOMA,+62 877-8156-6888,Jl. H. Saiman No.53 RT.3/RW.1,Pondok Pinang,Kebayoran Lama,Jakarta Selatan,12310,House,20-May-2026,,Darminingsih,,Converted
+Jenika,HOMA,+62 878-8768-1616,Karawaci Residence Blok C6 No.2,Bojong Nangka,Kelapa Dua,Tangerang,15810,House,20-May-2026,,Annarul Nurjanati ,,Not Converted
+Meilina Fitriyanti,HOMA,+62 882-1100-6353,Perumahan Bumi Permata Alam Raya No.19,Bahagia,Babelan,Bekasi,17610,House,21-May-2026,,Nurfadillah,,Cancelled
+Ruth,HOMA,+62 818-0818-3979,Jl. Summerwood 3 No.18,Cakung Barat,Cakung,Jakarta Timur,13910,House,22-May-2026,,Ochtavia Ingrid Lapya,,Not Converted
+Lena,HOMA,+62 896-3618-3497,"Apartement Teluk Intan Tower Topaz 19F. Jl. Tlk. Intan, RT.7/RW.16",Pejagalan,Penjaringan,Jakarta Utara,14450,Apartment,23-May-2026,,Rosita,,Cancelled
+Whina,HOMA,+62 877-7763-1833,Jl. Populis 2 No.17G,Bakti Jaya,Setu,Tangerang Selatan,15315,House,26-May-2026,,Munih,,Converted
+Ellyza,HOMA,+62 813-1583-2213,Jl. Cempaka Indah XIII Blok OB No.11,Pejuang,Medan Satria,Bekasi,17131,House,26-May-2026,,Nurfadillah,,Converted
+Chiky Sarirahayu W.,HOMA,+62 813-8077-9989,Cinere Delta Residence Blok D-5 Jl. Pulo Air III,Pondok Cabe Ilir,Pamulang,Tangerang Selatan,15418,House,26-May-2026,,Citra Rini Pamularsih,,Converted
+Maggie,HOMA,+62 812-9406-4284,"Jl. Meranti II No.41, RT.13/RW.1",Petukangan Selatan,Pesanggrahan,Jakarta Selatan,12270,House,28-May-2026,1-Jun-2026,Yulianti,Rohayani,Converted
+Ismi,HOMA,+62 878-1707-1945,"Jl.Caman Raya, East Point Residence, Jl.East Point III No.H1",Jatibening,Pondok Gede,Bekasi,17412,House,29-May-2026,,Susanti,,Converted
+Wijayanti,HOMA,+62 858-7508-7608,"Jl. Margasatwa Raya No.19,  blok  A5",Pondok Labu,Cilandak,Jakarta Selatan,12450,House,30-May-2026,,Watimah,,Converted
+Silvia,HOMA,+62 812-8895-689,"Jl. Komp. Green Garden Blok A9 No.12A, RT.6/RW.3",Kedoya Utara,Kebon Jeruk,Jakarta Barat,11520,House,1-Jun-2026,,Yulianti,,Not Converted
+Erika Fransesa,HOMA,+62 815-1853-646,"Jl. Pelangi Jingga 1 D1B No.11, RT.5/RW.2",Pegangsaan Dua,Kelapa Gading,Jakarta Utara,14250,House,2-Jun-2026,,Ochtavia Ingrid Lapya,,Converted
+Stefanie,HOMA,+62 812-8088-1777,Jl. Edison Timur 1 No.11,Medang,Pagedengan,Tangerang,15334,House,2-Jun-2026,,Kristiana,,Converted
+Dyah Anwar Bashori,HOMA,+62 821-1167-7820,"Jl. Prof. Moh. Yamin No.43, RT.1/RW.5",Menteng,Menteng,Jakarta Pusat,10310,House,8-Jun-2026,,Naini Rochmawati,,Converted
+Nova Triana,HOMA,+62 815-9121-493,Jl Matana 5 No. 21 Asya Jakarta Garden City,Cakung Timur,Cakung,Jakarta Timur,13910,House,8-Jun-2026,,Julia Fitriana Situmeang,,Cancelled
+Chandra Tan,HOMA,+62 821-7220-7470,Roseville SOHO and Suite Unit S0605 Jl. Sunburst CBD Jl. Kapten Soebijanto Djojohadikusumo No.8 Lot I,Lengkong Gudang,Serpong,Tangerang Selatan,15321,Apartment,9-Jun-2026,,Sanimah,,Trial Scheduled
+Nadia Tusin,HOMA,+62 811-1460-207,Jl. Ampera Buntu IV No.31RT.2/RW.10,Ragunan,Pasar Minggu,Jakarta Selatan,12540,House,10-Jun-2026,,Watimah,,Converted
+Olivia,HOMA,+62 815-8723-155,"Metro Permata 1 Blok O1 No.10, RT.001/RW.005,",Pondok Pucung,Karang Tengah,Tangerang,15157,House,11-Jun-2026,,Mega Arum Liliana ,,Trial Scheduled
+Melly,HOMA,+62 888-0915-0078,Cluster Puri Indah No. 72. Jl. H. Jegu Pajak No. 85,Larangan Selatan,Larangan,Tangerang,15155,House,12-Jun-2026,,Rohayani,,Trial Scheduled
+Bunti,HOMA,+62 812-1635-3832,Jl. H. Saleh,Pangkalan Jati,Cinere,Depok,16513,House,13-Jun-2026,,Watimah,,Trial Scheduled
+Yessica,HOMA,+62 812-4560-2449,Komplek Imperial Gading Blok F2 No.1A Jl. Raya Pulo Gebang,Sukapura,Cilincing,Jakarta Utara,13950,House,13-Jun-2026,,Ochtavia Ingrid Lapya,,Trial Scheduled
+Hilda Wahyuni,HOMA,+62 812-1925-2924,Perumahan Ifolia Blok Hy12 No.20,Pusaka Rakyat,Tarumajaya,Bekasi,17214,House,16-Jun-2026,,Nurfadillah,,Trial Scheduled
+Kristi Hutapea,HOMA,+62 818-220-985,Taman Giri Loka Blok M No. 5,Lengkong Wetan,Serpong,Tangerang Selatan,15310,House,17-Jun-2026,,Ninuk Hendrini,,Trial Scheduled
+Tjut Hasrina / John,HOMA,+62 877-7780-7877,"Jl. Salihara No.19, RT.14/RW.3,",Jati Padang,Pasar Minggu,Jakarta Selatan,12540,House,17-Jun-2026,,Rachma Kunana,,Trial Scheduled
+Dea,HOMA,+62 817-6399-604,Cipinang Elok 1 Blok I No.7 RT.1/RW.10,Cipinang Muara,Jatinegara,Jakarta Timur,13420,House,,17-Jun-2026,,Susanti,Trial Scheduled
+Myrna Effendy/Oma Shinta,HOMA,+62 857-7058-0748,"Vanya Park, BSD City, Ruko Vanya Lakeside No.G5/1",Pagedangan,Pagedangan,Tangerang,15336,Office Space,18-Jun-2026,,Atika Yunianti,,Trial Scheduled
+Septia Kristiani,HOMA,+62 813-1745-2275,"Jl. Kedoya Alamanda IV No.E8 No. 3, RT.16/RW.4,",Kedoya Selatan,Kebon Jeruk,Jakarta Barat,11520,House,18-Jun-2026,,Yulianti,,Trial Scheduled
