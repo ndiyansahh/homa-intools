@@ -58,7 +58,8 @@ Taruh di: `tools/test-data/production-seed/`
 | `invoice-QX-YYYY.csv` | Lihat contoh Q1 | Primary source customers & invoices |
 | `attendance-QX-YYYY.csv` | Lihat contoh Q1 | Source visits + mitra assignments |
 | `customer-db.csv` | Static — tidak berubah tiap quarter | Enrichment data (phone, address detail) |
-| `mitra_db.csv` | Update jika ada mitra baru | Master data mitra lengkap |
+| `mitra-db-production.csv` | **Active** — update jika ada mitra baru (133 mitras per Q2 2026) | Master data mitra lengkap untuk production |
+| `mitra_db.csv` | Legacy — jangan dipakai lagi | Digantikan oleh `mitra-db-production.csv` |
 
 ### Format `invoice-QX-YYYY.csv`
 
@@ -225,7 +226,7 @@ const ATTENDANCE_CSV = 'tools/test-data/production-seed/attendance-q1-2026.csv';
 
 ### 3. Update mitra CSV jika ada mitra baru
 
-Jika ada mitra bergabung di quarter baru, pastikan `mitra_db.csv` sudah updated sebelum run step 2.
+Jika ada mitra bergabung di quarter baru, pastikan `mitra-db-production.csv` sudah updated sebelum run step 2. (`mitra_db.csv` sudah deprecated — jangan dipakai.)
 
 ### 4. Jalankan dan verifikasi
 

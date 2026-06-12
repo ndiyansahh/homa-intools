@@ -105,13 +105,8 @@ export function requiresCSRFProtection(request: NextRequest): boolean {
     return false;
   }
 
-  // Exclude login/logout endpoints (they establish/destroy sessions)
-  const excludedPaths = [
-    '/api/auth/login',
-    '/api/auth/logout',
-  ];
-
-  if (excludedPaths.some(path => pathname.startsWith(path))) {
+  // Exclude auth endpoints (login, logout, and NextAuth OAuth callbacks)
+  if (pathname.startsWith('/api/auth/')) {
     return false;
   }
 

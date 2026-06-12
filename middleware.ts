@@ -22,7 +22,7 @@ export async function middleware(request: NextRequest) {
   const isApiRoute = pathname.startsWith('/api/');
   const isMutatingRequest = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method || '');
 
-  if (isApiRoute && isMutatingRequest && !pathname.startsWith('/api/auth/login')) {
+  if (isApiRoute && isMutatingRequest && !pathname.startsWith('/api/auth/')) {
     // Rate limit by IP address
     const clientIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
     const rateLimit = checkRateLimit(clientIp, 'api');

@@ -3,11 +3,11 @@ config({ path: '.env.local', override: false });
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { eq } from 'drizzle-orm';
 import { db } from '../src/lib/db';
 import { mitraDB, mitraRateConfigDB } from '../src/lib/schema';
 
-const ATTENDANCE_CSV = 'tools/test-data/production-seed/prod-attend-q2-2026.csv';
-const MITRA_DB_CSV   = 'tools/test-data/production-seed/mitra_db.csv';
+const MITRA_DB_CSV = 'tools/test-data/production-seed/mitra-db-production.csv';
 
 // ---------------------------------------------------------------------------
 // CSV parser — handles multi-line quoted fields
@@ -49,21 +49,6 @@ function parseCSV(content: string): Record<string, string>[] {
 }
 
 // ---------------------------------------------------------------------------
-// Normalize mitra code: fix typo MITRA-2020501-xxx → MITRA-202501-xxx
-// ---------------------------------------------------------------------------
-const normalizeMitraCode = (code: string): string =>
-  code.replace(/MITRA-202(0)(\d{3})-/, 'MITRA-202$2-');
-
-// ---------------------------------------------------------------------------
-// Extract mitra code from "Nama Mitra (MITRA-xxx)" format
-// ---------------------------------------------------------------------------
-const parseMitraCode = (raw: string): string | null => {
-  if (!raw?.trim()) return null;
-  const match = raw.trim().match(/\(([^)]+)\)/);
-  return match ? normalizeMitraCode(match[1].trim()) : null;
-};
-
-// ---------------------------------------------------------------------------
 // Date helpers
 // ---------------------------------------------------------------------------
 const MONTHS: Record<string, string> = {
@@ -90,55 +75,57 @@ const cleanPhone = (s: string): string => {
 async function main() {
   console.log('=== ETL: Mitras Production (from CSV) ===\n');
 
-  // Step 1: collect unique mitra codes needed from attendance CSV
-  const attendContent = fs.readFileSync(path.join(__dirname, '..', ATTENDANCE_CSV), 'utf-8');
-  const attendRows = parseCSV(attendContent);
-
-  const neededCodes = new Set<string>();
-  for (const row of attendRows) {
-    // mitra_1 column
-    const m1 = parseMitraCode(row['mitra_1'] ?? '');
-    if (m1) neededCodes.add(m1);
-    // backup_mitra_1..31
-    for (let i = 1; i <= 31; i++) {
-      const bm = parseMitraCode(row[`backup_mitra_${i}`] ?? '');
-      if (bm) neededCodes.add(bm);
-    }
-  }
-  console.log(`Mitra codes needed from attendance: ${neededCodes.size}`);
-  console.log([...neededCodes].sort().join(', '), '\n');
-
-  // Step 2: load mitra_db.csv and filter to needed codes
+  // Load all mitras from mitra-db-production.csv — no attendance filter
   const mitraDbContent = fs.readFileSync(path.join(__dirname, '..', MITRA_DB_CSV), 'utf-8');
   const mitraRows = parseCSV(mitraDbContent);
-  console.log(`Loaded ${mitraRows.length} rows from mitra_db.csv`);
+  console.log(`Loaded ${mitraRows.length} rows from mitra-db-production.csv\n`);
 
-  const mitraMap = new Map(mitraRows.map(r => [r['Mitra Code'], r]));
-  const toInsert = [...neededCodes].filter(code => mitraMap.has(code));
-  const notFound = [...neededCodes].filter(code => !mitraMap.has(code));
-
-  if (notFound.length > 0) {
-    console.log(`\nWARN: ${notFound.length} mitra codes not found in mitra_db.csv:`);
-    notFound.forEach(c => console.log(`  ${c}`));
-  }
-  console.log(`\nMitras to insert: ${toInsert.length}\n`);
-
-  // Step 3: load existing mitras from DB
+  // Load existing mitras from DB
   const existing = await db.select({ id: mitraDB.id, mitraCode: mitraDB.mitraCode }).from(mitraDB);
-  const existingCodes = new Set(existing.map(m => m.mitraCode));
+  const existingMap = new Map(existing.map(m => [m.mitraCode, m.id]));
   console.log(`Existing mitras in DB: ${existing.length}\n`);
+
+  // Load existing rate configs — to detect mitras with missing rates
+  const existingRates = await db.select({ mitraId: mitraRateConfigDB.mitraId }).from(mitraRateConfigDB);
+  const mitraIdsWithRates = new Set(existingRates.map(r => r.mitraId));
 
   let inserted = 0;
   let skipped = 0;
+  let ratesBackfilled = 0;
 
-  for (const code of toInsert.sort()) {
-    if (existingCodes.has(code)) {
-      console.log(`  SKIP (exists): ${code}`);
-      skipped++;
+  for (const r of mitraRows) {
+    const code = r['Mitra Code'].trim();
+    if (!code) continue;
+
+    const rates = [
+      r['Rate_1x/week'], r['Rate_2x/week'], r['Rate_3x/week'], r['Rate_4x/week'],
+      r['Rate_5x/week'], r['Rate_6x/week'], r['Rate_7x/week'],
+    ];
+
+    const insertRates = async (mitraId: string) => {
+      for (let i = 0; i < rates.length; i++) {
+        await db.insert(mitraRateConfigDB).values({
+          mitraId,
+          visitsPerWeek: i + 1,
+          payoutRate: parseRate(rates[i]),
+        });
+      }
+    };
+
+    if (existingMap.has(code)) {
+      const mitraId = existingMap.get(code)!;
+      if (!mitraIdsWithRates.has(mitraId)) {
+        // Mitra exists but rate config is missing — backfill from CSV
+        await insertRates(mitraId);
+        console.log(`  RATES BACKFILLED: ${r['Name'].trim()} [${code}]`);
+        ratesBackfilled++;
+      } else {
+        console.log(`  SKIP (exists + rates ok): ${code}`);
+        skipped++;
+      }
       continue;
     }
 
-    const r = mitraMap.get(code)!;
     const joinDate = parseJoinDate(r['Join Date']);
     const phone = cleanPhone(r['Phone']);
 
@@ -164,24 +151,14 @@ async function main() {
       isDeleted:              false,
     }).returning({ id: mitraDB.id });
 
-    const rates = [
-      r['Rate_1x/week'], r['Rate_2x/week'], r['Rate_3x/week'], r['Rate_4x/week'],
-      r['Rate_5x/week'], r['Rate_6x/week'], r['Rate_7x/week'],
-    ];
-    for (let i = 0; i < rates.length; i++) {
-      await db.insert(mitraRateConfigDB).values({
-        mitraId: ins.id,
-        visitsPerWeek: i + 1,
-        payoutRate: parseRate(rates[i]),
-      });
-    }
+    await insertRates(ins.id);
 
     console.log(`  INSERTED: ${r['Name'].trim()} [${code}] join: ${joinDate}`);
     inserted++;
   }
 
   console.log(`\n=== Done ===`);
-  console.log(`Inserted: ${inserted}, Skipped: ${skipped}`);
+  console.log(`Inserted: ${inserted}, Rates backfilled: ${ratesBackfilled}, Skipped: ${skipped}`);
 
   const final = await db.select({ id: mitraDB.id, name: mitraDB.mitraName, code: mitraDB.mitraCode }).from(mitraDB);
   console.log(`Total mitras in DB: ${final.length}`);
