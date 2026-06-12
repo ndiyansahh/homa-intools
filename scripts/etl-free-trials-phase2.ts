@@ -207,8 +207,8 @@ async function seedTrialCustomers(rows: Record<string, string>[], mitraMap: Map<
   let errors = 0;
 
   for (const row of rows) {
-    const name = row['Customer Name']?.trim() ?? '';
-    const contact = row['Contact']?.trim() ?? '';
+    const name = (row['Customer Name']?.split('\n')[0] ?? '').trim();
+    const contact = (row['Contact']?.split('\n')[0] ?? '').trim();
 
     if (!name) { skipped++; continue; }
 
