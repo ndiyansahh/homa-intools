@@ -1,5 +1,6 @@
 import { config } from 'dotenv';
 config({ path: '.env.local', override: false });
+config({ path: '.env', override: false });
 
 import { eq } from 'drizzle-orm';
 import { db } from '../src/lib/db';
