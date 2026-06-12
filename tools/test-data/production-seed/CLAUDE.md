@@ -60,6 +60,33 @@ npx tsx scripts/etl-free-trials-phase2.ts
 
 ---
 
+### Phase 2 — Visit Records (Attendance)
+
+Script untuk seed visit records dari attendance historical data phase 2:
+
+```bash
+export DATABASE_URL='postgresql://homa_user:HomaDB2025Secure@localhost:5432/homa_production'
+npx tsx scripts/etl-visits-phase2.ts
+```
+
+**Source file:** `tools/test-data/production-seed/phase2/attendanced-phase-2.csv`
+
+**Format:** Sama persis dengan Q1 attendance CSV (`invoice_number`, `mitra_1`, `visit_1..31`, `backup_mitra_1..31`).
+
+**Behavior:**
+- Lookup invoice by `invoice_number` → jika tidak ditemukan di DB, **di-skip** (bukan error) — akan jalan setelah ETL invoices dijalankan
+- Lookup customer by `client_name` → skip jika tidak ditemukan
+- Lookup mitra by kode diekstrak dari `Nama Mitra (MITRA-xxx)` format
+- Normalisasi typo mitra code: `MITRA-2020501-xxx` → `MITRA-202501-xxx`
+- Jika invoice sudah punya visits di DB → skip (idempotent)
+- Backup mitra per visit: jika ada dan ditemukan di DB, dipakai sebagai `effectiveMitraId`
+
+**Idempotent:** Aman dijalankan ulang — skip invoice yang sudah punya visits.
+
+**Dependency:** Invoices harus sudah ada di DB terlebih dahulu (jalankan ETL invoices phase 2 dulu jika ada).
+
+---
+
 ## Konsep & Filosofi
 
 **Prinsip utama:** Seed hanya data yang **saling terhubung**. Customer tanpa invoice, mitra tanpa visit = orphan data yang merusak dashboard dan kalkulasi payout.
