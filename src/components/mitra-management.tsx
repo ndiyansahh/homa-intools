@@ -78,15 +78,11 @@ export default function MitraManagement({ session }: MitraManagementProps) {
     status: 'Active',
   });
 
-  // Districts and city data
+  // Districts and city data (sourced from region_db)
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
+  const [loadingCities, setLoadingCities] = useState(false);
   const [availableDistricts, setAvailableDistricts] = useState<string[]>([]);
   const [loadingDistricts, setLoadingDistricts] = useState(false);
-
-  // Valid Jabodetabek cities for dropdown
-  const validCities: MitraCityAssignment[] = [
-    'Jakarta', 'Jakarta Pusat', 'Jakarta Barat', 'Jakarta Timur', 'Jakarta Selatan', 'Jakarta Utara',
-    'Bogor', 'Depok', 'Tangerang', 'Bekasi'
-  ];
 
   // Filter state
   const [filters, setFilters] = useState<MitraFilters>({
@@ -162,6 +158,29 @@ export default function MitraManagement({ session }: MitraManagementProps) {
     return () => clearInterval(interval);
   }, [creating, refreshing]);
 
+  // Fetch available cities from region_db on mount
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        setLoadingCities(true);
+        const response = await fetch('/api/regions/cities');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setAvailableCities((data.data || []).map((c: { name: string }) => c.name));
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching cities:', error);
+        setAvailableCities([]);
+      } finally {
+        setLoadingCities(false);
+      }
+    };
+
+    fetchCities();
+  }, []);
+
   // Fetch districts when city changes
   useEffect(() => {
     const fetchDistricts = async () => {
@@ -172,11 +191,11 @@ export default function MitraManagement({ session }: MitraManagementProps) {
 
       try {
         setLoadingDistricts(true);
-        const response = await fetch(`/api/districts?city=${encodeURIComponent(formData.mitraCityAssignment)}`);
+        const response = await fetch(`/api/regions/districts?city_id=${encodeURIComponent(formData.mitraCityAssignment)}`);
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
-            setAvailableDistricts(data.data.districts || []);
+            setAvailableDistricts((data.data || []).map((d: { name: string }) => d.name));
           }
         }
       } catch (error) {
@@ -763,9 +782,10 @@ export default function MitraManagement({ session }: MitraManagementProps) {
                     }}
                     className="input-field"
                     required
+                    disabled={loadingCities}
                   >
-                    <option value="">Select City</option>
-                    {validCities.map(city => (
+                    <option value="">{loadingCities ? 'Loading cities...' : 'Select City'}</option>
+                    {availableCities.map(city => (
                       <option key={city} value={city}>{city}</option>
                     ))}
                   </select>

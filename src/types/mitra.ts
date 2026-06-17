@@ -3,8 +3,8 @@ export type MitraPartnershipType = 'Full Time' | 'Part Time';
 export type MitraStatus = 'Active' | 'Inactive' | 'Exit' | 'Banned' | 'Active-Flag';
 export type MitraSubscriptionType = 'Basic' | 'Regular' | 'Frequent';
 
-// Jabodetabek cities for assignment
-export type MitraCityAssignment = 'Jakarta' | 'Bogor' | 'Depok' | 'Tangerang' | 'Bekasi' | 'Jakarta Pusat' | 'Jakarta Barat' | 'Jakarta Timur' | 'Jakarta Selatan' | 'Jakarta Utara';
+// City assignment - sourced dynamically from region_db (no longer limited to Jabodetabek)
+export type MitraCityAssignment = string;
 
 export interface MitraData {
   id: string;
@@ -56,7 +56,7 @@ export interface CreateMitraRequest {
   mitraBankAccountNumber: string; // Number
 
   // Assignment details
-  mitraCityAssignment: MitraCityAssignment; // Jabodetabek cities
+  mitraCityAssignment: MitraCityAssignment;
   mitraLocationAssignment: string[]; // Array of districts
   mitraPartnership: MitraPartnershipType; // Full Time, Part Time
   mitraTenure: number; // Free number

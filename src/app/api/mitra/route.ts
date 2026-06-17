@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { mitraDB, attendanceScheduleDB } from '@/lib/schema';
+import { mitraDB, attendanceScheduleDB, regionDB } from '@/lib/schema';
 import { sql, and, or, ilike, eq, desc, count, not, inArray } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { CreateMitraRequest, MitraListItem, MitraResponse, MitraData, MitraGender, MitraPartnershipType, MitraStatus, MitraCityAssignment, MitraSubscriptionType } from '@/types/mitra';
@@ -126,20 +126,23 @@ const generateMitraCode = async (): Promise<string> => {
     // Count existing mitras in database created in the same month for sequence number
     console.log(`🔍 Generating mitraCode for ${yearMonth}...`);
 
-    const countResult = await db
-      .select({ count: count() })
+    // Get highest sequence number used this month (including deleted) to avoid reuse
+    const maxCodeResult = await db
+      .select({ mitraCode: mitraDB.mitraCode })
       .from(mitraDB)
-      .where(
-        and(
-          sql`${mitraDB.mitraCode} LIKE ${`MITRA-${yearMonth}-%`}`,
-          or(eq(mitraDB.isDeleted, false), sql`${mitraDB.isDeleted} IS NULL`)
-        )
-      );
+      .where(sql`${mitraDB.mitraCode} LIKE ${`MITRA-${yearMonth}-%`}`)
+      .orderBy(desc(mitraDB.mitraCode))
+      .limit(1);
 
-    const monthlyCount = countResult[0]?.count || 0;
-    console.log(`📊 Found ${monthlyCount} existing mitras for ${yearMonth}`);
+    let nextSeq = 1;
+    if (maxCodeResult.length > 0 && maxCodeResult[0].mitraCode) {
+      const lastCode = maxCodeResult[0].mitraCode;
+      const lastSeq = parseInt(lastCode.split('-')[2] || '0', 10);
+      nextSeq = isNaN(lastSeq) ? 1 : lastSeq + 1;
+    }
+    console.log(`📊 Next sequence for ${yearMonth}: ${nextSeq}`);
 
-    const sequence = String(monthlyCount + 1).padStart(6, '0');
+    const sequence = String(nextSeq).padStart(6, '0');
     const newCode = `MITRA-${yearMonth}-${sequence}`;
 
     console.log(`✅ Generated mitraCode: ${newCode}`);
@@ -282,9 +285,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Bank account number is required' }, { status: 400 });
     }
 
-    // Validate city assignment
-    const validCities: MitraCityAssignment[] = ['Jakarta', 'Bogor', 'Depok', 'Tangerang', 'Bekasi', 'Jakarta Pusat', 'Jakarta Barat', 'Jakarta Timur', 'Jakarta Selatan', 'Jakarta Utara'];
-    if (!body.mitraCityAssignment || !validCities.includes(body.mitraCityAssignment)) {
+    // Validate city assignment against region_db
+    if (!body.mitraCityAssignment?.trim()) {
+      return NextResponse.json({ error: 'City assignment is required' }, { status: 400 });
+    }
+    const cityRows = await db
+      .select({ city: regionDB.city })
+      .from(regionDB)
+      .where(
+        and(
+          or(eq(regionDB.isDeleted, false), sql`${regionDB.isDeleted} IS NULL`),
+          or(eq(regionDB.isActive, true), sql`${regionDB.isActive} IS NULL`),
+          sql`${regionDB.city} IS NOT NULL AND ${regionDB.city} != ''`
+        )
+      );
+    const validCities = [...new Set(cityRows.map(r => r.city).filter(Boolean))];
+    if (!validCities.includes(body.mitraCityAssignment)) {
       return NextResponse.json({
         error: `City assignment must be one of: ${validCities.join(', ')}`
       }, { status: 400 });
