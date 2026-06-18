@@ -36,8 +36,7 @@ export async function GET(request: NextRequest) {
       .leftJoin(mitraDB, eq(customerDB.assignedMitraId, mitraDB.id))
       .where(
         and(
-          // subscriptionEnd dalam range: maksimal 30 hari yang lalu sampai 7 hari ke depan
-          sql`${customerDB.subscriptionEnd}::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::date - INTERVAL '30 days'`,
+          // subscriptionEnd <= 7 hari ke depan (termasuk semua yang sudah overdue)
           sql`${customerDB.subscriptionEnd}::date <= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::date + INTERVAL '7 days'`,
           // Hanya Active
           eq(customerDB.subscriptionStatus, 'Active'),

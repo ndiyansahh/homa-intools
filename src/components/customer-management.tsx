@@ -59,6 +59,8 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
   // Expiring customers state
   const [expiringCustomers, setExpiringCustomers] = useState<ExpiringCustomer[]>([]);
   const [expiringLoading, setExpiringLoading] = useState(false);
+  const [expiringSearch, setExpiringSearch] = useState('');
+  const [expiringStatusFilter, setExpiringStatusFilter] = useState<'all' | 'overdue' | 'expiring'>('all');
 
   // Renew modal state
   const [renewalModal, setRenewalModal] = useState<{ open: boolean; customer: ExpiringCustomer | null }>({ open: false, customer: null });
@@ -532,7 +534,7 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
         {activeTab === 'expiring' && (
           <div className="card">
             <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900 mb-1">Expiring Invoice</h2>
                   <p className="text-sm text-gray-500">Customers with subscriptions expiring soon or already overdue.</p>
@@ -544,6 +546,33 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
                   <Icons.refresh className="w-4 h-4 mr-1" />
                   Refresh
                 </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1 max-w-sm">
+                  <Icons.search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={expiringSearch}
+                    onChange={(e) => setExpiringSearch(e.target.value)}
+                    placeholder="Search by customer name..."
+                    className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  {(['all', 'overdue', 'expiring'] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setExpiringStatusFilter(f)}
+                      className={`px-3 py-2 text-sm rounded-lg font-medium transition-colors ${
+                        expiringStatusFilter === f
+                          ? 'bg-red-500 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {f === 'all' ? 'All' : f === 'overdue' ? 'Overdue' : 'Expiring'}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -572,7 +601,14 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">
-                    {expiringCustomers.map((customer) => (
+                    {expiringCustomers.filter((customer) => {
+                      const matchSearch = expiringSearch === '' ||
+                        customer.customerName.toLowerCase().includes(expiringSearch.toLowerCase());
+                      const matchStatus = expiringStatusFilter === 'all' ||
+                        (expiringStatusFilter === 'overdue' && customer.daysUntilExpiry < 0) ||
+                        (expiringStatusFilter === 'expiring' && customer.daysUntilExpiry >= 0);
+                      return matchSearch && matchStatus;
+                    }).map((customer) => (
                       <tr key={customer.id} className="hover:bg-red-50 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
