@@ -44,18 +44,31 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
     // Build where conditions for database query
     const conditions = [];
 
-    // Search in customer name, address, or contact
+    // Search in customer name, address, contact, or invoice number
     // SECURITY FIX: Sanitize search input to prevent SQL injection
     if (search) {
       const sanitizedSearch = sanitizeSQLLike(search);
       if (sanitizedSearch) {
-        conditions.push(
-          or(
-            ilike(customerDB.customerName, `%${sanitizedSearch}%`),
-            ilike(customerDB.address, `%${sanitizedSearch}%`),
-            ilike(customerDB.contact, `%${sanitizedSearch}%`)
-          )
-        );
+        // Check if search looks like an invoice number (contains '/')
+        const isInvoiceSearch = sanitizedSearch.includes('/');
+        if (isInvoiceSearch) {
+          // Search invoice number via subquery to avoid join issues
+          conditions.push(
+            sql`${customerDB.id} IN (
+              SELECT customer_id FROM invoice_db
+              WHERE invoice_number ILIKE ${`%${sanitizedSearch}%`}
+              AND (is_deleted = false OR is_deleted IS NULL)
+            )`
+          );
+        } else {
+          conditions.push(
+            or(
+              ilike(customerDB.customerName, `%${sanitizedSearch}%`),
+              ilike(customerDB.address, `%${sanitizedSearch}%`),
+              ilike(customerDB.contact, `%${sanitizedSearch}%`)
+            )
+          );
+        }
       }
     }
 
