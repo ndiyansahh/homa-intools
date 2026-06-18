@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { invoiceDB, customerDB } from '@/lib/schema'
-import { and, eq, isNull, or, sql } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
 import { getSession } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
@@ -14,35 +13,29 @@ export async function GET(request: NextRequest) {
     const todayJkt = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }))
     todayJkt.setHours(0, 0, 0, 0)
 
-    const results = await db
-      .select({
-        id: invoiceDB.id,
-        invoiceNumber: invoiceDB.invoiceNumber,
-        invoiceCustomerName: invoiceDB.invoiceCustomerName,
-        invoiceEndDate: invoiceDB.invoiceEndDate,
-        status: invoiceDB.status,
-        totalAmount: invoiceDB.totalAmount,
-        customerId: invoiceDB.customerId,
-        invoiceStartDate: invoiceDB.invoiceStartDate,
-      })
-      .from(invoiceDB)
-      .where(
-        and(
-          // invoice_end_date dalam 7 hari ke depan (termasuk yang sudah lewat)
-          sql`${invoiceDB.invoiceEndDate}::date <= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::date + INTERVAL '7 days'`,
-          // Bukan deleted
-          or(
-            eq(invoiceDB.isDeleted, false),
-            isNull(invoiceDB.isDeleted)
-          )
-        )
-      )
-      .orderBy(invoiceDB.invoiceEndDate)
+    const results = await db.execute(sql`
+      SELECT DISTINCT ON (customer_id)
+        id,
+        invoice_number,
+        invoice_customer_name,
+        invoice_end_date,
+        status,
+        total_amount,
+        customer_id,
+        invoice_start_date
+      FROM invoice_db
+      WHERE
+        invoice_end_date::date <= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta')::date + INTERVAL '7 days'
+        AND (is_deleted = false OR is_deleted IS NULL)
+      ORDER BY customer_id, invoice_end_date DESC
+    `)
 
-    const expiringInvoices = results.map((invoice) => {
+    const rows = results.rows
+
+    const expiringInvoices = rows.map((invoice: any) => {
       let daysUntilExpiry = 0
-      if (invoice.invoiceEndDate) {
-        const endDate = new Date(invoice.invoiceEndDate)
+      if (invoice.invoice_end_date) {
+        const endDate = new Date(invoice.invoice_end_date)
         endDate.setHours(0, 0, 0, 0)
         daysUntilExpiry = Math.round(
           (endDate.getTime() - todayJkt.getTime()) / (1000 * 60 * 60 * 24)
@@ -51,13 +44,13 @@ export async function GET(request: NextRequest) {
 
       return {
         id: invoice.id,
-        invoiceNumber: invoice.invoiceNumber,
-        customerName: invoice.invoiceCustomerName,
-        invoiceEndDate: invoice.invoiceEndDate ?? null,
-        invoiceStartDate: invoice.invoiceStartDate ?? null,
+        invoiceNumber: invoice.invoice_number,
+        customerName: invoice.invoice_customer_name,
+        invoiceEndDate: invoice.invoice_end_date ?? null,
+        invoiceStartDate: invoice.invoice_start_date ?? null,
         status: invoice.status ?? 'Open',
-        totalAmount: invoice.totalAmount ? Number(invoice.totalAmount) : 0,
-        customerId: invoice.customerId,
+        totalAmount: invoice.total_amount ? Number(invoice.total_amount) : 0,
+        customerId: invoice.customer_id,
         daysUntilExpiry,
       }
     })
