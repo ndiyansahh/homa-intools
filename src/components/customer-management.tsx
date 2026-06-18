@@ -9,13 +9,23 @@ import CustomerForm from './customer-form';
 
 interface ExpiringCustomer {
   id: string;
-  invoiceNumber: string;
   customerName: string;
-  invoiceEndDate: string;
-  invoiceStartDate: string;
-  status: string;
-  totalAmount: number;
-  customerId: string;
+  contact: string;
+  subscriptionPackage: string;
+  subscriptionEnd: string;
+  subscriptionStart: string;
+  monthlyFee: number;
+  city: string;
+  address: string;
+  district: string;
+  village: string;
+  postalCode: string;
+  assignedMitraId: string | null;
+  assignedMitraName: string | null;
+  backupMitraIds: string[];
+  subscriptionPackageId: string | null;
+  dayPattern: string | null;
+  ltv: number;
   daysUntilExpiry: number;
 }
 
@@ -49,6 +59,14 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
   // Expiring customers state
   const [expiringCustomers, setExpiringCustomers] = useState<ExpiringCustomer[]>([]);
   const [expiringLoading, setExpiringLoading] = useState(false);
+
+  // Renew modal state
+  const [renewalModal, setRenewalModal] = useState<{ open: boolean; customer: ExpiringCustomer | null }>({ open: false, customer: null });
+
+  // Stop modal state
+  const [stopModal, setStopModal] = useState<{ open: boolean; customer: ExpiringCustomer | null }>({ open: false, customer: null });
+  const [stopForm, setStopForm] = useState({ churnTag: '', churnReason: '' });
+  const [stopSubmitting, setStopSubmitting] = useState(false);
 
 
 
@@ -138,6 +156,46 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
       fetchExpiringCustomers();
     }
   }, [activeTab]);
+
+  const openRenewalModal = (customer: ExpiringCustomer) => {
+    setRenewalModal({ open: true, customer });
+  };
+
+  const openStopModal = (customer: ExpiringCustomer) => {
+    setStopForm({ churnTag: '', churnReason: '' });
+    setStopModal({ open: true, customer });
+  };
+
+  const handleStopSubmit = async () => {
+    if (!stopModal.customer) return;
+    if (!stopForm.churnTag.trim()) {
+      alert('Churn Tag is required.');
+      return;
+    }
+    setStopSubmitting(true);
+    try {
+      const res = await fetch(`/api/customers/${stopModal.customer.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscriptionStatus: 'Churn',
+          churnTag: stopForm.churnTag,
+          churnReason: stopForm.churnReason,
+        }),
+      });
+      if (res.ok) {
+        setStopModal({ open: false, customer: null });
+        fetchExpiringCustomers();
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to stop subscription.');
+      }
+    } catch (e) {
+      alert('Error stopping subscription.');
+    } finally {
+      setStopSubmitting(false);
+    }
+  };
 
 
   const formatDate = (dateStr: string) => {
@@ -506,40 +564,57 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
                   <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                     <tr>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Customer</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Invoice</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Total</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">End Date</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Package</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Mitra</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Expiry Date</th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">
-                    {expiringCustomers.map((invoice) => (
-                      <tr key={invoice.id} className="hover:bg-red-50 transition-colors">
+                    {expiringCustomers.map((customer) => (
+                      <tr key={customer.id} className="hover:bg-red-50 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-10 w-10 bg-red-100 rounded-full flex items-center justify-center">
                               <span className="text-red-600 font-semibold text-sm">
-                                {invoice.customerName.charAt(0).toUpperCase()}
+                                {customer.customerName.charAt(0).toUpperCase()}
                               </span>
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-semibold text-gray-900">{invoice.customerName}</div>
+                              <div className="text-sm font-semibold text-gray-900">{customer.customerName}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-700 font-mono">{invoice.invoiceNumber}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-700">
-                            {invoice.totalAmount.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 })}
+                        <td className="px-6 py-4 max-w-xs">
+                          <div className="text-sm text-gray-700 truncate" title={customer.subscriptionPackage}>
+                            {customer.subscriptionPackage || <span className="text-gray-400">-</span>}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-700">{formatDate(invoice.invoiceEndDate)}</div>
+                          <div className="text-sm text-gray-700">{customer.assignedMitraName || '-'}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {getUrgencyBadge(invoice.daysUntilExpiry)}
+                          <div className="text-sm text-gray-700">{formatDate(customer.subscriptionEnd)}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {getUrgencyBadge(customer.daysUntilExpiry)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => openRenewalModal(customer)}
+                              className="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg text-sm font-medium transition-colors"
+                            >
+                              Renew
+                            </button>
+                            <button
+                              onClick={() => openStopModal(customer)}
+                              className="inline-flex items-center px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors"
+                            >
+                              Stop
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -754,6 +829,136 @@ export default function CustomerManagement({ session }: CustomerManagementProps)
       </div>
 
 
+
+      {/* Renew Modal — reuses CustomerForm with mode="renew" */}
+      {renewalModal.open && renewalModal.customer && (() => {
+        const customer = renewalModal.customer;
+        const pkgName = customer.subscriptionPackage || '';
+        const vpwMatch = pkgName.match(/(\d+)x\s*\/?\s*week/i);
+        const visitsPerWeek = vpwMatch ? parseInt(vpwMatch[1]) : 0;
+        const ALL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+        let selectedDays: string[] = [];
+        if (visitsPerWeek === 7) {
+          selectedDays = [...ALL_DAYS];
+        } else if (customer.dayPattern) {
+          try {
+            const parsed = JSON.parse(customer.dayPattern);
+            selectedDays = [parsed.day1, parsed.day2, parsed.day3, parsed.day4, parsed.day5, parsed.day6, parsed.day7].filter(Boolean) as string[];
+          } catch {
+            selectedDays = customer.dayPattern.split(',').map((d: string) => d.trim()).filter(Boolean);
+          }
+        }
+        let startDate = '';
+        if (customer.subscriptionEnd) {
+          const [y, m, d] = customer.subscriptionEnd.split('-').map(Number);
+          const next = new Date(y, m - 1, d + 1);
+          const pad = (n: number) => String(n).padStart(2, '0');
+          startDate = `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}`;
+        }
+        return (
+          <CustomerForm
+            session={session}
+            mode="renew"
+            renewalCustomerId={customer.id}
+            renewalPrefill={{
+              customerName: customer.customerName,
+              contact: customer.contact || '',
+              address: customer.address || '',
+              city: customer.city || '',
+              district: customer.district || '',
+              village: customer.village || '',
+              postalCode: customer.postalCode || '',
+              subscriptionPackageId: customer.subscriptionPackageId || '',
+              selectedDays,
+              visitsPerWeek: selectedDays.length,
+              startDate,
+              mitraId: customer.assignedMitraId || '',
+              mitraName: customer.assignedMitraName || '',
+              ltv: customer.ltv || 0,
+            }}
+            onClose={() => setRenewalModal({ open: false, customer: null })}
+            onSuccess={() => {
+              setRenewalModal({ open: false, customer: null });
+              fetchExpiringCustomers();
+              fetchCustomers();
+            }}
+          />
+        );
+      })()}
+
+      {/* Stop Subscription Modal */}
+      {stopModal.open && stopModal.customer && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setStopModal({ open: false, customer: null })}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Stop Subscription: {stopModal.customer.customerName}
+              </h2>
+              <button
+                onClick={() => setStopModal({ open: false, customer: null })}
+                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                <Icons.x className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="p-3 bg-red-50 rounded-lg text-sm text-red-700 flex items-center gap-2">
+                <Icons.alertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span>This will mark the customer as Churn. This action cannot be undone easily.</span>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Churn Tag <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={stopForm.churnTag}
+                  onChange={(e) => setStopForm(prev => ({ ...prev, churnTag: e.target.value }))}
+                  placeholder="e.g. Price, Relocation, Dissatisfied"
+                  className="input-field w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Churn Reason (optional)</label>
+                <textarea
+                  value={stopForm.churnReason}
+                  onChange={(e) => setStopForm(prev => ({ ...prev, churnReason: e.target.value }))}
+                  placeholder="Additional notes about why the customer stopped..."
+                  rows={3}
+                  className="input-field w-full resize-none"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  onClick={() => setStopModal({ open: false, customer: null })}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleStopSubmit}
+                  disabled={stopSubmitting}
+                  className="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  {stopSubmitting ? (
+                    <>
+                      <Icons.loader className="w-4 h-4 mr-2 animate-spin" />
+                      Stopping...
+                    </>
+                  ) : 'Stop Subscription'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Invoice PDF Preview Modal */}
       {previewInvoice && (
