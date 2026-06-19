@@ -91,7 +91,7 @@ async function sendAdminNotification(text: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 // Cache whitelist user — refresh tiap 5 menit, hindari query DB tiap pesan
-const userCache = new Map<string, { user: Awaited<ReturnType<typeof db.select>>['0'] | null; expiry: number }>()
+const userCache = new Map<string, { user: Record<string, unknown> | null; expiry: number }>()
 const CACHE_TTL = 5 * 60 * 1000 // 5 menit
 
 async function findBotUser(chatId: string) {
