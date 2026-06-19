@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { customerDB, mitraDB, visitDB, invoiceDB } from '@/lib/schema';
 import { sql, and, or, ilike, eq, desc, count, isNull, max } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
-import { logAuditEvent } from '@/lib/logger';
+import { logAuditEvent, logApiError } from '@/lib/logger';
 import { sanitizeSQLLike, sanitizeText } from '@/lib/input-sanitizer';
 import { createInvoice } from '@/lib/utils/invoiceUtils';
 import type { CustomerListItem, CustomersResponse, CustomerApiError, CreateCustomerRequest } from '@/types/customer';
@@ -230,6 +230,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<CustomersR
 
   } catch (error) {
     console.error('Customers API error:', error);
+    await logApiError({ method: request.method, endpoint: '/api/customers', status: 500, error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
       {
         success: false,
