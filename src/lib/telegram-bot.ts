@@ -145,18 +145,19 @@ async function handleStart(chatId: string, firstName: string): Promise<void> {
     return
   }
 
-  // Register user baru
+  // Register user baru — admin kalau chat ID match env
+  const role = chatId === ADMIN_CHAT_ID ? 'admin' : 'reporter'
   await db.insert(botUserDB).values({
     chatId,
     name: firstName,
-    role: 'reporter',
+    role,
     isActive: true,
   })
 
-  await sendMessage(
-    chatId,
-    `Halo *${firstName}*! 👋 Selamat datang di HOMA Support Bot.\n\nKamu sudah terdaftar sebagai reporter.\n\n*Perintah yang tersedia:*\n• /report — Lapor bug atau masalah\n• /status — Cek status ticket kamu\n• /cancel — Batalkan laporan yang sedang dibuat`,
-  )
+  const welcomeMsg = role === 'admin'
+    ? `Halo *${firstName}*! 👋 Selamat datang di HOMA Support Bot.\n\nKamu terdaftar sebagai *admin*.\n\n*Perintah yang tersedia:*\n• /report — Lapor bug atau masalah\n• /status — Cek status ticket kamu\n• /broadcast <pesan> — Kirim pesan ke semua user\n• /cancel — Batalkan laporan yang sedang dibuat`
+    : `Halo *${firstName}*! 👋 Selamat datang di HOMA Support Bot.\n\nKamu sudah terdaftar sebagai reporter.\n\n*Perintah yang tersedia:*\n• /report — Lapor bug atau masalah\n• /status — Cek status ticket kamu\n• /cancel — Batalkan laporan yang sedang dibuat`
+  await sendMessage(chatId, welcomeMsg)
 }
 
 async function handleReport(chatId: string, user: NonNullable<Awaited<ReturnType<typeof findBotUser>>>): Promise<void> {
