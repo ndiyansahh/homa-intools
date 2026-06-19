@@ -640,6 +640,9 @@ export const ticketDB = pgTable('ticket_db', {
   mitraName: varchar('mitra_name', { length: 255 }),
   description: text('description').notNull(),
 
+  // Screenshot (Telegram file_id)
+  screenshotFileId: varchar('screenshot_file_id', { length: 255 }),
+
   // Resolution
   status: varchar('status', { length: 20 }).default('Open').notNull(), // Open, In Progress, Resolved
   estimatedDuration: varchar('estimated_duration', { length: 50 }), // e.g. "2 jam", "1 hari"

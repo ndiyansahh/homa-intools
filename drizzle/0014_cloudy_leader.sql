@@ -1,0 +1,1 @@
+ALTER TABLE "ticket_db" ADD COLUMN "screenshot_file_id" varchar(255);

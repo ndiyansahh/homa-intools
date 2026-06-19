@@ -18,6 +18,7 @@ type ConversationStep =
   | 'awaiting_customer'
   | 'awaiting_mitra'
   | 'awaiting_description'
+  | 'awaiting_screenshot'
 
 interface ConversationState {
   step: ConversationStep
@@ -27,6 +28,7 @@ interface ConversationState {
   invoiceId?: string
   customerName?: string
   mitraName?: string
+  description?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -266,7 +268,7 @@ async function handleConversationStep(
 
       await sendMessage(
         chatId,
-        `*Langkah 2 dari 7*\nPilih kategori masalahnya:\n\n1️⃣ Bug Feature\n2️⃣ Data Seed\n3️⃣ UI Issue\n4️⃣ Data Salah\n5️⃣ Pertanyaan\n6️⃣ Lainnya\n\nBalas dengan angka 1-6 ya.`,
+        `*Langkah 2 dari 8*\nPilih kategori masalahnya:\n\n1️⃣ Bug Feature\n2️⃣ Data Seed\n3️⃣ UI Issue\n4️⃣ Data Salah\n5️⃣ Pertanyaan\n6️⃣ Lainnya\n\nBalas dengan angka 1-6 ya.`,
       )
       break
     }
@@ -283,7 +285,7 @@ async function handleConversationStep(
 
       await sendMessage(
         chatId,
-        `*Langkah 3 dari 7*\nSeberapa parah masalahnya?\n\n1️⃣ Tidak bisa kerja sama sekali\n2️⃣ Bisa kerja tapi terganggu\n3️⃣ Minor, tidak urgent\n\nBalas dengan angka 1-3.`,
+        `*Langkah 3 dari 8*\nSeberapa parah masalahnya?\n\n1️⃣ Tidak bisa kerja sama sekali\n2️⃣ Bisa kerja tapi terganggu\n3️⃣ Minor, tidak urgent\n\nBalas dengan angka 1-3.`,
       )
       break
     }
@@ -300,7 +302,7 @@ async function handleConversationStep(
 
       await sendMessage(
         chatId,
-        `*Langkah 4 dari 7*\nAda Invoice ID yang berkaitan?\n\nContoh: \`INV/Cleaning/2026.6.10-02016\`\n\nKalau tidak ada, ketik *skip*.`,
+        `*Langkah 4 dari 8*\nAda Invoice ID yang berkaitan?\n\nContoh: \`INV/Cleaning/2026.6.10-02016\`\n\nKalau tidak ada, ketik *skip*.`,
       )
       break
     }
@@ -313,7 +315,7 @@ async function handleConversationStep(
 
       await sendMessage(
         chatId,
-        `*Langkah 5 dari 7*\nAda nama customer yang berkaitan?\n\nContoh: \`Budi Santoso\`\n\nKalau tidak ada, ketik *skip*.`,
+        `*Langkah 5 dari 8*\nAda nama customer yang berkaitan?\n\nContoh: \`Budi Santoso\`\n\nKalau tidak ada, ketik *skip*.`,
       )
       break
     }
@@ -326,7 +328,7 @@ async function handleConversationStep(
 
       await sendMessage(
         chatId,
-        `*Langkah 6 dari 7*\nAda nama mitra yang berkaitan?\n\nContoh: \`Sari\`\n\nKalau tidak ada, ketik *skip*.`,
+        `*Langkah 6 dari 8*\nAda nama mitra yang berkaitan?\n\nContoh: \`Sari\`\n\nKalau tidak ada, ketik *skip*.`,
       )
       break
     }
@@ -339,7 +341,7 @@ async function handleConversationStep(
 
       await sendMessage(
         chatId,
-        `*Langkah 7 dari 7 (terakhir!)*\nCeritain detail masalahnya ya. Semakin detail semakin cepat bisa di-fix.\n\nContoh: "Dropdown mitra tidak muncul saat buka halaman trial di browser Chrome. Sudah coba refresh tapi tetap kosong."`,
+        `*Langkah 7 dari 8*\nCeritain detail masalahnya ya. Semakin detail semakin cepat bisa di-fix.\n\nContoh: "Dropdown mitra tidak muncul saat buka halaman trial di browser Chrome. Sudah coba refresh tapi tetap kosong."`,
       )
       break
     }
@@ -349,64 +351,97 @@ async function handleConversationStep(
         await sendMessage(chatId, 'Deskripsinya kurang detail nih. Coba ceritain lebih lengkap ya (minimal 10 karakter).')
         return
       }
+      state.description = text.trim()
+      state.step = 'awaiting_screenshot'
+      conversationState.set(chatId, state)
 
-      const description = text.trim()
-
-      // Semua data sudah terkumpul, simpan ke DB
-      try {
-        const ticketNumber = await generateTicketNumber()
-
-        await db.insert(ticketDB).values({
-          ticketNumber,
-          reportedByChatId: chatId,
-          reportedByName: user.name,
-          title: state.title!,
-          category: state.category!,
-          priority: state.priority!,
-          invoiceId: state.invoiceId ?? null,
-          customerName: state.customerName ?? null,
-          mitraName: state.mitraName ?? null,
-          description,
-          status: 'Open',
-        })
-
-        conversationState.delete(chatId)
-
-        const priorityEntry = Object.values(PRIORITIES).find((p) => p.value === state.priority!)
-        const priorityDisplay = priorityEntry ? `${priorityEntry.emoji} ${priorityEntry.value}` : state.priority!
-
-        // Konfirmasi ke reporter
-        await sendMessage(
-          chatId,
-          `✅ *Ticket berhasil dibuat!*\n\n*Nomor Ticket:* \`${ticketNumber}\`\n*Judul:* ${state.title}\n*Kategori:* ${state.category}\n*Priority:* ${priorityDisplay}\n\nTim developer sudah dinotifikasi. Pantau statusnya dengan /status ya!`,
-        )
-
-        // Notifikasi ke admin
-        const adminMsg = [
-          `🎫 *Ticket Baru: ${ticketNumber}*`,
-          `*Dari:* ${user.name}`,
-          `*Judul:* ${state.title}`,
-          `*Kategori:* ${state.category}`,
-          `*Priority:* ${priorityDisplay}`,
-          state.invoiceId ? `*Invoice:* \`${state.invoiceId}\`` : null,
-          state.customerName ? `*Customer:* ${state.customerName}` : null,
-          state.mitraName ? `*Mitra:* ${state.mitraName}` : null,
-          `*Deskripsi:* ${description}`,
-        ]
-          .filter(Boolean)
-          .join('\n')
-
-        await sendAdminNotification(adminMsg)
-      } catch (err) {
-        console.error('[Telegram Bot] Failed to save ticket:', err)
-        conversationState.delete(chatId)
-        await sendMessage(
-          chatId,
-          '❌ Waduh, ada masalah saat menyimpan ticket. Coba lagi ya dengan /report.',
-        )
-      }
+      await sendMessage(
+        chatId,
+        `*Langkah 8 dari 8 (terakhir!)*\n📸 Kirim screenshot masalahnya ya.\n\nScreenshot wajib dikirim agar tim bisa langsung lihat masalahnya.`,
+      )
       break
     }
+
+    case 'awaiting_screenshot': {
+      // Step ini hanya bisa diselesaikan dengan foto, bukan teks
+      await sendMessage(chatId, '📸 Tolong kirim *screenshot*-nya ya, bukan teks. Foto langsung dari gallery atau tangkapan layar.')
+      break
+    }
+  }
+}
+
+async function handleScreenshot(
+  chatId: string,
+  fileId: string,
+  user: NonNullable<Awaited<ReturnType<typeof findBotUser>>>,
+): Promise<void> {
+  const state = conversationState.get(chatId)
+  if (!state || state.step !== 'awaiting_screenshot') {
+    await sendMessage(chatId, 'Tidak ada laporan aktif. Ketik /report untuk mulai laporan baru.')
+    return
+  }
+
+  try {
+    const ticketNumber = await generateTicketNumber()
+    const priorityEntry = Object.values(PRIORITIES).find((p) => p.value === state.priority!)
+    const priorityDisplay = priorityEntry ? `${priorityEntry.emoji} ${priorityEntry.value}` : state.priority!
+
+    await db.insert(ticketDB).values({
+      ticketNumber,
+      reportedByChatId: chatId,
+      reportedByName: user.name,
+      title: state.title!,
+      category: state.category!,
+      priority: state.priority!,
+      invoiceId: state.invoiceId ?? null,
+      customerName: state.customerName ?? null,
+      mitraName: state.mitraName ?? null,
+      description: state.description!,
+      screenshotFileId: fileId,
+      status: 'Open',
+    })
+
+    conversationState.delete(chatId)
+
+    // Konfirmasi ke reporter
+    await sendMessage(
+      chatId,
+      `✅ *Ticket berhasil dibuat!*\n\n*Nomor Ticket:* \`${ticketNumber}\`\n*Judul:* ${state.title}\n*Kategori:* ${state.category}\n*Priority:* ${priorityDisplay}\n\nTim developer sudah dinotifikasi. Pantau statusnya dengan /status ya!`,
+    )
+
+    // Notifikasi ke admin dengan forward screenshot
+    const adminMsg = [
+      `🎫 *Ticket Baru: ${ticketNumber}*`,
+      `*Dari:* ${user.name}`,
+      `*Judul:* ${state.title}`,
+      `*Kategori:* ${state.category}`,
+      `*Priority:* ${priorityDisplay}`,
+      state.invoiceId ? `*Invoice:* \`${state.invoiceId}\`` : null,
+      state.customerName ? `*Customer:* ${state.customerName}` : null,
+      state.mitraName ? `*Mitra:* ${state.mitraName}` : null,
+      `*Deskripsi:* ${state.description}`,
+    ]
+      .filter(Boolean)
+      .join('\n')
+
+    await sendAdminNotification(adminMsg)
+
+    // Forward screenshot ke admin
+    if (ADMIN_CHAT_ID && process.env.TELEGRAM_BOT_TOKEN) {
+      await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: ADMIN_CHAT_ID,
+          photo: fileId,
+          caption: `📸 Screenshot untuk ticket ${ticketNumber}`,
+        }),
+      })
+    }
+  } catch (err) {
+    console.error('[Telegram Bot] Failed to save ticket:', err)
+    conversationState.delete(chatId)
+    await sendMessage(chatId, '❌ Waduh, ada masalah saat menyimpan ticket. Coba lagi ya dengan /report.')
   }
 }
 
@@ -417,9 +452,23 @@ async function handleConversationStep(
 export async function handleTelegramUpdate(update: {
   chatId: string
   firstName: string
-  text: string
+  text?: string
+  photoFileId?: string
 }): Promise<void> {
-  const { chatId, firstName, text } = update
+  const { chatId, firstName, text, photoFileId } = update
+
+  // Handle foto — hanya valid saat awaiting_screenshot
+  if (photoFileId) {
+    const user = await findBotUser(chatId)
+    if (!user) {
+      await sendMessage(chatId, 'Halo! Kamu belum terdaftar nih. Ketik /start dulu ya untuk registrasi.')
+      return
+    }
+    await handleScreenshot(chatId, photoFileId, user)
+    return
+  }
+
+  if (!text) return
   const trimmed = text.trim()
 
   // Handle commands
