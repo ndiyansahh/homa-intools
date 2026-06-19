@@ -609,6 +609,49 @@ export const mitraRateConfigRelations = relations(mitraRateConfigDB, ({ one }) =
 // Note: Trial data is stored in customer_db with subscription_status = 'Trial'
 // No separate trial tables needed since trials are just customers with Trial status
 
+// Bot User Table - Registered Telegram users (Dara, Chriss, etc.)
+export const botUserDB = pgTable('bot_user_db', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  chatId: varchar('chat_id', { length: 50 }).unique().notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  role: varchar('role', { length: 20 }).default('reporter').notNull(), // 'admin' | 'reporter'
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+// Ticket Table - Bug & issue reports from Dara/Chriss via Telegram
+export const ticketDB = pgTable('ticket_db', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  ticketNumber: varchar('ticket_number', { length: 20 }).unique().notNull(), // HOMA-001
+
+  // Reporter info
+  reportedByChatId: varchar('reported_by_chat_id', { length: 50 }).notNull(),
+  reportedByName: varchar('reported_by_name', { length: 255 }).notNull(),
+
+  // Ticket details
+  title: varchar('title', { length: 255 }).notNull(),
+  category: varchar('category', { length: 50 }).notNull(), // Bug Feature, Data Seed, UI Issue, Data Salah, Pertanyaan, Lainnya
+  priority: varchar('priority', { length: 20 }).notNull(), // High, Medium, Low
+
+  // Optional references
+  invoiceId: varchar('invoice_id', { length: 100 }),
+  customerName: varchar('customer_name', { length: 255 }),
+  mitraName: varchar('mitra_name', { length: 255 }),
+  description: text('description').notNull(),
+
+  // Resolution
+  status: varchar('status', { length: 20 }).default('Open').notNull(), // Open, In Progress, Resolved
+  estimatedDuration: varchar('estimated_duration', { length: 50 }), // e.g. "2 jam", "1 hari"
+  fixNotes: text('fix_notes'),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  timeToFix: decimal('time_to_fix', { precision: 8, scale: 2 }), // hours
+
+  // Metadata
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
 // Export types for TypeScript
 export type Region = typeof regionDB.$inferSelect;
 export type NewRegion = typeof regionDB.$inferInsert;
@@ -654,5 +697,11 @@ export type NewSystemConfig = typeof systemConfigDB.$inferInsert;
 
 export type User = typeof userDB.$inferSelect;
 export type NewUser = typeof userDB.$inferInsert;
+
+export type BotUser = typeof botUserDB.$inferSelect;
+export type NewBotUser = typeof botUserDB.$inferInsert;
+
+export type Ticket = typeof ticketDB.$inferSelect;
+export type NewTicket = typeof ticketDB.$inferInsert;
 
 // Trial types removed - trials are now just customers with subscription_status = 'Trial'

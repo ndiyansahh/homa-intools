@@ -1,5 +1,9 @@
 // Simple logger utility for audit events (client-safe)
 
+import { db } from '@/lib/db'
+import { botUserDB } from '@/lib/schema'
+import { eq, and } from 'drizzle-orm'
+
 export interface AuditEvent {
   action: string;
   userId?: string;
@@ -25,6 +29,40 @@ async function sendTelegram(message: string): Promise<void> {
     });
   } catch {
     // Silently fail — don't crash the app if Telegram is unreachable
+  }
+}
+
+// Kirim pesan ke specific chat ID
+export async function sendTelegramToUser(chatId: string, message: string): Promise<void> {
+  if (!TELEGRAM_TOKEN) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: message,
+        parse_mode: 'Markdown',
+      }),
+    });
+  } catch {
+    // Silently fail — don't crash the app if Telegram is unreachable
+  }
+}
+
+// Broadcast ke semua active reporters di bot_user_db
+export async function broadcastToUsers(message: string): Promise<number> {
+  if (!TELEGRAM_TOKEN) return 0;
+  try {
+    const users = await db
+      .select({ chatId: botUserDB.chatId })
+      .from(botUserDB)
+      .where(and(eq(botUserDB.isActive, true), eq(botUserDB.role, 'reporter')));
+
+    await Promise.all(users.map((u) => sendTelegramToUser(u.chatId, message)));
+    return users.length;
+  } catch {
+    return 0;
   }
 }
 

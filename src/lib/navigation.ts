@@ -45,6 +45,13 @@ export const navigationItems: NavigationItem[] = [
     description: 'Subscription package management'
   },
   {
+    name: 'Tickets',
+    href: '/app/tickets',
+    icon: 'alert',
+    roles: ['ADMIN', 'OWNER'],
+    description: 'Bug & issue reports'
+  },
+  {
     name: 'Settings',
     href: '/app/settings',
     icon: 'cog',
