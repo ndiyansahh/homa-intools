@@ -88,13 +88,27 @@ async function sendAdminNotification(text: string): Promise<void> {
 // DB helpers
 // ---------------------------------------------------------------------------
 
+// Cache whitelist user — refresh tiap 5 menit, hindari query DB tiap pesan
+const userCache = new Map<string, { user: Awaited<ReturnType<typeof db.select>>['0'] | null; expiry: number }>()
+const CACHE_TTL = 5 * 60 * 1000 // 5 menit
+
 async function findBotUser(chatId: string) {
+  const now = Date.now()
+  const cached = userCache.get(chatId)
+  if (cached && now < cached.expiry) return cached.user ?? null
+
   const users = await db
     .select()
     .from(botUserDB)
     .where(eq(botUserDB.chatId, chatId))
     .limit(1)
-  return users[0] ?? null
+  const user = users[0] ?? null
+  userCache.set(chatId, { user, expiry: now + CACHE_TTL })
+  return user
+}
+
+function invalidateUserCache(chatId: string) {
+  userCache.delete(chatId)
 }
 
 async function generateTicketNumber(): Promise<string> {
@@ -153,6 +167,7 @@ async function handleStart(chatId: string, firstName: string): Promise<void> {
     role,
     isActive: true,
   })
+  invalidateUserCache(chatId)
 
   const welcomeMsg = role === 'admin'
     ? `Halo *${firstName}*! 👋 Selamat datang di HOMA Support Bot.\n\nKamu terdaftar sebagai *admin*.\n\n*Perintah yang tersedia:*\n• /report — Lapor bug atau masalah\n• /status — Cek status ticket kamu\n• /broadcast <pesan> — Kirim pesan ke semua user\n• /cancel — Batalkan laporan yang sedang dibuat`
