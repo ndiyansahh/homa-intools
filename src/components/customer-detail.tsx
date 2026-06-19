@@ -1006,7 +1006,7 @@ export default function CustomerDetail({ customerId, session }: CustomerDetailPr
   // Fetch all mitras for schedule generation
   const fetchAllMitras = async () => {
     try {
-      const response = await fetch('/api/mitra?status=Active&limit=100');
+      const response = await fetch('/api/mitra?status=Active&limit=200');
       if (response.ok) {
         const result = await response.json();
         console.log('Mitra API response:', result);
