@@ -44,10 +44,10 @@ export async function POST(
       )
     }
 
-    // RBAC: only ADMIN and OWNER
-    if (!['ADMIN', 'OWNER'].includes(session.role)) {
+    // RBAC: ADMIN, OWNER, and STAFF can renew subscriptions
+    if (!['ADMIN', 'OWNER', 'STAFF'].includes(session.role)) {
       return NextResponse.json(
-        { success: false, message: 'Forbidden: only ADMIN or OWNER can renew subscriptions' },
+        { success: false, message: 'Forbidden: insufficient permissions' },
         { status: 403 }
       )
     }

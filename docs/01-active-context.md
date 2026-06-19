@@ -1,9 +1,36 @@
 # 01 - Active Context (Master File)
 
-**Last Updated:** 2026-05-21
-**Current Sprint:** Production Seed Data (May 21, 2026)
-**Status:** ✅ 4 Critical Bugs Fixed, ✅ Payout Logic Verified, ✅ ETL Updated, ⏳ VPS Deployment Pending
-**Progress:** 100% (Code + Docs), 0% (Deployment)
+**Last Updated:** 2026-06-20
+**Current Sprint:** Monitoring & Ops (Jun 20, 2026)
+**Status:** ✅ Telegram monitoring aktif, ⏳ User info di error log pending
+**Progress:** Monitoring setup 100%, User tracking 0%
+
+---
+
+## 🎯 CURRENT STATUS (Jun 20, 2026)
+
+### Monitoring Setup - ✅ COMPLETE
+
+| Feature | Status | Detail |
+|---------|--------|--------|
+| Server health check | ✅ Aktif | Cron tiap 5 menit, alert kalau production/staging down |
+| Nginx non-200 monitor | ✅ Aktif | Cron tiap 1 menit, alert semua request 400+ ke Telegram |
+| App error (unhandled) | ✅ Aktif | `instrumentation.ts` catch unhandled 500 dari Next.js |
+| User info di error log | ⏳ Pending | Lihat task di bawah |
+
+### 📋 PENDING TASK: User Info di Error Alert
+
+**Problem:** Alert Telegram saat ini hanya show status code + endpoint + IP. Tidak ada info user mana yang trigger error.
+
+**Goal:** Alert menampilkan email user yang login saat terjadi error 400+.
+
+**Approach:** Tambah `logApiError` dengan `email` parameter di catch block semua major API routes (~20 routes paling penting dulu).
+
+**Files:** `src/lib/logger.ts` sudah siap terima `email` param. Tinggal update route files.
+
+**Estimasi:** 30-45 menit untuk 20 routes utama, ~2 jam untuk semua 65 routes.
+
+**Priority:** Medium — nice to have untuk debug production issues.
 
 ---
 

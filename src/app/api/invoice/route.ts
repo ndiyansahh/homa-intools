@@ -176,8 +176,8 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check RBAC - ADMIN/OWNER can update
-    if (session && !['ADMIN', 'OWNER'].includes(session.role)) {
+    // Check RBAC - ADMIN/OWNER/STAFF can update
+    if (session && !['ADMIN', 'OWNER', 'STAFF'].includes(session.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
