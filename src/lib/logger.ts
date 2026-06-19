@@ -1,9 +1,5 @@
 // Simple logger utility for audit events (client-safe)
 
-import { db } from '@/lib/db'
-import { botUserDB } from '@/lib/schema'
-import { eq, and } from 'drizzle-orm'
-
 export interface AuditEvent {
   action: string;
   userId?: string;
@@ -50,21 +46,6 @@ export async function sendTelegramToUser(chatId: string, message: string): Promi
   }
 }
 
-// Broadcast ke semua active reporters di bot_user_db
-export async function broadcastToUsers(message: string): Promise<number> {
-  if (!TELEGRAM_TOKEN) return 0;
-  try {
-    const users = await db
-      .select({ chatId: botUserDB.chatId })
-      .from(botUserDB)
-      .where(and(eq(botUserDB.isActive, true), eq(botUserDB.role, 'reporter')));
-
-    await Promise.all(users.map((u) => sendTelegramToUser(u.chatId, message)));
-    return users.length;
-  } catch {
-    return 0;
-  }
-}
 
 export async function logApiError(params: {
   method: string;

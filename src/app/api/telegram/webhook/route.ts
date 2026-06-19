@@ -3,7 +3,8 @@
 // Harus reply 200 OK secepat mungkin — Telegram retry kalau timeout.
 
 import { handleTelegramUpdate } from '@/lib/telegram-bot'
-import { broadcastToUsers, sendTelegramToUser } from '@/lib/logger'
+import { sendTelegramToUser } from '@/lib/logger'
+import { broadcastToUsers } from '@/lib/telegram-server'
 
 const ADMIN_CHAT_ID = process.env.TELEGRAM_CHAT_ID
 
