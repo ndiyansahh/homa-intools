@@ -2,10 +2,6 @@
 const nextConfig = {
   typedRoutes: true,
   outputFileTracingRoot: __dirname,
-  // Enable instrumentation for environment validation at startup
-  experimental: {
-    instrumentationHook: true,
-  },
   // SECURITY: Content Security Policy headers to prevent XSS attacks
   async headers() {
     return [
