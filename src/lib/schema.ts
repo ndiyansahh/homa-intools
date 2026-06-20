@@ -519,6 +519,40 @@ export const systemConfigDB = pgTable('system_config_db', {
   updatedBy: varchar('updated_by', { length: 255 }), // User email who last updated
 });
 
+// Telegram Bot User Whitelist
+export const botUserDB = pgTable('bot_user_db', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  chatId: varchar('chat_id', { length: 50 }).unique().notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }),
+  role: varchar('role', { length: 50 }).default('STAFF'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+// Ticket / Bug Report Table - From Telegram Bot
+export const ticketDB = pgTable('ticket_db', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  ticketNumber: varchar('ticket_number', { length: 20 }).unique().notNull(),
+  reportedByChatId: varchar('reported_by_chat_id', { length: 50 }).notNull(),
+  reportedByName: varchar('reported_by_name', { length: 255 }).notNull(),
+  title: varchar('title', { length: 255 }).notNull(),
+  category: varchar('category', { length: 100 }).notNull(),
+  priority: varchar('priority', { length: 50 }).notNull(),
+  invoiceId: varchar('invoice_id', { length: 100 }),
+  customerName: varchar('customer_name', { length: 255 }),
+  mitraName: varchar('mitra_name', { length: 255 }),
+  description: text('description').notNull(),
+  screenshotFileId: varchar('screenshot_file_id', { length: 255 }),
+  status: varchar('status', { length: 50 }).default('Open').notNull(),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  resolvedBy: varchar('resolved_by', { length: 255 }),
+  resolutionNotes: text('resolution_notes'),
+  timeToFix: varchar('time_to_fix', { length: 100 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
 // Simple Relations without problematic references
 export const customerRelations = relations(customerDB, ({ one, many }) => ({
   subscriptionPackage: one(subscriptionPackageDB, {
