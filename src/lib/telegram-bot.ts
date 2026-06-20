@@ -3,7 +3,7 @@
 // Conversation state disimpan in-memory (Map) - cukup untuk use case ini
 
 import { db } from '@/lib/db'
-import { ticketDB, botUserDB } from '@/lib/schema'
+import { ticketDB, botUserDB, type BotUser } from '@/lib/schema'
 import { eq, desc, sql } from 'drizzle-orm'
 
 // ---------------------------------------------------------------------------
@@ -91,7 +91,7 @@ async function sendAdminNotification(text: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 // Cache whitelist user — refresh tiap 5 menit, hindari query DB tiap pesan
-const userCache = new Map<string, { user: Record<string, unknown> | null; expiry: number }>()
+const userCache = new Map<string, { user: BotUser | null; expiry: number }>()
 const CACHE_TTL = 5 * 60 * 1000 // 5 menit
 
 async function findBotUser(chatId: string) {
